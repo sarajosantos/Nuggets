@@ -29,6 +29,34 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const client = DEMO_MODE ? null : new Anthropic();
 
+// Supabase (optional): accounts + cloud library + share storage.
+// SUPABASE_URL + SUPABASE_ANON_KEY enable auth (browser signs in directly;
+// this server only verifies tokens). SUPABASE_SERVICE_ROLE_KEY additionally
+// moves share storage into Postgres.
+let supabaseAuth = null;
+let supabaseAdmin = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+  const { createClient } = require("@supabase/supabase-js");
+  const noSession = { auth: { persistSession: false, autoRefreshToken: false } };
+  supabaseAuth = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, noSession);
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, noSession);
+  }
+}
+
+// Resolve the signed-in user from a Bearer token, if any.
+async function userFromReq(req) {
+  if (!supabaseAuth) return null;
+  const header = req.headers.authorization || "";
+  if (!header.startsWith("Bearer ")) return null;
+  try {
+    const { data, error } = await supabaseAuth.auth.getUser(header.slice(7));
+    return error ? null : data.user;
+  } catch {
+    return null;
+  }
+}
+
 const MAX_CHAPTER_TOKENS = 8000;
 
 // ----------------------------------------------------------------------
@@ -157,7 +185,14 @@ function rateLimited(ip) {
 // ----------------------------------------------------------------------
 
 app.get("/api/config", (_req, res) => {
-  res.json({ demo: DEMO_MODE, model: MODEL, targetChapters: TARGET_CHAPTERS });
+  res.json({
+    demo: DEMO_MODE,
+    model: MODEL,
+    targetChapters: TARGET_CHAPTERS,
+    supabase: supabaseAuth
+      ? { url: process.env.SUPABASE_URL, anonKey: process.env.SUPABASE_ANON_KEY }
+      : null,
+  });
 });
 
 // Body: { scenario, character, history: [{role, content}, ...] }
@@ -168,7 +203,9 @@ app.post("/api/story", async (req, res) => {
   if (!scenario || !character || !Array.isArray(history) || history.length === 0) {
     return res.status(400).json({ error: "scenario, character and non-empty history are required" });
   }
-  if (!DEMO_MODE && rateLimited(req.ip)) {
+  // Rate limit per account when signed in, per IP otherwise.
+  const user = await userFromReq(req);
+  if (!DEMO_MODE && rateLimited(user ? `user:${user.id}` : `ip:${req.ip}`)) {
     return res.status(429).json({
       error: "You've reached the hourly story limit. Take a breath — the tale will wait.",
     });
@@ -299,7 +336,8 @@ function fallbackCover(title, subtitle) {
 
 // ----------------------------------------------------------------------
 // Shared stories: finished stories can be published to a read-only link.
-// Stored in a simple JSON file — swap for a real database when accounts land.
+// Stored in Supabase (shared_stories) when a service-role key is configured;
+// otherwise falls back to a simple JSON file.
 // ----------------------------------------------------------------------
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -314,7 +352,7 @@ function persistShares() {
   fs.writeFileSync(SHARE_FILE, JSON.stringify(sharedStories));
 }
 
-app.post("/api/share", (req, res) => {
+app.post("/api/share", async (req, res) => {
   const { title, scenario, character, chapters, cover } = req.body || {};
   if (
     typeof title !== "string" || title.length > 200 ||
@@ -324,11 +362,8 @@ app.post("/api/share", (req, res) => {
   ) {
     return res.status(400).json({ error: "invalid story payload" });
   }
-  if (Object.keys(sharedStories).length >= 5000) {
-    return res.status(507).json({ error: "share storage is full" });
-  }
   const id = crypto.randomBytes(5).toString("hex");
-  sharedStories[id] = {
+  const record = {
     title,
     scenario: { title: String(scenario.title || "").slice(0, 120) },
     character: {
@@ -343,11 +378,38 @@ app.post("/api/share", (req, res) => {
     cover: typeof cover === "string" && cover.length < 200000 ? sanitizeSvg(cover) : null,
     createdAt: new Date().toISOString(),
   };
+
+  if (supabaseAdmin) {
+    const user = await userFromReq(req);
+    const { error } = await supabaseAdmin
+      .from("shared_stories")
+      .insert({ id, user_id: user ? user.id : null, data: record });
+    if (error) {
+      console.error("share insert failed:", error.message);
+      return res.status(500).json({ error: "couldn't publish the story" });
+    }
+    return res.json({ id });
+  }
+
+  if (Object.keys(sharedStories).length >= 5000) {
+    return res.status(507).json({ error: "share storage is full" });
+  }
+  sharedStories[id] = record;
   persistShares();
   res.json({ id });
 });
 
-app.get("/api/share/:id", (req, res) => {
+app.get("/api/share/:id", async (req, res) => {
+  if (supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from("shared_stories")
+      .select("data")
+      .eq("id", req.params.id)
+      .maybeSingle();
+    if (error) return res.status(500).json({ error: "couldn't load the story" });
+    if (!data) return res.status(404).json({ error: "story not found" });
+    return res.json(data.data);
+  }
   const story = sharedStories[req.params.id];
   if (!story) return res.status(404).json({ error: "story not found" });
   res.json(story);

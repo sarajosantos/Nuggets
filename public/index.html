@@ -16,6 +16,10 @@
   </div>
 
   <header class="site-header">
+    <div id="account-bar" class="account-bar hidden">
+      <span id="account-email" class="account-email hidden"></span>
+      <button id="account-btn" class="tool-btn">Sign in</button>
+    </div>
     <p class="header-rule" aria-hidden="true">❦</p>
     <h1 class="logo" id="logo">Nuggets</h1>
     <p class="tagline">interactive novellas · every story is yours alone</p>
@@ -127,6 +131,28 @@
   </main>
 
   <footer class="site-footer">❦</footer>
+
+  <!-- Sign-in / sign-up -->
+  <div id="auth-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="modal-card">
+      <button id="auth-close" class="modal-close" aria-label="Close">×</button>
+      <h3 id="auth-title" class="modal-title">Your library, anywhere</h3>
+      <p class="modal-sub">Sign in and your stories follow you across devices.</p>
+
+      <label class="field-label" for="auth-email">Email</label>
+      <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com">
+
+      <label class="field-label" for="auth-password">Password</label>
+      <input type="password" id="auth-password" autocomplete="current-password" placeholder="••••••••">
+
+      <p id="auth-message" class="auth-message hidden"></p>
+
+      <div class="modal-actions">
+        <button id="signup-btn" class="btn btn-ghost">Create account</button>
+        <button id="signin-btn" class="btn btn-primary">Sign in</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

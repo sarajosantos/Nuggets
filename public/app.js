@@ -78,6 +78,8 @@ let draft = { scenario: null, character: { name: "", archetype: null, trait: nul
 let pendingAction = null; // player action that led to the chapter now streaming
 let generating = false;
 let ttsOn = false;
+let sb = null; // Supabase client (null when accounts aren't configured)
+let user = null; // signed-in Supabase user
 
 // ----- helpers -----
 const $ = (id) => document.getElementById(id);
@@ -118,8 +120,9 @@ function escapeHtml(s) {
 init();
 
 async function init() {
+  let cfg = {};
   try {
-    const cfg = await fetch("/api/config").then((r) => r.json());
+    cfg = await fetch("/api/config").then((r) => r.json());
     if (cfg.demo) $("demo-banner").classList.remove("hidden");
   } catch { /* cosmetic */ }
 
@@ -128,6 +131,7 @@ async function init() {
   renderTraits();
   renderLibrary();
   wireEvents();
+  initSupabase(cfg); // async; UI works without it
 }
 
 // ----- screen 1: home -----
@@ -185,6 +189,7 @@ function renderLibrary() {
       if (confirm(`Delete "${st.title || st.scenario.title}" from your library?`)) {
         delete library.stories[st.id];
         saveLibrary();
+        cloudDeleteStory(st.id);
         renderLibrary();
       }
     });
@@ -402,7 +407,7 @@ async function requestChapter() {
   try {
     const res = await fetch("/api/story", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         scenario: {
           title: story.scenario.title,
@@ -475,7 +480,7 @@ async function requestChapter() {
   }
 
   story.updatedAt = Date.now();
-  saveLibrary();
+  persistStory(story);
   updateChapterCount();
   speak(prose);
 
@@ -536,7 +541,7 @@ function hideChoices() {
 function finishStory() {
   story.done = true;
   story.updatedAt = Date.now();
-  saveLibrary();
+  persistStory(story);
   $("ending-area").classList.remove("hidden");
   keepInView();
 }
@@ -553,7 +558,7 @@ async function shareStory() {
   try {
     const res = await fetch("/api/share", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         title: story.title || story.scenario.title,
         scenario: { title: story.scenario.title },
@@ -591,7 +596,7 @@ async function fetchCover() {
     if (svg) {
       forStory.cover = svg;
       forStory.updatedAt = Date.now();
-      saveLibrary();
+      persistStory(forStory);
       if (story === forStory) renderFrontispiece();
     }
   } catch (err) {
@@ -676,4 +681,178 @@ function updateChapterCount() {
 function keepInView() {
   const nearBottom = window.innerHeight + window.scrollY > document.body.scrollHeight - 320;
   if (nearBottom) window.scrollTo({ top: document.body.scrollHeight });
+}
+
+// ----- accounts & cloud library (Supabase) -----
+// Loaded only when the server reports Supabase config; without it the app
+// runs exactly as before, with the library in localStorage alone.
+
+async function initSupabase(cfg) {
+  if (!cfg.supabase) return;
+  try {
+    await loadScript("/vendor/supabase.js"); // vendored @supabase/supabase-js UMD build
+    sb = window.supabase.createClient(cfg.supabase.url, cfg.supabase.anonKey);
+  } catch (err) {
+    console.warn("Supabase unavailable:", err);
+    return;
+  }
+
+  $("account-bar").classList.remove("hidden");
+  wireAuthEvents();
+
+  sb.auth.onAuthStateChange((_event, session) => setUser(session ? session.user : null));
+  const { data } = await sb.auth.getSession();
+  setUser(data.session ? data.session.user : null);
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error(`failed to load ${src}`));
+    document.head.appendChild(s);
+  });
+}
+
+function wireAuthEvents() {
+  $("account-btn").addEventListener("click", () => {
+    if (user) {
+      sb.auth.signOut(); // library stays local; onAuthStateChange updates UI
+    } else {
+      openAuthModal();
+    }
+  });
+  $("auth-close").addEventListener("click", closeAuthModal);
+  $("auth-modal").addEventListener("click", (e) => {
+    if (e.target === $("auth-modal")) closeAuthModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeAuthModal();
+  });
+  $("signin-btn").addEventListener("click", () => submitAuth("signin"));
+  $("signup-btn").addEventListener("click", () => submitAuth("signup"));
+  $("auth-password").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitAuth("signin");
+  });
+}
+
+function openAuthModal() {
+  $("auth-message").classList.add("hidden");
+  $("auth-modal").classList.remove("hidden");
+  $("auth-email").focus();
+}
+
+function closeAuthModal() {
+  $("auth-modal").classList.add("hidden");
+}
+
+async function submitAuth(mode) {
+  const email = $("auth-email").value.trim();
+  const password = $("auth-password").value;
+  if (!email || !password) {
+    return authMessage("Enter your email and a password.");
+  }
+  $("signin-btn").disabled = $("signup-btn").disabled = true;
+  try {
+    if (mode === "signup") {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) return authMessage(error.message);
+      if (!data.session) {
+        return authMessage("Almost there — check your email to confirm your account, then sign in.", true);
+      }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return authMessage(error.message);
+    }
+    closeAuthModal();
+  } finally {
+    $("signin-btn").disabled = $("signup-btn").disabled = false;
+  }
+}
+
+function authMessage(text, gentle) {
+  const el = $("auth-message");
+  el.textContent = text;
+  el.classList.toggle("gentle", !!gentle);
+  el.classList.remove("hidden");
+}
+
+function setUser(u) {
+  const changed = (u && u.id) !== (user && user.id);
+  user = u;
+  $("account-email").textContent = u ? u.email : "";
+  $("account-email").classList.toggle("hidden", !u);
+  $("account-btn").textContent = u ? "Sign out" : "Sign in";
+  if (u && changed) syncWithCloud();
+  if (!u) renderLibrary();
+}
+
+async function authHeader() {
+  if (!sb) return {};
+  try {
+    const { data } = await sb.auth.getSession();
+    return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
+// Two-way merge: newest updatedAt wins; local stories missing from the cloud
+// are pushed up, cloud stories missing locally are pulled down.
+async function syncWithCloud() {
+  if (!sb || !user) return;
+  try {
+    const { data: rows, error } = await sb.from("stories").select("id, data");
+    if (error) throw error;
+    const cloud = new Map(rows.map((r) => [r.id, r.data]));
+
+    for (const [id, cloudStory] of cloud) {
+      const local = library.stories[id];
+      if (!local || (cloudStory.updatedAt || 0) > (local.updatedAt || 0)) {
+        library.stories[id] = cloudStory;
+      }
+    }
+    for (const st of Object.values(library.stories)) {
+      const c = cloud.get(st.id);
+      if (!c || (st.updatedAt || 0) > (c.updatedAt || 0)) {
+        await cloudSaveStory(st);
+      }
+    }
+    saveLibrary();
+    renderLibrary();
+  } catch (err) {
+    console.warn("cloud sync failed:", err);
+  }
+}
+
+function persistStory(st) {
+  saveLibrary();
+  cloudSaveStory(st);
+}
+
+async function cloudSaveStory(st) {
+  if (!sb || !user || !st) return;
+  try {
+    const { error } = await sb.from("stories").upsert({
+      id: st.id,
+      user_id: user.id,
+      data: st,
+      title: st.title || st.scenario.title,
+      done: !!st.done,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) console.warn("cloud save failed:", error.message);
+  } catch (err) {
+    console.warn("cloud save failed:", err);
+  }
+}
+
+async function cloudDeleteStory(id) {
+  if (!sb || !user) return;
+  try {
+    await sb.from("stories").delete().eq("id", id);
+  } catch (err) {
+    console.warn("cloud delete failed:", err);
+  }
 }

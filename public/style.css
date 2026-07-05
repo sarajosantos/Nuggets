@@ -117,7 +117,7 @@ main { width: 100%; max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4r
   margin: 1.6rem 0 0.55rem;
 }
 
-input[type="text"], textarea {
+input[type="text"], input[type="email"], input[type="password"], textarea {
   width: 100%;
   background: var(--page);
   border: 1px solid var(--hairline);
@@ -128,7 +128,7 @@ input[type="text"], textarea {
   padding: 0.7rem 0.9rem;
   resize: vertical;
 }
-input[type="text"]:focus, textarea:focus, button:focus-visible {
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus, button:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
 }
@@ -448,6 +448,80 @@ input[type="text"]:focus, textarea:focus, button:focus-visible {
   border-top: 1px solid var(--hairline);
   text-align: right;
 }
+
+/* ---------- accounts ---------- */
+
+.account-bar {
+  position: absolute;
+  top: 0.9rem;
+  right: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.site-header { position: relative; }
+.account-email {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 13, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem;
+  z-index: 20;
+}
+.modal-card {
+  position: relative;
+  width: min(26rem, 100%);
+  background: var(--page);
+  border: 1px solid var(--gold-line);
+  border-radius: 4px;
+  padding: 2rem 1.8rem 1.7rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.modal-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+.modal-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  text-align: center;
+}
+.modal-sub {
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--prose);
+  font-style: italic;
+  font-size: 0.98rem;
+  margin-top: 0.3rem;
+}
+.modal-actions { display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 1.6rem; }
+.auth-message {
+  margin-top: 1rem;
+  font-size: 0.88rem;
+  color: #dfa79f;
+}
+.auth-message.gentle { color: var(--gold); }
 
 /* ---------- share page ---------- */
 
