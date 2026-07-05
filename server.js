@@ -1,18 +1,24 @@
 // Nuggets Adventure — AI choose-your-own-adventure server.
 // Holds the Anthropic API key server-side and streams story chapters to the
 // browser over Server-Sent Events. Story state lives on the client; every
-// request carries the full history, so this server is stateless.
+// request carries the full history, so chapter generation is stateless.
+// The server also acts as the hidden "story director": it computes a pacing
+// directive for each chapter so stories follow a real narrative arc instead
+// of meandering or ending abruptly.
 
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
 const Anthropic = require("@anthropic-ai/sdk");
 
 const PORT = process.env.PORT || 3000;
 const MODEL = process.env.STORY_MODEL || "claude-opus-4-8";
+const TARGET_CHAPTERS = Number(process.env.TARGET_CHAPTERS) || 10;
+const HARD_CAP_CHAPTERS = TARGET_CHAPTERS + 4;
+const RATE_LIMIT_PER_HOUR = Number(process.env.RATE_LIMIT_PER_HOUR) || 40;
 // Demo mode serves canned story content so the UI works with no API key.
-// Set DEMO_MODE=1 to force it; it also activates automatically when no
-// credentials are configured.
 const DEMO_MODE =
   process.env.DEMO_MODE === "1" ||
   (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN);
@@ -25,8 +31,12 @@ const client = DEMO_MODE ? null : new Anthropic();
 
 const MAX_CHAPTER_TOKENS = 8000;
 
+// ----------------------------------------------------------------------
+// Story engine: system prompt + pacing director
+// ----------------------------------------------------------------------
+
 function buildSystemPrompt(scenario, character) {
-  return `You are the narrator of an interactive novella — a "choose your own adventure" story told in rich, literary prose.
+  return `You are the narrator and story director of an interactive novella — a "choose your own adventure" story told in rich, literary prose.
 
 SCENARIO
 Title: ${scenario.title}
@@ -40,21 +50,82 @@ Defining trait: ${character.trait}
 
 HOW TO WRITE EACH CHAPTER
 - Write in second person ("you"), present tense, addressing the protagonist.
-- Each chapter should be 400–700 words of vivid, novella-quality prose: concrete sensory detail, real dialogue, momentum. No headers, no meta-commentary, no summarizing the rules.
+- Each chapter is 400–700 words of vivid, novella-quality prose (the finale may run to 900): concrete sensory detail, real dialogue, momentum. No headers, no meta-commentary, no recaps of previous chapters, no moralizing summaries.
 - Weave the protagonist's archetype and trait into how events unfold and how other characters react.
+- Every chapter must change the situation irreversibly — something is gained, lost, revealed, or broken. Never write a chapter where the status quo survives.
 - End every chapter at a genuine decision point where what happens next is truly uncertain.
-- Maintain strict continuity with everything that has happened before. Named characters, injuries, items gained or lost, promises made — all of it persists.
-- The player may also type a free-form action instead of picking a listed choice. Honor it faithfully if it is at all plausible in the fiction; if it is impossible, let the attempt fail interestingly rather than refusing it.
-- Shape the story as a complete arc: rising stakes, a turning point, and a climax. Aim to reach a satisfying ending after roughly 8–12 chapters. Endings may be triumphant, bittersweet, or tragic — whatever the player's choices have earned.
+- The player may type a free-form action instead of picking a listed choice. Honor it faithfully if it is at all plausible in the fiction; if it is impossible, let the attempt fail interestingly rather than refusing it. Player choices decide HOW events unfold — but you, the director, ensure the story always moves.
 
-OUTPUT FORMAT (follow exactly)
-After the chapter prose, output the available choices as a JSON array of exactly 3 strings inside <choices> tags, like this:
+STORY STRUCTURE — YOU ARE THE DIRECTOR
+The story follows a classical arc. A private pacing note accompanies each turn telling you where the story should be — obey it. Broad shape:
+- Act I (setup): ground the protagonist in motion, land the inciting incident, first complication.
+- Act II (rising action): escalating obstacles, allies and adversaries with their own agendas, and a midpoint revelation that reframes what the story is really about.
+- Act III (convergence): threads converge, the cost of every earlier choice comes due, climax, resolution.
+Endings may be triumphant, bittersweet, or tragic — whatever the player's accumulated choices have earned. The finale must visibly pay off specific choices the player made.
+
+STATE LEDGER (continuity)
+After the prose, output a state ledger inside <state> tags as a single JSON object:
+<state>{"title": "...", "act": 1, "condition": "...", "inventory": ["..."], "companions": [{"name": "...", "standing": "..."}], "threads": ["..."]}</state>
+- title: an evocative, unique novella title you invent in chapter 1 and keep IDENTICAL in every later chapter.
+- act: 1, 2, or 3.
+- condition: the protagonist's physical/emotional state in a short phrase.
+- inventory: significant items currently carried (not clutter).
+- companions: named characters currently travelling with or bound to the protagonist, with a one-word standing (loyal, wary, hostile, smitten...).
+- threads: open plot questions. Keep at most 5 open; you must close every thread before or during the finale.
+Before writing each chapter, re-read the most recent state ledger and the full history, and honor both exactly. Named characters, injuries, items, promises — all of it persists.
+
+CHOICES (output format — follow exactly)
+After the state ledger, output the available choices as a JSON array of exactly 3 strings inside <choices> tags:
 <choices>["First option", "Second option", "Third option"]</choices>
-Each choice should be a concrete action phrased in first person or imperative, under 15 words, and the three should be meaningfully different (not variations of the same move).
-When — and only when — the story reaches its true ending, write the final scene, then output an empty array: <choices>[]</choices>`;
+- Each choice is a concrete action, under 15 words.
+- The three must pull in meaningfully different directions — e.g. one bold/direct, one cautious/clever, one lateral/unexpected. Never three flavors of the same move.
+- When — and only when — the story reaches its true ending, write the final scene, then output the ledger followed by an empty array: <choices>[]</choices>`;
 }
 
-// SSE helpers -----------------------------------------------------------
+// The hidden director: computes a private pacing note from the chapter
+// number. The player never sees these; they keep the arc on track.
+function pacingNote(chapterNum) {
+  const t = TARGET_CHAPTERS;
+  const finaleBy = HARD_CAP_CHAPTERS;
+  if (chapterNum >= finaleBy) {
+    return `Pacing note (private): This is chapter ${chapterNum}. The story has run long — this chapter IS the finale. Bring events to their climax and full resolution now, close every open thread, and end with <choices>[]</choices>.`;
+  }
+  if (chapterNum >= t) {
+    return `Pacing note (private): Chapter ${chapterNum} of a story targeted at ~${t} chapters. Act III. The climax should happen now or in the next chapter at the latest. Close remaining threads; steer all three choices toward the final confrontation. If this chapter completes the climax, write the resolution and end with <choices>[]</choices>.`;
+  }
+  if (chapterNum >= t - 2) {
+    return `Pacing note (private): Chapter ${chapterNum} of ~${t}. Late Act II / entering Act III. Converge the threads: bring the antagonist or central force into direct contact, make earlier choices come due, and close at least one open thread. Raise the cost of failure to its maximum. No new subplots.`;
+  }
+  if (chapterNum === Math.ceil(t / 2)) {
+    return `Pacing note (private): Chapter ${chapterNum} of ~${t} — the MIDPOINT. Deliver a revelation or reversal that reframes what the story is really about. Something the player believed should turn out to be importantly wrong or incomplete.`;
+  }
+  if (chapterNum >= 3) {
+    return `Pacing note (private): Chapter ${chapterNum} of ~${t}. Act II. Escalate: obstacles harder than the last, stakes more personal. Develop allies/adversaries with their own agendas. You may open at most one new thread, and only if you also advance an existing one.`;
+  }
+  if (chapterNum === 2) {
+    return `Pacing note (private): Chapter 2 of ~${t}. Complete the setup: the consequences of the first choice land, the central problem sharpens, and the protagonist is committed — no easy way back.`;
+  }
+  return `Pacing note (private): Chapter 1 of ~${t}. Open in motion — no throat-clearing. Ground the protagonist in their world with concrete detail, land the inciting incident, and end on the first meaningful decision. Invent the novella's title for the state ledger.`;
+}
+
+// Build the message list for a turn: client history + private pacing note.
+// On claude-opus-4-8 the note rides as a mid-conversation system message
+// (operator channel, cache-friendly); on other models it's merged into the
+// final user turn.
+function buildMessages(history, chapterNum) {
+  const note = pacingNote(chapterNum);
+  if (MODEL.startsWith("claude-opus-4-8")) {
+    return [...history, { role: "system", content: note }];
+  }
+  const msgs = history.map((m) => ({ ...m }));
+  const last = msgs[msgs.length - 1];
+  last.content = `${last.content}\n\n[${note}]`;
+  return msgs;
+}
+
+// ----------------------------------------------------------------------
+// SSE + rate limiting helpers
+// ----------------------------------------------------------------------
 
 function sseStart(res) {
   res.setHeader("Content-Type", "text/event-stream");
@@ -67,33 +138,55 @@ function sseSend(res, payload) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-// Routes ----------------------------------------------------------------
+const rateBuckets = new Map(); // ip -> [timestamps]
+function rateLimited(ip) {
+  const now = Date.now();
+  const windowStart = now - 3600_000;
+  const hits = (rateBuckets.get(ip) || []).filter((t) => t > windowStart);
+  if (hits.length >= RATE_LIMIT_PER_HOUR) {
+    rateBuckets.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  rateBuckets.set(ip, hits);
+  return false;
+}
+
+// ----------------------------------------------------------------------
+// Routes
+// ----------------------------------------------------------------------
 
 app.get("/api/config", (_req, res) => {
-  res.json({ demo: DEMO_MODE, model: MODEL });
+  res.json({ demo: DEMO_MODE, model: MODEL, targetChapters: TARGET_CHAPTERS });
 });
 
 // Body: { scenario, character, history: [{role, content}, ...] }
 // history is the raw message list: assistant turns are full chapter text
-// (including the <choices> tag), user turns are the player's action.
+// (including <state> and <choices> tags), user turns are player actions.
 app.post("/api/story", async (req, res) => {
   const { scenario, character, history } = req.body || {};
   if (!scenario || !character || !Array.isArray(history) || history.length === 0) {
     return res.status(400).json({ error: "scenario, character and non-empty history are required" });
   }
+  if (!DEMO_MODE && rateLimited(req.ip)) {
+    return res.status(429).json({
+      error: "You've reached the hourly story limit. Take a breath — the tale will wait.",
+    });
+  }
 
+  const chapterNum = history.filter((m) => m.role === "assistant").length + 1;
   sseStart(res);
 
   try {
     if (DEMO_MODE) {
-      await streamDemoChapter(res, history);
+      await streamDemoChapter(res, chapterNum);
     } else {
       const stream = client.messages.stream({
         model: MODEL,
         max_tokens: MAX_CHAPTER_TOKENS,
         thinking: { type: "adaptive" },
         system: buildSystemPrompt(scenario, character),
-        messages: history,
+        messages: buildMessages(history, chapterNum),
       });
 
       stream.on("text", (text) => sseSend(res, { type: "text", text }));
@@ -127,9 +220,147 @@ app.post("/api/story", async (req, res) => {
   res.end();
 });
 
-// Demo mode -------------------------------------------------------------
-// Streams canned chapters word-by-word so the whole UI can be exercised
-// without an API key.
+// Cover art: Claude designs a minimalist SVG book cover for the story.
+app.post("/api/cover", async (req, res) => {
+  const { title, scenario, character } = req.body || {};
+  if (!title || !scenario) return res.status(400).json({ error: "title and scenario required" });
+
+  if (DEMO_MODE) {
+    return res.json({ svg: fallbackCover(title, scenario.title) });
+  }
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4000,
+      thinking: { type: "adaptive" },
+      messages: [
+        {
+          role: "user",
+          content: `Design a book cover as a single self-contained SVG, exactly 300 wide by 450 tall (viewBox="0 0 300 450").
+
+The book: "${title}" — an interactive novella. Setting: ${scenario.title}. ${scenario.premise} Protagonist: ${character?.name || "unknown"}, ${character?.archetype || ""}.
+
+Style: minimalist literary cover. Dark, atmospheric background; a restrained palette of 2–4 colors; one striking central symbolic motif built from simple geometric shapes or paths (no attempt at realism); the title set in an elegant generic serif font near the top or bottom; a small line reading "an interactive novella". Subtle texture via gradients or opacity is welcome.
+
+Rules: return ONLY the SVG markup, nothing else. Self-contained — no scripts, no external images or fonts (generic font families only).`,
+        },
+      ],
+    });
+    const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+    const match = text.match(/<svg[\s\S]*<\/svg>/);
+    const svg = match ? sanitizeSvg(match[0]) : null;
+    res.json({ svg: svg || fallbackCover(title, scenario.title) });
+  } catch (err) {
+    console.error("cover generation failed:", err.message);
+    res.json({ svg: fallbackCover(title, scenario.title) });
+  }
+});
+
+function sanitizeSvg(svg) {
+  return svg
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
+    .replace(/(href|xlink:href)\s*=\s*"(?!#)[^"]*"/gi, "");
+}
+
+// Deterministic decorative cover used in demo mode and as a live fallback.
+function fallbackCover(title, subtitle) {
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let hash = 0;
+  for (const ch of String(title)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const hue = hash % 360;
+  const hue2 = (hue + 40) % 360;
+  const words = esc(title).split(" ");
+  const lines = [];
+  let line = "";
+  for (const w of words) {
+    if ((line + " " + w).trim().length > 16) { lines.push(line.trim()); line = w; }
+    else line += " " + w;
+  }
+  if (line.trim()) lines.push(line.trim());
+  const titleText = lines.slice(0, 4).map(
+    (l, i) => `<text x="150" y="${300 + i * 30}" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="hsl(${hue} 45% 82%)">${l}</text>`,
+  ).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0" stop-color="hsl(${hue} 35% 14%)"/><stop offset="1" stop-color="hsl(${hue2} 40% 8%)"/>
+  </linearGradient></defs>
+  <rect width="300" height="450" fill="url(#bg)"/>
+  <circle cx="150" cy="150" r="62" fill="none" stroke="hsl(${hue2} 55% 60%)" stroke-width="1.5" opacity="0.9"/>
+  <circle cx="150" cy="150" r="44" fill="hsl(${hue} 50% 30%)" opacity="0.55"/>
+  <path d="M150 96 L162 138 L204 150 L162 162 L150 204 L138 162 L96 150 L138 138 Z" fill="hsl(${hue2} 60% 70%)" opacity="0.9"/>
+  <rect x="40" y="262" width="220" height="1" fill="hsl(${hue} 30% 50%)" opacity="0.6"/>
+  ${titleText}
+  <text x="150" y="425" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="12" fill="hsl(${hue} 25% 60%)">an interactive novella · ${esc(subtitle)}</text>
+</svg>`;
+}
+
+// ----------------------------------------------------------------------
+// Shared stories: finished stories can be published to a read-only link.
+// Stored in a simple JSON file — swap for a real database when accounts land.
+// ----------------------------------------------------------------------
+
+const DATA_DIR = path.join(__dirname, "data");
+const SHARE_FILE = path.join(DATA_DIR, "stories.json");
+let sharedStories = {};
+try {
+  sharedStories = JSON.parse(fs.readFileSync(SHARE_FILE, "utf8"));
+} catch { /* first run */ }
+
+function persistShares() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(SHARE_FILE, JSON.stringify(sharedStories));
+}
+
+app.post("/api/share", (req, res) => {
+  const { title, scenario, character, chapters, cover } = req.body || {};
+  if (
+    typeof title !== "string" || title.length > 200 ||
+    !scenario || !character ||
+    !Array.isArray(chapters) || chapters.length === 0 || chapters.length > 60 ||
+    chapters.some((c) => typeof c.prose !== "string" || c.prose.length > 20000)
+  ) {
+    return res.status(400).json({ error: "invalid story payload" });
+  }
+  if (Object.keys(sharedStories).length >= 5000) {
+    return res.status(507).json({ error: "share storage is full" });
+  }
+  const id = crypto.randomBytes(5).toString("hex");
+  sharedStories[id] = {
+    title,
+    scenario: { title: String(scenario.title || "").slice(0, 120) },
+    character: {
+      name: String(character.name || "").slice(0, 60),
+      archetype: String(character.archetype || "").slice(0, 60),
+      trait: String(character.trait || "").slice(0, 60),
+    },
+    chapters: chapters.map((c) => ({
+      prose: c.prose,
+      action: c.action ? String(c.action).slice(0, 300) : null,
+    })),
+    cover: typeof cover === "string" && cover.length < 200000 ? sanitizeSvg(cover) : null,
+    createdAt: new Date().toISOString(),
+  };
+  persistShares();
+  res.json({ id });
+});
+
+app.get("/api/share/:id", (req, res) => {
+  const story = sharedStories[req.params.id];
+  if (!story) return res.status(404).json({ error: "story not found" });
+  res.json(story);
+});
+
+app.get("/s/:id", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "share.html"));
+});
+
+// ----------------------------------------------------------------------
+// Demo mode: canned chapters (with state ledgers) streamed word-by-word so
+// the whole UI can be exercised without an API key.
+// ----------------------------------------------------------------------
 
 const DEMO_CHAPTERS = [
   `The rain has been falling for three days when the letter arrives — heavy cream paper, no return address, your name written in a hand you almost recognize. Inside, a single sentence: "They found it, and now they will come for you."
@@ -142,6 +373,7 @@ The floorboard behind you creaks. You turn slowly. Your landlady, Mrs. Havisham,
 
 Below, the man in the grey coat has left the lamppost. The front door bell rings once. Twice.
 
+<state>{"title": "The Letter at Lamplight", "act": 1, "condition": "rattled but unhurt", "inventory": ["the cream-paper letter"], "companions": [{"name": "Mrs. Havisham", "standing": "protective"}], "threads": ["Who sent the letter?", "What was found?", "The forbidden wardrobe"]}</state>
 <choices>["Open the wardrobe Mrs. Havisham glanced at", "Slip out the back window onto the fire escape", "Go downstairs and face the visitor directly"]</choices>`,
 
   `Your choice sets events in motion faster than you expected. The house seems to hold its breath around you — and then everything happens at once.
@@ -154,6 +386,7 @@ Mrs. Havisham steps in front of the door. "I'll give you a minute," she says. "M
 
 The key bites into your palm. The window stands open. The wardrobe door, you notice, has drifted ajar on its own, and from inside comes a faint smell of cold air and pine, as though it opens onto somewhere else entirely.
 
+<state>{"title": "The Letter at Lamplight", "act": 2, "condition": "heart pounding, unhurt", "inventory": ["the cream-paper letter", "a warm brass key"], "companions": [{"name": "Mrs. Havisham", "standing": "sacrificing"}], "threads": ["Who sent the letter?", "What was found?", "The men on the stairs", "Platform nine and the night porter"]}</state>
 <choices>["Take the fire escape and run for the station", "Step into the wardrobe", "Stand with Mrs. Havisham and fight"]</choices>`,
 
   `The night porter's lantern swings shadows across the empty platform as he examines the brass key, turning it over twice. Somewhere behind you, in the city you are leaving, sirens begin to keen.
@@ -168,16 +401,16 @@ As you step aboard, you feel the eyes of another passenger on you — a woman in
 
 The train begins to move. There is no going back now — and the story, you sense, is only beginning to show you its true shape. Your journey has carried you as far as the demo can go.
 
+<state>{"title": "The Letter at Lamplight", "act": 3, "condition": "resolved, wary", "inventory": ["the cream-paper letter", "a warm brass key"], "companions": [{"name": "The night porter", "standing": "cryptic"}], "threads": []}</state>
 <choices>[]</choices>`,
 ];
 
-async function streamDemoChapter(res, history) {
-  const assistantTurns = history.filter((m) => m.role === "assistant").length;
-  const chapter = DEMO_CHAPTERS[Math.min(assistantTurns, DEMO_CHAPTERS.length - 1)];
+async function streamDemoChapter(res, chapterNum) {
+  const chapter = DEMO_CHAPTERS[Math.min(chapterNum - 1, DEMO_CHAPTERS.length - 1)];
   const words = chapter.split(/(\s+)/);
   for (const word of words) {
     sseSend(res, { type: "text", text: word });
-    await new Promise((r) => setTimeout(r, 12));
+    await new Promise((r) => setTimeout(r, 8));
   }
   sseSend(res, { type: "done" });
 }
@@ -186,5 +419,5 @@ app.listen(PORT, () => {
   console.log(`Nuggets Adventure running at http://localhost:${PORT}`);
   console.log(DEMO_MODE
     ? "Mode: DEMO (no API key found — canned story content). Set ANTHROPIC_API_KEY for live stories."
-    : `Mode: LIVE (model: ${MODEL})`);
+    : `Mode: LIVE (model: ${MODEL}, target ~${TARGET_CHAPTERS} chapters, ${RATE_LIMIT_PER_HOUR} chapters/hr/IP)`);
 });

@@ -1,10 +1,11 @@
-// Nuggets Adventure — frontend. All story state lives here (and in
-// localStorage); the server is stateless and just streams chapters.
+// Nuggets Adventure — frontend. Story state lives here (and in localStorage
+// as a multi-story library); the server streams chapters and stores shares.
 
 const SCENARIOS = [
   {
     id: "fantasy",
-    emoji: "🗡️",
+    ornament: "⚜",
+    genre: "Epic fantasy",
     title: "The Shattered Crown",
     premise:
       "The old king is dead, his crown broken into five shards scattered across a fractured realm. Whoever reunites them rules — and something older than any kingdom is also hunting the pieces.",
@@ -12,7 +13,8 @@ const SCENARIOS = [
   },
   {
     id: "scifi",
-    emoji: "🛰️",
+    ornament: "✦",
+    genre: "Sci-fi thriller",
     title: "Signal from Europa",
     premise:
       "A repeating signal from beneath Europa's ice has gone silent — along with the twelve-person research station that found it. Your ship is six days out, and the only one close enough to answer.",
@@ -20,7 +22,8 @@ const SCENARIOS = [
   },
   {
     id: "mystery",
-    emoji: "🕵️",
+    ornament: "♞",
+    genre: "Murder mystery",
     title: "The Glass House Murders",
     premise:
       "A reclusive tycoon is found dead in his famous glass mansion the night of a storm, seven guests trapped inside with the body — and every one of them, including you, has something to hide.",
@@ -28,7 +31,8 @@ const SCENARIOS = [
   },
   {
     id: "horror",
-    emoji: "🕯️",
+    ornament: "☾",
+    genre: "Gothic horror",
     title: "The Hollow Below",
     premise:
       "Your grandmother's will left you the house on Merrow Lane — and a letter begging you to brick up the cellar without ever opening the door at the bottom of the stairs. The door is already open.",
@@ -36,7 +40,8 @@ const SCENARIOS = [
   },
   {
     id: "western",
-    emoji: "🤠",
+    ornament: "✪",
+    genre: "Western",
     title: "Red Dust Reckoning",
     premise:
       "You ride into the copper town of Providencia with a debt to settle and a name you no longer use. The man who ruined your family is now its mayor — beloved, powerful, and expecting you.",
@@ -44,7 +49,8 @@ const SCENARIOS = [
   },
   {
     id: "regency",
-    emoji: "🎭",
+    ornament: "❧",
+    genre: "Regency intrigue",
     title: "A Season of Masks",
     premise:
       "London, 1813. You arrive for the Season with a dazzling reputation, an empty purse, and one chance to secure your family's future — while a rival from your past threatens to expose everything.",
@@ -53,31 +59,31 @@ const SCENARIOS = [
 ];
 
 const ARCHETYPES = [
-  { id: "rogue", emoji: "🃏", title: "The Rogue", blurb: "Quick hands, quicker wit. Rules are suggestions." },
-  { id: "scholar", emoji: "📖", title: "The Scholar", blurb: "Knowledge is your weapon — and your weakness." },
-  { id: "soldier", emoji: "🛡️", title: "The Soldier", blurb: "Discipline and steel. You've seen too much." },
-  { id: "diplomat", emoji: "🕊️", title: "The Diplomat", blurb: "Words open doors that force never could." },
-  { id: "outcast", emoji: "🌒", title: "The Outcast", blurb: "You belong nowhere, which means you see everything." },
-  { id: "visionary", emoji: "🔮", title: "The Visionary", blurb: "You glimpse what others can't — or won't." },
+  { title: "The Rogue", ornament: "♠", blurb: "Quick hands, quicker wit. Rules are suggestions." },
+  { title: "The Scholar", ornament: "✒", blurb: "Knowledge is your weapon — and your weakness." },
+  { title: "The Soldier", ornament: "⚔", blurb: "Discipline and steel. You've seen too much." },
+  { title: "The Diplomat", ornament: "🕊", blurb: "Words open doors that force never could." },
+  { title: "The Outcast", ornament: "☄", blurb: "You belong nowhere, which means you see everything." },
+  { title: "The Visionary", ornament: "☉", blurb: "You glimpse what others can't — or won't." },
 ];
 
 const TRAITS = ["Brave", "Cunning", "Compassionate", "Ruthless", "Curious", "Haunted"];
 
-const SAVE_KEY = "nuggets-adventure-save-v1";
+const LIB_KEY = "nuggets-library-v1";
 
 // ----- state -----
-let state = {
-  scenario: null,
-  character: { name: "", archetype: null, trait: null },
-  history: [], // raw messages: {role, content}
-  chapters: [], // [{prose, action}] for rendering
-};
+let library = loadLibrary();
+let story = null; // the active story object (a member of library.stories)
+let draft = { scenario: null, character: { name: "", archetype: null, trait: null } };
+let pendingAction = null; // player action that led to the chapter now streaming
 let generating = false;
+let ttsOn = false;
 
-// ----- element refs -----
+// ----- helpers -----
 const $ = (id) => document.getElementById(id);
 const screens = {
   scenario: $("screen-scenario"),
+  custom: $("screen-custom"),
   character: $("screen-character"),
   story: $("screen-story"),
 };
@@ -85,6 +91,27 @@ const screens = {
 function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
   window.scrollTo({ top: 0 });
+  if (name !== "story") stopSpeaking();
+}
+
+function loadLibrary() {
+  try {
+    const lib = JSON.parse(localStorage.getItem(LIB_KEY));
+    if (lib && lib.stories) return lib;
+  } catch { /* fall through */ }
+  return { version: 1, stories: {} };
+}
+
+function saveLibrary() {
+  try {
+    localStorage.setItem(LIB_KEY, JSON.stringify(library));
+  } catch (e) {
+    console.warn("couldn't save library:", e);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 // ----- boot -----
@@ -94,45 +121,111 @@ async function init() {
   try {
     const cfg = await fetch("/api/config").then((r) => r.json());
     if (cfg.demo) $("demo-banner").classList.remove("hidden");
-  } catch { /* config is cosmetic; ignore */ }
+  } catch { /* cosmetic */ }
 
   renderScenarios();
   renderArchetypes();
   renderTraits();
+  renderLibrary();
   wireEvents();
-
-  if (localStorage.getItem(SAVE_KEY)) $("resume-row").classList.remove("hidden");
 }
 
-// ----- screen 1: scenarios -----
+// ----- screen 1: home -----
 function renderScenarios() {
   const grid = $("scenario-grid");
   grid.innerHTML = "";
   for (const s of SCENARIOS) {
-    const card = document.createElement("button");
-    card.className = "card";
-    card.innerHTML = `<span class="card-emoji">${s.emoji}</span><h3>${s.title}</h3><p>${s.premise}</p>`;
-    card.addEventListener("click", () => {
-      state.scenario = s;
-      $("character-scenario-label").textContent = `${s.emoji} ${s.title}`;
-      showScreen("character");
-      updateBeginButton();
+    grid.appendChild(scenarioCard(s, () => {
+      draft.scenario = s;
+      openCharacterScreen();
+    }));
+  }
+  // "Write your own" plate
+  const custom = document.createElement("button");
+  custom.className = "card";
+  custom.innerHTML = `<span class="ornament">☙</span><span class="eyebrow">Your imagination</span><h3>Write your own</h3><p>Bring a premise; the storyteller does the rest.</p>`;
+  custom.addEventListener("click", () => {
+    updateCustomContinue();
+    showScreen("custom");
+  });
+  grid.appendChild(custom);
+}
+
+function scenarioCard(s, onClick) {
+  const card = document.createElement("button");
+  card.className = "card";
+  card.innerHTML = `<span class="ornament">${s.ornament}</span><span class="eyebrow">${escapeHtml(s.genre)}</span><h3>${escapeHtml(s.title)}</h3><p>${escapeHtml(s.premise)}</p>`;
+  card.addEventListener("click", onClick);
+  return card;
+}
+
+function renderLibrary() {
+  const entries = Object.values(library.stories).sort((a, b) => b.updatedAt - a.updatedAt);
+  $("library-section").classList.toggle("hidden", entries.length === 0);
+  const grid = $("library-grid");
+  grid.innerHTML = "";
+  for (const st of entries) {
+    const card = document.createElement("div");
+    card.className = "library-card";
+    const coverHtml = st.cover
+      ? `<img alt="" src="data:image/svg+xml;utf8,${encodeURIComponent(st.cover)}">`
+      : `<span>${st.scenario.ornament || "❦"}</span>`;
+    card.innerHTML = `
+      <div class="cover">${coverHtml}</div>
+      <div class="lib-body">
+        <h3>${escapeHtml(st.title || st.scenario.title)}</h3>
+        <p class="lib-meta">${escapeHtml(st.scenario.title)} · ${st.done ? "finished" : `chapter ${st.chapters.length}`}</p>
+        <div class="lib-actions">
+          <button class="btn btn-primary btn-small" data-act="open">${st.done ? "Read" : "Resume"}</button>
+          <button class="btn btn-ghost btn-small" data-act="delete">Delete</button>
+        </div>
+      </div>`;
+    card.querySelector('[data-act="open"]').addEventListener("click", () => openStory(st.id));
+    card.querySelector('[data-act="delete"]').addEventListener("click", () => {
+      if (confirm(`Delete "${st.title || st.scenario.title}" from your library?`)) {
+        delete library.stories[st.id];
+        saveLibrary();
+        renderLibrary();
+      }
     });
     grid.appendChild(card);
   }
 }
 
+// ----- screen 1b: custom scenario -----
+function updateCustomContinue() {
+  const ok = $("custom-title").value.trim() && $("custom-premise").value.trim();
+  $("custom-continue").disabled = !ok;
+}
+
+function submitCustomScenario() {
+  draft.scenario = {
+    id: "custom",
+    ornament: "☙",
+    genre: "Your own",
+    title: $("custom-title").value.trim(),
+    premise: $("custom-premise").value.trim(),
+    tone: $("custom-tone").value.trim() || "Let the premise suggest the genre; write it with conviction.",
+  };
+  openCharacterScreen();
+}
+
 // ----- screen 2: character -----
+function openCharacterScreen() {
+  $("character-scenario-label").textContent = `${draft.scenario.ornament} ${draft.scenario.title}`;
+  showScreen("character");
+  updateBeginButton();
+}
+
 function renderArchetypes() {
   const grid = $("archetype-grid");
   grid.innerHTML = "";
   for (const a of ARCHETYPES) {
     const card = document.createElement("button");
     card.className = "card";
-    card.dataset.id = a.id;
-    card.innerHTML = `<span class="card-emoji">${a.emoji}</span><h3>${a.title}</h3><p>${a.blurb}</p>`;
+    card.innerHTML = `<span class="ornament">${a.ornament}</span><h3>${a.title}</h3><p>${a.blurb}</p>`;
     card.addEventListener("click", () => {
-      state.character.archetype = a.title;
+      draft.character.archetype = a.title;
       grid.querySelectorAll(".card").forEach((c) => c.classList.toggle("selected", c === card));
       updateBeginButton();
     });
@@ -148,7 +241,7 @@ function renderTraits() {
     chip.className = "chip";
     chip.textContent = t;
     chip.addEventListener("click", () => {
-      state.character.trait = t;
+      draft.character.trait = t;
       row.querySelectorAll(".chip").forEach((c) => c.classList.toggle("selected", c === chip));
       updateBeginButton();
     });
@@ -157,8 +250,8 @@ function renderTraits() {
 }
 
 function updateBeginButton() {
-  const c = state.character;
-  c.name = $("char-name").value.trim();
+  draft.character.name = $("char-name").value.trim();
+  const c = draft.character;
   $("begin-btn").disabled = !(c.name && c.archetype && c.trait);
 }
 
@@ -166,14 +259,18 @@ function updateBeginButton() {
 function wireEvents() {
   $("char-name").addEventListener("input", updateBeginButton);
   $("back-to-scenarios").addEventListener("click", () => showScreen("scenario"));
-  $("logo").addEventListener("click", () => { if (!generating) showScreen("scenario"); });
+  $("custom-back").addEventListener("click", () => showScreen("scenario"));
+  ["custom-title", "custom-premise", "custom-tone"].forEach((id) =>
+    $(id).addEventListener("input", updateCustomContinue));
+  $("custom-continue").addEventListener("click", submitCustomScenario);
+  $("logo").addEventListener("click", () => { if (!generating) goHome(); });
 
   $("begin-btn").addEventListener("click", startStory);
-  $("resume-btn").addEventListener("click", resumeStory);
-  $("new-story-btn").addEventListener("click", resetToStart);
+  $("new-story-btn").addEventListener("click", goHome);
   $("abandon-btn").addEventListener("click", () => {
     if (generating) return;
-    if (confirm("Abandon this story? Your progress will be lost.")) resetToStart();
+    if (story && !story.done && !confirm("Leave this story? It stays in your library.")) return;
+    goHome();
   });
   $("retry-btn").addEventListener("click", () => {
     $("error-area").classList.add("hidden");
@@ -185,58 +282,93 @@ function wireEvents() {
     const action = $("custom-action").value.trim();
     if (action) chooseAction(action, true);
   });
+
+  $("journal-toggle").addEventListener("click", () => {
+    const j = $("journal");
+    const show = j.classList.contains("hidden");
+    j.classList.toggle("hidden", !show);
+    $("journal-toggle").setAttribute("aria-pressed", String(show));
+  });
+
+  $("tts-toggle").addEventListener("click", () => {
+    ttsOn = !ttsOn;
+    $("tts-toggle").setAttribute("aria-pressed", String(ttsOn));
+    if (!ttsOn) stopSpeaking();
+    else if (story && story.chapters.length) speak(story.chapters[story.chapters.length - 1].prose);
+  });
+
+  $("share-btn").addEventListener("click", shareStory);
+  $("copy-link-btn").addEventListener("click", async () => {
+    const input = $("share-link");
+    input.select();
+    try { await navigator.clipboard.writeText(input.value); } catch { document.execCommand("copy"); }
+    $("copy-link-btn").textContent = "Copied";
+    setTimeout(() => { $("copy-link-btn").textContent = "Copy"; }, 1500);
+  });
 }
 
-// ----- story flow -----
+function goHome() {
+  story = null;
+  renderLibrary();
+  showScreen("scenario");
+}
+
+// ----- story lifecycle -----
 function startStory() {
   updateBeginButton();
   if ($("begin-btn").disabled) return;
 
-  state.history = [
-    {
-      role: "user",
-      content: "Begin the story. Write the opening chapter and introduce the protagonist in the middle of their world.",
-    },
-  ];
-  state.chapters = [];
+  story = {
+    id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    scenario: draft.scenario,
+    character: { ...draft.character },
+    history: [
+      {
+        role: "user",
+        content: "Begin the story. Write the opening chapter and introduce the protagonist in the middle of their world.",
+      },
+    ],
+    chapters: [],
+    title: null,
+    cover: null,
+    state: null,
+    done: false,
+  };
+  library.stories[story.id] = story;
+  pendingAction = null;
   openStoryScreen();
   requestChapter();
 }
 
-function resumeStory() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (!saved || !saved.scenario) throw new Error("bad save");
-    state = saved;
-    openStoryScreen();
-    renderAllChapters();
-    const last = lastAssistantText();
-    if (last) showChoices(parseChoices(last));
+function openStory(id) {
+  story = library.stories[id];
+  if (!story) return;
+  pendingAction = null;
+  openStoryScreen();
+  renderAllChapters();
+  updateJournal(story.state);
+  renderFrontispiece();
+  if (story.done) {
+    $("ending-area").classList.remove("hidden");
+  } else {
+    const last = [...story.history].reverse().find((m) => m.role === "assistant");
+    const choices = last ? parseChoices(last.content) : null;
+    if (last) showChoices(choices);
     else requestChapter();
-  } catch {
-    localStorage.removeItem(SAVE_KEY);
-    alert("Couldn't restore your saved story.");
-    resetToStart();
   }
 }
 
-function resetToStart() {
-  localStorage.removeItem(SAVE_KEY);
-  state = { scenario: null, character: { name: "", archetype: null, trait: null }, history: [], chapters: [] };
-  $("story-text").innerHTML = "";
-  $("resume-row").classList.add("hidden");
-  $("ending-area").classList.add("hidden");
-  $("choices-area").classList.add("hidden");
-  $("error-area").classList.add("hidden");
-  showScreen("scenario");
-}
-
 function openStoryScreen() {
-  $("story-title").textContent = `${state.scenario.title} · ${state.character.name}`;
+  $("story-title").textContent = story.title || `${story.scenario.title} · ${story.character.name}`;
   $("story-text").innerHTML = "";
   $("choices-area").classList.add("hidden");
   $("ending-area").classList.add("hidden");
+  $("share-result").classList.add("hidden");
   $("error-area").classList.add("hidden");
+  $("journal").classList.add("hidden");
+  $("journal-toggle").setAttribute("aria-pressed", "false");
   updateChapterCount();
   showScreen("story");
 }
@@ -245,7 +377,8 @@ function chooseAction(action, isCustom) {
   $("custom-action").value = "";
   hideChoices();
   appendPlayerAction(action);
-  state.history.push({
+  pendingAction = action;
+  story.history.push({
     role: "user",
     content: isCustom
       ? `The player writes their own action: "${action}". Honor it within the fiction.`
@@ -271,11 +404,19 @@ async function requestChapter() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        scenario: { title: state.scenario.title, premise: state.scenario.premise, tone: state.scenario.tone },
-        character: state.character,
-        history: state.history,
+        scenario: {
+          title: story.scenario.title,
+          premise: story.scenario.premise,
+          tone: story.scenario.tone,
+        },
+        character: story.character,
+        history: story.history,
       }),
     });
+    if (res.status === 429) {
+      const body = await res.json().catch(() => ({}));
+      throw Object.assign(new Error("rate limited"), { userMessage: body.error });
+    }
     if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
     const reader = res.body.getReader();
@@ -303,7 +444,7 @@ async function requestChapter() {
     }
   } catch (err) {
     console.error(err);
-    failed = "Couldn't reach the storyteller. Check your connection and try again.";
+    failed = err.userMessage || "Couldn't reach the storyteller. Check your connection and try again.";
   }
 
   generating = false;
@@ -315,16 +456,48 @@ async function requestChapter() {
     return;
   }
 
-  state.history.push({ role: "assistant", content: fullText });
-  state.chapters.push({ prose: visiblePart(fullText) });
-  saveGame();
-  updateChapterCount();
+  // Commit the chapter.
+  const prose = visiblePart(fullText);
+  story.history.push({ role: "assistant", content: fullText });
+  story.chapters.push({ prose, action: pendingAction });
+  pendingAction = null;
 
-  const choices = parseChoices(fullText);
-  showChoices(choices);
+  const ledger = parseLedger(fullText);
+  if (ledger) {
+    story.state = ledger;
+    if (ledger.title) {
+      const firstTime = !story.title;
+      story.title = ledger.title;
+      if (firstTime) fetchCover(); // async; fills in when ready
+    }
+    $("story-title").textContent = story.title || $("story-title").textContent;
+    updateJournal(ledger);
+  }
+
+  story.updatedAt = Date.now();
+  saveLibrary();
+  updateChapterCount();
+  speak(prose);
+
+  showChoices(parseChoices(fullText));
 }
 
-// ----- choices & endings -----
+// ----- parsing -----
+function visiblePart(fullText) {
+  return fullText.split(/<state>|<choices>/)[0].trimEnd();
+}
+
+function parseLedger(text) {
+  const m = text.match(/<state>\s*([\s\S]*?)\s*<\/state>/);
+  if (!m) return null;
+  try {
+    const obj = JSON.parse(m[1]);
+    return typeof obj === "object" && obj ? obj : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseChoices(text) {
   const m = text.match(/<choices>\s*(\[[\s\S]*?\])\s*<\/choices>/);
   if (!m) return null;
@@ -336,17 +509,16 @@ function parseChoices(text) {
   }
 }
 
+// ----- choices & endings -----
 function showChoices(choices) {
   if (choices && choices.length === 0) {
-    // Empty array = the story has ended.
-    $("ending-area").classList.remove("hidden");
-    localStorage.removeItem(SAVE_KEY);
+    finishStory();
     return;
   }
   const btns = $("choice-buttons");
   btns.innerHTML = "";
-  // If the model flubbed the format, still let the player type an action.
-  for (const choice of choices || []) {
+  // If the model flubbed the format, offer a neutral continue.
+  for (const choice of choices && choices.length ? choices : ["Continue"]) {
     const b = document.createElement("button");
     b.className = "choice-btn";
     b.textContent = choice;
@@ -361,16 +533,111 @@ function hideChoices() {
   $("choices-area").classList.add("hidden");
 }
 
+function finishStory() {
+  story.done = true;
+  story.updatedAt = Date.now();
+  saveLibrary();
+  $("ending-area").classList.remove("hidden");
+  keepInView();
+}
+
 function showError(msg) {
   $("error-text").textContent = msg;
   $("error-area").classList.remove("hidden");
 }
 
-// ----- rendering -----
-function visiblePart(fullText) {
-  return fullText.split("<choices>")[0].trimEnd();
+// ----- sharing -----
+async function shareStory() {
+  if (!story) return;
+  $("share-btn").disabled = true;
+  try {
+    const res = await fetch("/api/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: story.title || story.scenario.title,
+        scenario: { title: story.scenario.title },
+        character: story.character,
+        chapters: story.chapters,
+        cover: story.cover,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { id } = await res.json();
+    $("share-link").value = `${location.origin}/s/${id}`;
+    $("share-result").classList.remove("hidden");
+  } catch (err) {
+    console.error(err);
+    alert("Couldn't publish the story right now. Try again in a moment.");
+  }
+  $("share-btn").disabled = false;
 }
 
+// ----- cover art -----
+async function fetchCover() {
+  if (!story || story.cover || !story.title) return;
+  const forStory = story;
+  try {
+    const res = await fetch("/api/cover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: forStory.title,
+        scenario: { title: forStory.scenario.title, premise: forStory.scenario.premise },
+        character: forStory.character,
+      }),
+    });
+    const { svg } = await res.json();
+    if (svg) {
+      forStory.cover = svg;
+      forStory.updatedAt = Date.now();
+      saveLibrary();
+      if (story === forStory) renderFrontispiece();
+    }
+  } catch (err) {
+    console.warn("cover fetch failed:", err);
+  }
+}
+
+function renderFrontispiece() {
+  let el = document.querySelector(".frontispiece");
+  if (!story || !story.cover) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "frontispiece";
+    $("story-text").prepend(el);
+  }
+  el.innerHTML = `<img alt="Cover of ${escapeHtml(story.title || "")}" src="data:image/svg+xml;utf8,${encodeURIComponent(story.cover)}">`;
+}
+
+// ----- journal -----
+function updateJournal(ledger) {
+  if (!ledger) return;
+  $("j-condition").textContent = ledger.condition || "—";
+  const inv = $("j-inventory");
+  inv.innerHTML = (ledger.inventory || []).length
+    ? ledger.inventory.map((i) => `<li>${escapeHtml(i)}</li>`).join("")
+    : "<li>—</li>";
+  const comp = $("j-companions");
+  comp.innerHTML = (ledger.companions || []).length
+    ? ledger.companions.map((c) => `<li>${escapeHtml(c.name || "")} <span class="standing">${escapeHtml(c.standing || "")}</span></li>`).join("")
+    : "<li>—</li>";
+}
+
+// ----- read aloud -----
+function speak(text) {
+  if (!ttsOn || !("speechSynthesis" in window)) return;
+  stopSpeaking();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.98;
+  speechSynthesis.speak(utterance);
+}
+
+function stopSpeaking() {
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+}
+
+// ----- rendering -----
 function renderProse(el, text) {
   el.innerHTML = text
     .split(/\n{2,}/)
@@ -380,51 +647,33 @@ function renderProse(el, text) {
 
 function appendPlayerAction(action) {
   const div = document.createElement("div");
-  div.innerHTML = `<p class="player-action">➤ ${escapeHtml(action)}</p><p class="chapter-break">· · ·</p>`;
+  div.innerHTML = `<p class="player-action">${escapeHtml(action)}</p><p class="asterism">⁂</p>`;
   $("story-text").appendChild(div);
 }
 
 function renderAllChapters() {
   const container = $("story-text");
   container.innerHTML = "";
-  state.chapters.forEach((ch, i) => {
-    if (i > 0) {
-      const actionMsg = state.history.filter((m) => m.role === "user")[i];
-      const action = actionMsg ? actionMsg.content.match(/"([\s\S]*)"/) : null;
+  for (const ch of story.chapters) {
+    if (ch.action) {
       const div = document.createElement("div");
-      div.innerHTML = `<p class="player-action">➤ ${escapeHtml(action ? action[1] : "…")}</p><p class="chapter-break">· · ·</p>`;
+      div.innerHTML = `<p class="player-action">${escapeHtml(ch.action)}</p><p class="asterism">⁂</p>`;
       container.appendChild(div);
     }
     const el = document.createElement("div");
     el.className = "chapter";
     renderProse(el, ch.prose);
     container.appendChild(el);
-  });
-  window.scrollTo({ top: document.body.scrollHeight });
+  }
+  window.scrollTo({ top: story.done ? 0 : document.body.scrollHeight });
 }
 
 function updateChapterCount() {
-  const n = state.chapters.length;
+  const n = story ? story.chapters.length : 0;
   $("chapter-count").textContent = n ? `Chapter ${n}` : "";
 }
 
 function keepInView() {
-  // Only auto-scroll if the reader is already near the bottom.
-  const nearBottom = window.innerHeight + window.scrollY > document.body.scrollHeight - 300;
+  const nearBottom = window.innerHeight + window.scrollY > document.body.scrollHeight - 320;
   if (nearBottom) window.scrollTo({ top: document.body.scrollHeight });
-}
-
-function lastAssistantText() {
-  for (let i = state.history.length - 1; i >= 0; i--) {
-    if (state.history[i].role === "assistant") return state.history[i].content;
-  }
-  return null;
-}
-
-function saveGame() {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-}
-
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
