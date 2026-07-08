@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plotwick — interactive novellas</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="demo-banner" class="demo-banner hidden">
+    Demo mode — canned story preview. Set <code>ANTHROPIC_API_KEY</code> on the server for live, fully dynamic stories.
+  </div>
+
+  <header class="site-header">
+    <div id="account-bar" class="account-bar hidden">
+      <span id="account-email" class="account-email hidden"></span>
+      <button id="account-btn" class="tool-btn">Sign in</button>
+    </div>
+    <p class="header-rule" aria-hidden="true">❦</p>
+    <h1 class="logo" id="logo">Plotwick</h1>
+    <p class="tagline">interactive novellas · every story is yours alone</p>
+  </header>
+
+  <main>
+    <!-- Screen 1: home — scenario selection + library -->
+    <section id="screen-scenario" class="screen">
+      <h2 class="screen-title">Choose your world</h2>
+      <div id="scenario-grid" class="card-grid"></div>
+
+      <div id="library-section" class="library hidden">
+        <h2 class="screen-title small">Your library</h2>
+        <div id="library-grid" class="library-grid"></div>
+      </div>
+    </section>
+
+    <!-- Screen 1b: custom scenario -->
+    <section id="screen-custom" class="screen hidden">
+      <h2 class="screen-title">Write your own world</h2>
+      <p class="screen-sub">Give the storyteller a premise; it will do the rest.</p>
+
+      <label class="field-label" for="custom-title">A title for your world</label>
+      <input type="text" id="custom-title" maxlength="80" placeholder="e.g. The Lighthouse at World's End" autocomplete="off">
+
+      <label class="field-label" for="custom-premise">The premise</label>
+      <textarea id="custom-premise" maxlength="600" rows="4" placeholder="Who are you, where are you, and what is about to go wrong?"></textarea>
+
+      <label class="field-label" for="custom-tone">Genre &amp; tone</label>
+      <input type="text" id="custom-tone" maxlength="200" placeholder="e.g. melancholy maritime fantasy, slow dread, moments of wonder" autocomplete="off">
+
+      <div class="actions">
+        <button id="custom-back" class="btn btn-ghost">← Back</button>
+        <button id="custom-continue" class="btn btn-primary" disabled>Continue →</button>
+      </div>
+    </section>
+
+    <!-- Screen 2: character creation -->
+    <section id="screen-character" class="screen hidden">
+      <h2 class="screen-title">Who are you?</h2>
+      <p class="screen-sub" id="character-scenario-label"></p>
+
+      <label class="field-label" for="char-name">Your name</label>
+      <input type="text" id="char-name" maxlength="40" placeholder="e.g. Rowan Ashford" autocomplete="off">
+
+      <label class="field-label">Your archetype</label>
+      <div id="archetype-grid" class="card-grid small"></div>
+
+      <label class="field-label">Your defining trait</label>
+      <div id="trait-row" class="chip-row"></div>
+
+      <div class="actions">
+        <button id="back-to-scenarios" class="btn btn-ghost">← Back</button>
+        <button id="begin-btn" class="btn btn-primary" disabled>Begin the story →</button>
+      </div>
+    </section>
+
+    <!-- Screen 3: the story -->
+    <section id="screen-story" class="screen hidden">
+      <div class="running-head">
+        <span id="story-title"></span>
+        <span id="chapter-count"></span>
+      </div>
+      <div class="story-toolbar">
+        <button id="journal-toggle" class="tool-btn" aria-pressed="false">Journal</button>
+        <button id="tts-toggle" class="tool-btn" aria-pressed="false">Read aloud</button>
+      </div>
+
+      <aside id="journal" class="journal hidden" aria-label="Story journal">
+        <div class="journal-col"><h4>Condition</h4><p id="j-condition">—</p></div>
+        <div class="journal-col"><h4>Carrying</h4><ul id="j-inventory"><li>—</li></ul></div>
+        <div class="journal-col"><h4>Companions</h4><ul id="j-companions"><li>—</li></ul></div>
+      </aside>
+
+      <article id="story-text" class="story-text"></article>
+      <div id="typing-indicator" class="typing hidden">The storyteller is writing<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+
+      <div id="choices-area" class="choices hidden">
+        <p class="choices-label">What do you do?</p>
+        <div id="choice-buttons"></div>
+        <form id="custom-action-form" class="custom-action">
+          <input type="text" id="custom-action" maxlength="200" placeholder="…or write your own action" autocomplete="off">
+          <button type="submit" class="btn btn-primary">Do it</button>
+        </form>
+      </div>
+
+      <div id="ending-area" class="ending hidden">
+        <p class="ending-mark">⁂</p>
+        <p class="ending-word">The End</p>
+        <div class="ending-actions">
+          <button id="share-btn" class="btn btn-ghost">Share this story</button>
+          <button id="new-story-btn" class="btn btn-primary">Begin a new story</button>
+        </div>
+        <div id="share-result" class="share-result hidden">
+          <input type="text" id="share-link" readonly>
+          <button id="copy-link-btn" class="btn btn-ghost btn-small">Copy</button>
+        </div>
+      </div>
+
+      <div id="error-area" class="error hidden">
+        <p id="error-text"></p>
+        <button id="retry-btn" class="btn btn-ghost">Try again</button>
+      </div>
+
+      <div class="story-footer">
+        <button id="abandon-btn" class="btn btn-ghost btn-small">Abandon story</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">❦</footer>
+
+  <!-- Sign-in / sign-up -->
+  <div id="auth-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="modal-card">
+      <button id="auth-close" class="modal-close" aria-label="Close">×</button>
+      <h3 id="auth-title" class="modal-title">Your library, anywhere</h3>
+      <p class="modal-sub">Sign in and your stories follow you across devices.</p>
+
+      <label class="field-label" for="auth-email">Email</label>
+      <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com">
+
+      <label class="field-label" for="auth-password">Password</label>
+      <input type="password" id="auth-password" autocomplete="current-password" placeholder="••••••••">
+
+      <p id="auth-message" class="auth-message hidden"></p>
+
+      <div class="modal-actions">
+        <button id="signup-btn" class="btn btn-ghost">Create account</button>
+        <button id="signin-btn" class="btn btn-primary">Sign in</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
