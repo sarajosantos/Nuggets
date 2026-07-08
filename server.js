@@ -24,6 +24,10 @@ const DEMO_MODE =
   (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN);
 
 const app = express();
+// Behind a reverse proxy (Railway, Render, Fly, etc.) req.ip is otherwise the
+// proxy's address for every request, which would collapse per-IP rate
+// limiting into one shared bucket. Trust the first hop's X-Forwarded-For.
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
