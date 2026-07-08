@@ -1,4 +1,4 @@
-# Nuggets 📖
+# Plotwick 📖
 
 An AI-powered choose-your-own-adventure platform. Pick a scenario (or write your own), create a character, and get a novella-style story written live by Claude — with three choices at the end of every chapter, plus the option to write your own action.
 

@@ -1,4 +1,4 @@
--- Nuggets Adventure — Supabase schema.
+-- Plotwick — Supabase schema.
 -- Paste this into the Supabase SQL editor (or run via `supabase db push`).
 
 -- Each row is one story; the full story object (history, chapters, cover…)
@@ -40,4 +40,4 @@ create policy "anyone can read shares" on public.shared_stories
   for select
   using (true);
 -- No insert/update/delete policies: only the service-role key (which
--- bypasses RLS) can write, i.e. the Nuggets server.
+-- bypasses RLS) can write, i.e. the Plotwick server.

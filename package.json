@@ -1,5 +1,5 @@
 {
-  "name": "nuggets-adventure",
+  "name": "plotwick",
   "version": "0.1.0",
   "description": "AI-powered choose-your-own-adventure platform: pick a scenario and a character, get a novella-style story with choices along the way.",
   "main": "server.js",

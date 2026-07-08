@@ -1,4 +1,4 @@
-// Nuggets Adventure — AI choose-your-own-adventure server.
+// Plotwick — AI choose-your-own-adventure server.
 // Holds the Anthropic API key server-side and streams story chapters to the
 // browser over Server-Sent Events. Story state lives on the client; every
 // request carries the full history, so chapter generation is stateless.
@@ -478,7 +478,7 @@ async function streamDemoChapter(res, chapterNum) {
 }
 
 app.listen(PORT, () => {
-  console.log(`Nuggets Adventure running at http://localhost:${PORT}`);
+  console.log(`Plotwick running at http://localhost:${PORT}`);
   console.log(DEMO_MODE
     ? "Mode: DEMO (no API key found — canned story content). Set ANTHROPIC_API_KEY for live stories."
     : `Mode: LIVE (model: ${MODEL}, target ~${TARGET_CHAPTERS} chapters, ${RATE_LIMIT_PER_HOUR} chapters/hr/IP)`);

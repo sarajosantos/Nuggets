@@ -1,4 +1,4 @@
-// Nuggets Adventure — frontend. Story state lives here (and in localStorage
+// Plotwick — frontend. Story state lives here (and in localStorage
 // as a multi-story library); the server streams chapters and stores shares.
 
 const SCENARIOS = [
@@ -69,7 +69,7 @@ const ARCHETYPES = [
 
 const TRAITS = ["Brave", "Cunning", "Compassionate", "Ruthless", "Curious", "Haunted"];
 
-const LIB_KEY = "nuggets-library-v1";
+const LIB_KEY = "plotwick-library-v1";
 
 // ----- state -----
 let library = loadLibrary();
