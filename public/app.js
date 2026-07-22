@@ -80,6 +80,9 @@ let generating = false;
 let ttsOn = false;
 let sb = null; // Supabase client (null when accounts aren't configured)
 let user = null; // signed-in Supabase user
+let appConfig = {}; // /api/config result (creditsEnforced, payments, …)
+let credits = null; // current credit balance (null = unknown / not enforced)
+let pendingStart = false; // user tried to start a story before signing in
 
 // ----- helpers -----
 const $ = (id) => document.getElementById(id);
@@ -120,10 +123,9 @@ function escapeHtml(s) {
 init();
 
 async function init() {
-  let cfg = {};
   try {
-    cfg = await fetch("/api/config").then((r) => r.json());
-    if (cfg.demo) $("demo-banner").classList.remove("hidden");
+    appConfig = await fetch("/api/config").then((r) => r.json());
+    if (appConfig.demo) $("demo-banner").classList.remove("hidden");
   } catch { /* cosmetic */ }
 
   renderScenarios();
@@ -131,7 +133,9 @@ async function init() {
   renderTraits();
   renderLibrary();
   wireEvents();
-  initSupabase(cfg); // async; UI works without it
+  wirePayments();
+  initSupabase(appConfig); // async; UI works without it
+  handleCheckoutReturn(); // show a message if we just came back from Stripe
 }
 
 // ----- screen 1: home -----
@@ -323,6 +327,22 @@ function startStory() {
   updateBeginButton();
   if ($("begin-btn").disabled) return;
 
+  // When credits are enforced, a story requires a signed-in account with at
+  // least one credit. Guide the player to sign in / top up before we build the
+  // story object, and remember their intent so we can resume automatically.
+  if (appConfig.creditsEnforced) {
+    if (!user) {
+      pendingStart = true;
+      authMessage("Sign in (or create a free account) to begin — new readers get a few stories on the house.", true);
+      openAuthModal();
+      return;
+    }
+    if (credits !== null && credits <= 0) {
+      openBuyModal();
+      return;
+    }
+  }
+
   story = {
     id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: Date.now(),
@@ -409,6 +429,7 @@ async function requestChapter() {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
+        storyId: story.id,
         scenario: {
           title: story.scenario.title,
           premise: story.scenario.premise,
@@ -418,6 +439,24 @@ async function requestChapter() {
         history: story.history,
       }),
     });
+    if (res.status === 402) {
+      // Out of credits — offer to buy more.
+      const body = await res.json().catch(() => ({}));
+      setCredits(0);
+      generating = false;
+      $("typing-indicator").classList.add("hidden");
+      proseEl.remove();
+      openBuyModal();
+      return;
+    }
+    if (res.status === 401) {
+      generating = false;
+      $("typing-indicator").classList.add("hidden");
+      proseEl.remove();
+      pendingStart = true;
+      openAuthModal();
+      return;
+    }
     if (res.status === 429) {
       const body = await res.json().catch(() => ({}));
       throw Object.assign(new Error("rate limited"), { userMessage: body.error });
@@ -442,6 +481,8 @@ async function requestChapter() {
           fullText += evt.text;
           renderProse(proseEl, visiblePart(fullText));
           keepInView();
+        } else if (evt.type === "credits") {
+          setCredits(evt.credits);
         } else if (evt.type === "error") {
           failed = evt.error;
         }
@@ -458,6 +499,7 @@ async function requestChapter() {
   if (failed || !fullText.trim()) {
     proseEl.remove();
     showError(failed || "The storyteller returned an empty page. Try again.");
+    if (appConfig.creditsEnforced) refreshCredits(); // a failed first chapter is refunded
     return;
   }
 
@@ -786,6 +828,52 @@ function setUser(u) {
   $("account-btn").textContent = u ? "Sign out" : "Sign in";
   if (u && changed) syncWithCloud();
   if (!u) renderLibrary();
+
+  // Show the "Buy stories" button once signed in on a payments-enabled site.
+  const buyBtn = $("buy-btn");
+  if (buyBtn) buyBtn.classList.toggle("hidden", !(u && appConfig.payments));
+
+  // Credits follow the signed-in user.
+  if (u) {
+    refreshCredits().then(() => {
+      // If they clicked "Begin" before signing in, pick up where they left off.
+      if (pendingStart) {
+        pendingStart = false;
+        startStory();
+      }
+    });
+  } else {
+    setCredits(null);
+    pendingStart = false;
+  }
+}
+
+// ----- credits display -----
+function setCredits(n) {
+  credits = n;
+  const pill = $("credits-pill");
+  if (!pill) return;
+  if (n === null || !appConfig.creditsEnforced) {
+    pill.classList.add("hidden");
+    return;
+  }
+  pill.classList.remove("hidden");
+  const word = n === 1 ? "story" : "stories";
+  pill.textContent = `${n} ${word} left`;
+  pill.classList.toggle("empty", n <= 0);
+}
+
+async function refreshCredits() {
+  if (!appConfig.creditsEnforced || !user) {
+    setCredits(null);
+    return;
+  }
+  try {
+    const res = await fetch("/api/credits", { headers: await authHeader() });
+    if (!res.ok) return;
+    const body = await res.json();
+    setCredits(body.credits);
+  } catch { /* leave as-is */ }
 }
 
 async function authHeader() {
@@ -855,4 +943,118 @@ async function cloudDeleteStory(id) {
   } catch (err) {
     console.warn("cloud delete failed:", err);
   }
+}
+
+// ----- payments (buy story credits via Stripe) -----
+
+function wirePayments() {
+  const buy = $("buy-btn");
+  if (buy) buy.addEventListener("click", openBuyModal);
+  const pill = $("credits-pill");
+  if (pill) pill.addEventListener("click", openBuyModal);
+  const close = $("buy-close");
+  if (close) close.addEventListener("click", closeBuyModal);
+  const modal = $("buy-modal");
+  if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) closeBuyModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeBuyModal(); });
+}
+
+function openBuyModal() {
+  const modal = $("buy-modal");
+  if (!modal) return;
+  if (!appConfig.payments) {
+    // Payments not configured on this server — nothing to sell.
+    alert("Buying credits isn't set up on this site yet.");
+    return;
+  }
+  if (!user) { pendingStart = false; openAuthModal(); return; }
+  renderPacks();
+  $("buy-message").classList.add("hidden");
+  modal.classList.remove("hidden");
+}
+
+function closeBuyModal() {
+  const modal = $("buy-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function renderPacks() {
+  const grid = $("pack-grid");
+  if (!grid || !appConfig.payments) return;
+  const cur = appConfig.payments.currency || "usd";
+  const fmt = new Intl.NumberFormat(undefined, { style: "currency", currency: cur });
+  grid.innerHTML = "";
+  for (const [id, pack] of Object.entries(appConfig.payments.packs)) {
+    const each = pack.price / pack.credits / 100;
+    const btn = document.createElement("button");
+    btn.className = "pack";
+    btn.innerHTML =
+      `<span class="pack-count">${pack.credits}</span>` +
+      `<span class="pack-label">${escapeHtml(pack.label)}</span>` +
+      `<span class="pack-price">${fmt.format(pack.price / 100)}</span>` +
+      `<span class="pack-each">${fmt.format(each)} each</span>`;
+    btn.addEventListener("click", () => buyPack(id, btn));
+    grid.appendChild(btn);
+  }
+}
+
+async function buyPack(packId, btn) {
+  if (btn) btn.disabled = true;
+  buyMessage("Opening secure checkout…", true);
+  try {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ pack: packId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.url) throw new Error(body.error || "checkout failed");
+    window.location.href = body.url; // Stripe-hosted checkout page
+  } catch (err) {
+    console.error(err);
+    buyMessage("Couldn't start checkout. Please try again.");
+    if (btn) btn.disabled = false;
+  }
+}
+
+function buyMessage(text, gentle) {
+  const el = $("buy-message");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.toggle("gentle", !!gentle);
+  el.classList.remove("hidden");
+}
+
+// After returning from Stripe, credits are granted by the webhook (server-side,
+// possibly a beat later). Refetch the balance a couple of times to catch up.
+function handleCheckoutReturn() {
+  const params = new URLSearchParams(location.search);
+  const status = params.get("checkout");
+  if (!status) return;
+  // Clean the URL so a refresh doesn't re-trigger this.
+  history.replaceState({}, "", location.pathname);
+  if (status === "success") {
+    toast("Payment received — your story credits are being added.");
+    let tries = 0;
+    const poll = setInterval(async () => {
+      await refreshCredits();
+      if (++tries >= 5) clearInterval(poll);
+    }, 1500);
+  } else if (status === "cancel") {
+    toast("Checkout canceled — no charge was made.");
+  }
+}
+
+function toast(text) {
+  let el = $("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 4000);
 }

@@ -8,7 +8,8 @@
 - **Streaming novella prose** — chapters stream in word by word over Server-Sent Events, typeset like a book (drop caps, running heads, asterism dividers).
 - **A hidden "story director"** — the server injects private pacing directives each chapter (setup → escalation → midpoint reversal → convergence → climax) so stories arc properly instead of meandering, and a hard cap forces a finale if a story runs long. Players choose *how* events unfold; the director ensures they *do*.
 - **State ledger & journal** — the model maintains hidden JSON state every chapter (title, act, condition, inventory, companions, open plot threads) and re-reads it for continuity. The Journal panel shows the player their condition, items, and companions.
-- **Accounts & cloud library (Supabase)** — sign in with email/password and your library follows you across devices. Anonymous play still works; local stories merge into your account on sign-in.
+- **Accounts & cloud library (Supabase)** — sign in with email/password and your library follows you across devices. Local stories merge into your account on sign-in.
+- **Pay-per-story credits (Stripe)** — one credit begins one story (all its chapters). New accounts get a few free credits; more are bought in packs via Stripe Checkout. Credits are spent **server-side only** and can't be forged from the browser; a failed first chapter is auto-refunded.
 - **Story library** — every story is saved locally; resume in-progress tales or re-read finished ones.
 - **Share links** — publish a finished story to a read-only link (`/s/:id`) with its cover and full text.
 - **Generated cover art** — Claude designs a minimalist SVG book cover per story (with a deterministic fallback).
@@ -41,13 +42,33 @@ npm start              # http://localhost:3000
 
 Without these vars the app runs exactly as before — libraries stay device-local and shares fall back to a JSON file. The browser talks to Supabase directly for auth and story sync (protected by RLS); the server only verifies tokens (for per-account rate limiting) and writes shares.
 
+**Story credits turn on automatically once the service-role key is set.** From that point, starting a story requires a signed-in account with a credit. New signups get a few free credits (the `credits` default in `supabase/schema.sql` — tune it).
+
+## Payments setup (Stripe)
+
+Selling credits needs Stripe on top of Supabase:
+
+1. Create an account at [stripe.com](https://stripe.com). Start in **test mode** (toggle top-right) so you can rehearse with fake cards.
+2. **Developers → API keys** → copy the **Secret key** into `.env` as `STRIPE_SECRET_KEY`.
+3. **Developers → Webhooks → Add endpoint**:
+   - URL: `https://YOUR-DOMAIN/api/stripe/webhook`
+   - Event to send: **`checkout.session.completed`**
+   - After creating it, copy the endpoint's **Signing secret** into `.env` as `STRIPE_WEBHOOK_SECRET`.
+4. Restart. The "Buy stories" button appears for signed-in users.
+5. Test with Stripe's card `4242 4242 4242 4242`, any future expiry/CVC. Confirm credits appear after checkout.
+6. When ready for real money, flip Stripe to **live mode** and swap in the live `sk_live_…` key and a live webhook signing secret.
+
+> ⚠️ **Pricing is a placeholder.** The credit packs and prices live in `CREDIT_PACKS` near the top of `server.js` (currently 5/$8, 15/$20, 40/$45). A full story costs roughly ~$1 in Claude API usage, so a credit is priced above that for margin — but review and set your own numbers before charging anyone. Prices are defined server-side; the browser can never change them.
+
 ## Configuration
 
 | Env var | Default | Purpose |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Enables live story generation |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | — | Enables accounts + cloud library |
-| `SUPABASE_SERVICE_ROLE_KEY` | — | Stores share links in Supabase (else JSON file) |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | Stores shares in Supabase **and enables story credits** |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | Enables buying credits via Stripe |
+| `STRIPE_CURRENCY` | `usd` | Checkout currency |
 | `STORY_MODEL` | `claude-opus-4-8` | Which Claude model narrates |
 | `TARGET_CHAPTERS` | `10` | Target story length; finale forced by target + 4 |
 | `RATE_LIMIT_PER_HOUR` | `40` | Max chapters per IP per hour |

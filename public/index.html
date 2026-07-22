@@ -17,6 +17,8 @@
 
   <header class="site-header">
     <div id="account-bar" class="account-bar hidden">
+      <button id="credits-pill" class="credits-pill hidden"></button>
+      <button id="buy-btn" class="tool-btn hidden">Buy stories</button>
       <span id="account-email" class="account-email hidden"></span>
       <button id="account-btn" class="tool-btn">Sign in</button>
     </div>
@@ -151,6 +153,18 @@
         <button id="signup-btn" class="btn btn-ghost">Create account</button>
         <button id="signin-btn" class="btn btn-primary">Sign in</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Buy story credits -->
+  <div id="buy-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="buy-title">
+    <div class="modal-card">
+      <button id="buy-close" class="modal-close" aria-label="Close">×</button>
+      <h3 id="buy-title" class="modal-title">Story credits</h3>
+      <p class="modal-sub">One credit begins one story — as long as it needs to be, choices and all.</p>
+      <div id="pack-grid" class="pack-grid"></div>
+      <p id="buy-message" class="auth-message hidden"></p>
+      <p class="buy-fineprint">Secure checkout by Stripe. Credits never expire.</p>
     </div>
   </div>
 

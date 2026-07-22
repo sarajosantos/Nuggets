@@ -523,6 +523,73 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 }
 .auth-message.gentle { color: var(--gold); }
 
+/* ---------- credits & payments ---------- */
+
+.credits-pill {
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-line);
+  border-radius: 999px;
+  color: var(--gold);
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.8rem;
+  transition: filter 0.15s ease;
+}
+.credits-pill:hover { filter: brightness(1.15); }
+.credits-pill.empty { color: var(--wine); border-color: rgba(156, 77, 67, 0.5); background: rgba(156, 77, 67, 0.12); }
+
+.pack-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.7rem;
+  margin: 1.4rem 0 0.4rem;
+}
+.pack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--plate);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 1rem 0.5rem;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pack:hover { border-color: var(--gold); transform: translateY(-2px); }
+.pack:disabled { opacity: 0.5; cursor: wait; }
+.pack-count { font-family: var(--display); font-weight: 600; font-size: 1.9rem; color: var(--gold); line-height: 1; }
+.pack-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.pack-price { font-family: var(--prose); font-size: 1.15rem; margin-top: 0.35rem; }
+.pack-each { font-size: 0.68rem; color: var(--muted); }
+.buy-fineprint { text-align: center; color: var(--muted); font-size: 0.72rem; margin-top: 1rem; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%) translateY(1rem);
+  background: var(--page);
+  border: 1px solid var(--gold-line);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 0.7rem 1.2rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 30;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 460px) {
+  .pack-grid { grid-template-columns: 1fr; }
+}
+
 /* ---------- share page ---------- */
 
 .share-byline {
