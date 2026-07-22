@@ -28,15 +28,13 @@ const app = express();
 // proxy's address for every request, which would collapse per-IP rate
 // limiting into one shared bucket. Trust the first hop's X-Forwarded-For.
 app.set("trust proxy", 1);
-app.use(express.json({ limit: "2mb" }));
-app.use(express.static(path.join(__dirname, "public")));
 
 const client = DEMO_MODE ? null : new Anthropic();
 
-// Supabase (optional): accounts + cloud library + share storage.
+// Supabase (optional): accounts + cloud library + share storage + credits.
 // SUPABASE_URL + SUPABASE_ANON_KEY enable auth (browser signs in directly;
 // this server only verifies tokens). SUPABASE_SERVICE_ROLE_KEY additionally
-// moves share storage into Postgres.
+// moves share storage into Postgres and enables server-side credit spending.
 let supabaseAuth = null;
 let supabaseAdmin = null;
 if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
@@ -47,6 +45,40 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
     supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, noSession);
   }
 }
+
+// Stripe (optional): pay-per-story credits. Requires the service-role key too,
+// since granting/spending credits is done server-side against Supabase.
+// Credit packs are defined HERE, on the server — the client can never set its
+// own price. Prices are in the smallest currency unit (cents).
+//
+// ⚠️ PLACEHOLDER PRICING — review these before charging real money. A full
+// story costs us roughly ~$1 in API calls, so a credit is priced above that
+// for margin. Tune the numbers, then keep them in sync with what you tell users.
+const CREDIT_PACKS = {
+  starter: { credits: 5, price: 800, label: "5 stories" },    // $8.00
+  reader:  { credits: 15, price: 2000, label: "15 stories" }, // $20.00
+  patron:  { credits: 40, price: 4500, label: "40 stories" }, // $45.00
+};
+const CURRENCY = process.env.STRIPE_CURRENCY || "usd";
+
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY && supabaseAdmin) {
+  stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+}
+
+// Credits are enforced whenever the server can actually spend them safely
+// (i.e. the service-role key is configured). Without it — local dev, self-host
+// — generation stays open and free, exactly as before.
+const CREDITS_ENFORCED = !!supabaseAdmin && !DEMO_MODE;
+
+// The Stripe webhook must read the RAW request body to verify the signature,
+// so it is mounted BEFORE express.json(). Everything else gets parsed JSON.
+if (stripe && process.env.STRIPE_WEBHOOK_SECRET) {
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
+}
+
+app.use(express.json({ limit: "2mb" }));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Resolve the signed-in user from a Bearer token, if any.
 async function userFromReq(req) {
@@ -196,14 +228,43 @@ app.get("/api/config", (_req, res) => {
     supabase: supabaseAuth
       ? { url: process.env.SUPABASE_URL, anonKey: process.env.SUPABASE_ANON_KEY }
       : null,
+    creditsEnforced: CREDITS_ENFORCED,
+    payments: stripe && process.env.STRIPE_WEBHOOK_SECRET
+      ? {
+          currency: CURRENCY,
+          packs: Object.fromEntries(
+            Object.entries(CREDIT_PACKS).map(([id, p]) => [id, { credits: p.credits, price: p.price, label: p.label }]),
+          ),
+        }
+      : null,
   });
 });
+
+// A signed-in user's current credit balance.
+app.get("/api/credits", async (req, res) => {
+  if (!supabaseAdmin) return res.json({ credits: null, enforced: false });
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ error: "not signed in" });
+  const { data, error } = await supabaseAdmin
+    .from("profiles").select("credits").eq("id", user.id).maybeSingle();
+  if (error) return res.status(500).json({ error: "couldn't read credits" });
+  res.json({ credits: data ? data.credits : 0, enforced: CREDITS_ENFORCED });
+});
+
+// Refund a charged story start (server-internal helper).
+async function refundStart(userId, storyId) {
+  try {
+    await supabaseAdmin.rpc("refund_story", { p_user_id: userId, p_story_id: storyId });
+  } catch (e) {
+    console.error("refund_story failed:", e.message);
+  }
+}
 
 // Body: { scenario, character, history: [{role, content}, ...] }
 // history is the raw message list: assistant turns are full chapter text
 // (including <state> and <choices> tags), user turns are player actions.
 app.post("/api/story", async (req, res) => {
-  const { scenario, character, history } = req.body || {};
+  const { scenario, character, history, storyId } = req.body || {};
   if (!scenario || !character || !Array.isArray(history) || history.length === 0) {
     return res.status(400).json({ error: "scenario, character and non-empty history are required" });
   }
@@ -215,8 +276,44 @@ app.post("/api/story", async (req, res) => {
     });
   }
 
+  // Credit gate: when enforced, a story requires a signed-in user and one
+  // credit, spent atomically in the database on the first chapter only.
+  // (All of this runs BEFORE sseStart so we can still send real HTTP statuses.)
+  let chargedThisCall = false;
+  if (CREDITS_ENFORCED) {
+    if (!user) {
+      return res.status(401).json({ error: "Please sign in to begin a story.", needAuth: true });
+    }
+    if (!storyId || typeof storyId !== "string") {
+      return res.status(400).json({ error: "storyId is required" });
+    }
+    const { data, error } = await supabaseAdmin.rpc("start_story", {
+      p_user_id: user.id,
+      p_story_id: storyId,
+    });
+    if (error) {
+      console.error("start_story failed:", error.message);
+      return res.status(500).json({ error: "Couldn't check your story credits. Please try again." });
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || !row.ok) {
+      return res.status(402).json({
+        error: "You're out of story credits.",
+        needCredits: true,
+        credits: 0,
+      });
+    }
+    chargedThisCall = !!row.charged;
+  }
+
   const chapterNum = history.filter((m) => m.role === "assistant").length + 1;
   sseStart(res);
+  if (CREDITS_ENFORCED) {
+    // Push the (possibly newly-decremented) balance so the UI updates live.
+    const { data } = await supabaseAdmin
+      .from("profiles").select("credits").eq("id", user.id).maybeSingle();
+    if (data) sseSend(res, { type: "credits", credits: data.credits });
+  }
 
   try {
     if (DEMO_MODE) {
@@ -235,11 +332,13 @@ app.post("/api/story", async (req, res) => {
       const final = await stream.finalMessage();
 
       if (final.stop_reason === "refusal") {
+        if (chargedThisCall) await refundStart(user.id, storyId);
         sseSend(res, {
           type: "error",
           error: "The storyteller declined to continue this scene. Try a different action.",
         });
       } else if (final.stop_reason === "max_tokens") {
+        if (chargedThisCall) await refundStart(user.id, storyId);
         sseSend(res, {
           type: "error",
           error: "The chapter ran too long and was cut off. Try again.",
@@ -250,6 +349,8 @@ app.post("/api/story", async (req, res) => {
     }
   } catch (err) {
     console.error("story generation failed:", err);
+    // The charged first chapter never rendered — give the credit back.
+    if (chargedThisCall) await refundStart(user.id, storyId);
     let message = "The storyteller hit a snag. Please try again.";
     if (err instanceof Anthropic.AuthenticationError) {
       message = "Server API key is invalid — check ANTHROPIC_API_KEY.";
@@ -336,6 +437,88 @@ function fallbackCover(title, subtitle) {
   ${titleText}
   <text x="150" y="425" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="12" fill="hsl(${hue} 25% 60%)">an interactive novella · ${esc(subtitle)}</text>
 </svg>`;
+}
+
+// ----------------------------------------------------------------------
+// Payments: buy story credits via Stripe Checkout.
+// ----------------------------------------------------------------------
+
+// Create a Stripe Checkout session for a credit pack and return its URL.
+app.post("/api/checkout", async (req, res) => {
+  if (!stripe) return res.status(400).json({ error: "Payments aren't configured." });
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ error: "Please sign in first." });
+
+  const pack = CREDIT_PACKS[(req.body || {}).pack];
+  if (!pack) return res.status(400).json({ error: "Unknown credit pack." });
+
+  const origin = req.headers.origin || `${req.protocol}://${req.get("host")}`;
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      // Attribute this purchase to the user and pack so the webhook can grant
+      // the right credits to the right account.
+      client_reference_id: user.id,
+      metadata: { user_id: user.id, credits: String(pack.credits) },
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: CURRENCY,
+            unit_amount: pack.price,
+            product_data: { name: `Plotwick — ${pack.label}` },
+          },
+        },
+      ],
+      success_url: `${origin}/?checkout=success`,
+      cancel_url: `${origin}/?checkout=cancel`,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error("checkout session failed:", err.message);
+    res.status(500).json({ error: "Couldn't start checkout. Please try again." });
+  }
+});
+
+// Stripe webhook: the source of truth for granting credits. Mounted with a raw
+// body parser above (before express.json) so the signature verifies.
+async function handleStripeWebhook(req, res) {
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      req.headers["stripe-signature"],
+      process.env.STRIPE_WEBHOOK_SECRET,
+    );
+  } catch (err) {
+    console.error("stripe webhook signature verification failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const userId = session.metadata?.user_id || session.client_reference_id;
+    const credits = parseInt(session.metadata?.credits || "0", 10);
+    if (userId && credits > 0) {
+      try {
+        // Idempotent by event id: replays never double-grant.
+        const { error } = await supabaseAdmin.rpc("grant_stripe_credits", {
+          p_event_id: event.id,
+          p_user_id: userId,
+          p_credits: credits,
+        });
+        // supabase-js reports failures via the returned `error`, not a throw.
+        if (error) throw new Error(error.message);
+      } catch (err) {
+        console.error("grant_stripe_credits failed:", err.message);
+        // 500 tells Stripe to retry the webhook later so the paid-for credits
+        // still land — never swallow a grant failure with a 200.
+        return res.status(500).send("credit grant failed");
+      }
+    }
+  }
+
+  res.json({ received: true });
 }
 
 // ----------------------------------------------------------------------
@@ -486,4 +669,5 @@ app.listen(PORT, () => {
   console.log(DEMO_MODE
     ? "Mode: DEMO (no API key found — canned story content). Set ANTHROPIC_API_KEY for live stories."
     : `Mode: LIVE (model: ${MODEL}, target ~${TARGET_CHAPTERS} chapters, ${RATE_LIMIT_PER_HOUR} chapters/hr/IP)`);
+  console.log(`Accounts: ${supabaseAuth ? "on" : "off"} · Credits: ${CREDITS_ENFORCED ? "enforced" : "off"} · Payments: ${stripe && process.env.STRIPE_WEBHOOK_SECRET ? "Stripe" : "off"}`);
 });
