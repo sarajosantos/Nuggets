@@ -37,12 +37,16 @@ const client = DEMO_MODE ? null : new Anthropic();
 // moves share storage into Postgres and enables server-side credit spending.
 let supabaseAuth = null;
 let supabaseAdmin = null;
-if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+// Normalize the project URL: trim stray whitespace and any trailing slash.
+// A trailing slash makes supabase-js build "…/ /auth/v1/…" (double slash),
+// which the API gateway rejects with "Invalid path specified in request URL".
+const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
+if (SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
   const { createClient } = require("@supabase/supabase-js");
   const noSession = { auth: { persistSession: false, autoRefreshToken: false } };
-  supabaseAuth = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, noSession);
+  supabaseAuth = createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY, noSession);
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, noSession);
+    supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, noSession);
   }
 }
 
@@ -239,7 +243,7 @@ app.get("/api/config", (_req, res) => {
     model: MODEL,
     targetChapters: TARGET_CHAPTERS,
     supabase: supabaseAuth
-      ? { url: process.env.SUPABASE_URL, anonKey: process.env.SUPABASE_ANON_KEY }
+      ? { url: SUPABASE_URL, anonKey: process.env.SUPABASE_ANON_KEY }
       : null,
     creditsEnforced: CREDITS_ENFORCED,
     payments: stripe && process.env.STRIPE_WEBHOOK_SECRET
