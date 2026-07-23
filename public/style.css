@@ -144,6 +144,7 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .card-grid.small { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); margin: 0.4rem 0 0.6rem; }
 
 .card {
+  --card-accent: var(--gold); /* per-world override via inline style */
   background: var(--plate);
   border: 1px solid var(--hairline);
   border-radius: 3px;
@@ -158,8 +159,8 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .card .ornament {
   display: block;
   font-size: 1.25rem;
-  color: var(--gold);
-  opacity: 0.75;
+  color: var(--card-accent);
+  opacity: 0.8;
   margin-bottom: 0.5rem;
   transition: opacity 0.15s ease;
 }
@@ -172,6 +173,18 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   color: var(--muted);
   margin-bottom: 0.35rem;
 }
+
+/* Each world's card is tinted with its own genre accent so the grid reads as
+   a shelf of different books, not one purple deck. */
+.scenario-card {
+  background:
+    linear-gradient(158deg, color-mix(in srgb, var(--card-accent) 15%, transparent), transparent 58%),
+    var(--plate);
+  border-color: color-mix(in srgb, var(--card-accent) 22%, var(--hairline));
+}
+.scenario-card:hover { border-color: var(--card-accent); }
+.scenario-card .eyebrow { color: color-mix(in srgb, var(--card-accent) 75%, var(--muted)); }
+.scenario-card h3 { color: color-mix(in srgb, var(--card-accent) 30%, var(--text)); }
 .card h3 {
   font-family: var(--display);
   font-weight: 600;

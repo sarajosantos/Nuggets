@@ -1,11 +1,14 @@
 // Plotwick — frontend. Story state lives here (and in localStorage
 // as a multi-story library); the server streams chapters and stores shares.
 
+// Each world carries a genre-appropriate accent used to color its card
+// (ornament, label, border, and a faint plate wash) and its cover fallback.
 const SCENARIOS = [
   {
     id: "fantasy",
     ornament: "⚜",
     genre: "Epic fantasy",
+    accent: "#5FB08A", // emerald
     title: "The Shattered Crown",
     premise:
       "The old king is dead, his crown broken into five shards scattered across a fractured realm. Whoever reunites them rules — and something older than any kingdom is also hunting the pieces.",
@@ -15,6 +18,7 @@ const SCENARIOS = [
     id: "scifi",
     ornament: "✦",
     genre: "Sci-fi thriller",
+    accent: "#5AA0DC", // steel-cyan
     title: "Signal from Europa",
     premise:
       "A repeating signal from beneath Europa's ice has gone silent — along with the twelve-person research station that found it. Your ship is six days out, and the only one close enough to answer.",
@@ -24,6 +28,7 @@ const SCENARIOS = [
     id: "mystery",
     ornament: "♞",
     genre: "Murder mystery",
+    accent: "#CC6058", // claret
     title: "The Glass House Murders",
     premise:
       "A reclusive tycoon is found dead in his famous glass mansion the night of a storm, seven guests trapped inside with the body — and every one of them, including you, has something to hide.",
@@ -33,6 +38,7 @@ const SCENARIOS = [
     id: "horror",
     ornament: "☾",
     genre: "Gothic horror",
+    accent: "#A17FD4", // spectral violet
     title: "The Hollow Below",
     premise:
       "Your grandmother's will left you the house on Merrow Lane — and a letter begging you to brick up the cellar without ever opening the door at the bottom of the stairs. The door is already open.",
@@ -42,6 +48,7 @@ const SCENARIOS = [
     id: "western",
     ornament: "✪",
     genre: "Western",
+    accent: "#CE8149", // copper / rust
     title: "Red Dust Reckoning",
     premise:
       "You ride into the copper town of Providencia with a debt to settle and a name you no longer use. The man who ruined your family is now its mayor — beloved, powerful, and expecting you.",
@@ -51,6 +58,7 @@ const SCENARIOS = [
     id: "regency",
     ornament: "❧",
     genre: "Regency intrigue",
+    accent: "#D07CA6", // rose
     title: "A Season of Masks",
     premise:
       "London, 1813. You arrive for the Season with a dazzling reputation, an empty purse, and one chance to secure your family's future — while a rival from your past threatens to expose everything.",
@@ -148,9 +156,9 @@ function renderScenarios() {
       openCharacterScreen();
     }));
   }
-  // "Write your own" plate
+  // "Write your own" plate — keeps the house gold accent.
   const custom = document.createElement("button");
-  custom.className = "card";
+  custom.className = "card scenario-card";
   custom.innerHTML = `<span class="ornament">☙</span><span class="eyebrow">Your imagination</span><h3>Write your own</h3><p>Bring a premise; the storyteller does the rest.</p>`;
   custom.addEventListener("click", () => {
     updateCustomContinue();
@@ -161,7 +169,8 @@ function renderScenarios() {
 
 function scenarioCard(s, onClick) {
   const card = document.createElement("button");
-  card.className = "card";
+  card.className = "card scenario-card";
+  if (s.accent) card.style.setProperty("--card-accent", s.accent);
   card.innerHTML = `<span class="ornament">${s.ornament}</span><span class="eyebrow">${escapeHtml(s.genre)}</span><h3>${escapeHtml(s.title)}</h3><p>${escapeHtml(s.premise)}</p>`;
   card.addEventListener("click", onClick);
   return card;
