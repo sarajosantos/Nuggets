@@ -133,6 +133,27 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   outline-offset: 1px;
 }
 
+/* name field + dice-roll button */
+.name-row { display: flex; gap: 0.6rem; align-items: stretch; }
+.name-row input { flex: 1; }
+.roll-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  padding: 0 1rem;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.roll-btn:hover { color: var(--gold); border-color: var(--gold-line); }
+.roll-btn:active { transform: translateY(1px); }
+@media (max-width: 460px) { .roll-btn { font-size: 0.75rem; padding: 0 0.7rem; } }
+
 /* ---------- book-plate cards ---------- */
 
 .card-grid {

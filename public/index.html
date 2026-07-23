@@ -66,7 +66,10 @@
       <p class="screen-sub" id="character-scenario-label"></p>
 
       <label class="field-label" for="char-name">Your name</label>
-      <input type="text" id="char-name" maxlength="40" placeholder="e.g. Rowan Ashford" autocomplete="off">
+      <div class="name-row">
+        <input type="text" id="char-name" maxlength="40" placeholder="e.g. Rowan Ashford" autocomplete="off">
+        <button type="button" id="roll-name" class="roll-btn" title="Roll a random name" aria-label="Roll a random name">⚄ Surprise me</button>
+      </div>
 
       <label class="field-label">Your archetype</label>
       <div id="archetype-grid" class="card-grid small"></div>
