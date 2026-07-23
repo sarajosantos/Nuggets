@@ -37,10 +37,15 @@ const client = DEMO_MODE ? null : new Anthropic();
 // moves share storage into Postgres and enables server-side credit spending.
 let supabaseAuth = null;
 let supabaseAdmin = null;
-// Normalize the project URL: trim stray whitespace and any trailing slash.
-// A trailing slash makes supabase-js build "…/ /auth/v1/…" (double slash),
-// which the API gateway rejects with "Invalid path specified in request URL".
-const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
+// Normalize the project URL. supabase-js appends its own "/auth/v1/…",
+// "/rest/v1/…", etc., so the configured value must be the bare project origin
+// (https://<ref>.supabase.co). A trailing slash or a pasted API path segment
+// (e.g. ".../rest/v1") makes the client build a bad URL that the gateway
+// rejects with "Invalid path specified in request URL". Strip both.
+const SUPABASE_URL = (process.env.SUPABASE_URL || "")
+  .trim()
+  .replace(/\/(rest|auth|storage|realtime|functions)\/v1\/?$/i, "")
+  .replace(/\/+$/, "");
 if (SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
   const { createClient } = require("@supabase/supabase-js");
   const noSession = { auth: { persistSession: false, autoRefreshToken: false } };
