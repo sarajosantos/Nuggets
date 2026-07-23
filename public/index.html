@@ -41,6 +41,7 @@
 
     <!-- Screen 1b: custom scenario -->
     <section id="screen-custom" class="screen hidden">
+      <nav class="screen-nav"><button id="custom-back" class="back-link">← All worlds</button></nav>
       <h2 class="screen-title">Write your own world</h2>
       <p class="screen-sub">Give the storyteller a premise; it will do the rest.</p>
 
@@ -53,14 +54,14 @@
       <label class="field-label" for="custom-tone">Genre &amp; tone</label>
       <input type="text" id="custom-tone" maxlength="200" placeholder="e.g. melancholy maritime fantasy, slow dread, moments of wonder" autocomplete="off">
 
-      <div class="actions">
-        <button id="custom-back" class="btn btn-ghost">← Back</button>
+      <div class="actions actions-end">
         <button id="custom-continue" class="btn btn-primary" disabled>Continue →</button>
       </div>
     </section>
 
     <!-- Screen 2: character creation -->
     <section id="screen-character" class="screen hidden">
+      <nav class="screen-nav"><button id="back-to-scenarios" class="back-link">← All worlds</button></nav>
       <h2 class="screen-title">Who are you?</h2>
       <p class="screen-sub" id="character-scenario-label"></p>
 
@@ -73,14 +74,14 @@
       <label class="field-label">Your defining trait</label>
       <div id="trait-row" class="chip-row"></div>
 
-      <div class="actions">
-        <button id="back-to-scenarios" class="btn btn-ghost">← Back</button>
+      <div class="actions actions-end">
         <button id="begin-btn" class="btn btn-primary" disabled>Begin the story →</button>
       </div>
     </section>
 
     <!-- Screen 3: the story -->
     <section id="screen-story" class="screen hidden">
+      <nav class="screen-nav"><button id="abandon-btn" class="back-link">← Home</button></nav>
       <div class="running-head">
         <span id="story-title"></span>
         <span id="chapter-count"></span>
@@ -124,10 +125,6 @@
       <div id="error-area" class="error hidden">
         <p id="error-text"></p>
         <button id="retry-btn" class="btn btn-ghost">Try again</button>
-      </div>
-
-      <div class="story-footer">
-        <button id="abandon-btn" class="btn btn-ghost btn-small">Abandon story</button>
       </div>
     </section>
   </main>
