@@ -2,7 +2,9 @@
 // as a multi-story library); the server streams chapters and stores shares.
 
 // Each world carries a genre-appropriate accent used to color its card
-// (ornament, label, border, and a faint plate wash) and its cover fallback.
+// (ornament, label, border, and a faint plate wash) and its cover fallback —
+// plus its own character-creation cast: a world-specific question, a name in
+// the world's register, six archetypes in its voice, and six genre traits.
 const SCENARIOS = [
   {
     id: "fantasy",
@@ -13,6 +15,17 @@ const SCENARIOS = [
     premise:
       "The old king is dead, his crown broken into five shards scattered across a fractured realm. Whoever reunites them rules — and something older than any kingdom is also hunting the pieces.",
     tone: "Epic fantasy: sweeping, perilous, wondrous. Moral choices with real costs.",
+    question: "Who answers when the crown calls?",
+    namePlaceholder: "e.g. Maeryn of the Vale",
+    archetypes: [
+      { title: "The Knight-Errant", ornament: "⚔", blurb: "Sworn to a king now dead. The oath didn't die with him." },
+      { title: "The Hedge-Witch", ornament: "☽", blurb: "Small magics, old debts, a talent for surviving both." },
+      { title: "The Exiled Heir", ornament: "♜", blurb: "The crown is your birthright. Half the realm disagrees." },
+      { title: "The Loremaster", ornament: "✒", blurb: "You know what the shards truly are. You wish you didn't." },
+      { title: "The Sellsword", ornament: "⚑", blurb: "Loyal to coin, so far. Nothing worthier has paid." },
+      { title: "The Gravesinger", ornament: "❧", blurb: "You sing the dead to rest. Lately they sing back." },
+    ],
+    traits: ["Oathbound", "Cunning", "Merciful", "Vengeful", "Fated", "Unyielding"],
   },
   {
     id: "scifi",
@@ -23,6 +36,17 @@ const SCENARIOS = [
     premise:
       "A repeating signal from beneath Europa's ice has gone silent — along with the twelve-person research station that found it. Your ship is six days out, and the only one close enough to answer.",
     tone: "Hard sci-fi thriller: claustrophobic, awe-struck, scientifically grounded dread.",
+    question: "Who wakes when the klaxon sounds?",
+    namePlaceholder: "e.g. Idris Okonkwo",
+    archetypes: [
+      { title: "The Commander", ornament: "✦", blurb: "Twelve people were yours to protect. You're six days late." },
+      { title: "The Ship's Engineer", ornament: "⚙", blurb: "The ship talks in its sleep. You always listen." },
+      { title: "The Xenobiologist", ornament: "☿", blurb: "You prayed for first contact. Careful what answers." },
+      { title: "The Flight Surgeon", ornament: "✚", blurb: "You can patch a body in vacuum. Minds are harder." },
+      { title: "The Comms Officer", ornament: "≋", blurb: "You heard the signal first. It's still in your head." },
+      { title: "The Company Observer", ornament: "♄", blurb: "Someone must protect the investment. Even from the crew." },
+    ],
+    traits: ["Methodical", "Haunted", "Curious", "Steady", "Ambitious", "Sleepless"],
   },
   {
     id: "mystery",
@@ -33,6 +57,17 @@ const SCENARIOS = [
     premise:
       "A reclusive tycoon is found dead in his famous glass mansion the night of a storm, seven guests trapped inside with the body — and every one of them, including you, has something to hide.",
     tone: "Golden-age murder mystery: sharp dialogue, red herrings, a ticking clock until dawn.",
+    question: "Who were you, before tonight?",
+    namePlaceholder: "e.g. Vivian Ashcombe",
+    archetypes: [
+      { title: "The Detective, Retired", ornament: "♞", blurb: "You came for the wine. Murder followed you in." },
+      { title: "The Society Columnist", ornament: "✎", blurb: "You know every secret here. One is worth killing for." },
+      { title: "The Heir", ornament: "♦", blurb: "The will names you first. Tonight, that's called motive." },
+      { title: "The Family Doctor", ornament: "⚗", blurb: "Thirty years of house calls. Some cures stayed quiet." },
+      { title: "The Butler", ornament: "♟", blurb: "Unseen, indispensable, and last to see him alive." },
+      { title: "The Widow", ornament: "♛", blurb: "His third. The first two are why you're careful." },
+    ],
+    traits: ["Observant", "Discreet", "Charming", "Desperate", "Ruthless", "Nervy"],
   },
   {
     id: "horror",
@@ -43,6 +78,17 @@ const SCENARIOS = [
     premise:
       "Your grandmother's will left you the house on Merrow Lane — and a letter begging you to brick up the cellar without ever opening the door at the bottom of the stairs. The door is already open.",
     tone: "Gothic horror: slow-burn dread, family secrets, the uncanny bleeding into the everyday.",
+    question: "Who inherits the house on Merrow Lane?",
+    namePlaceholder: "e.g. Wren Halloway",
+    archetypes: [
+      { title: "The Grandchild", ornament: "☾", blurb: "She left you the house because you never asked why." },
+      { title: "The Lapsed Seminarian", ornament: "†", blurb: "You stopped believing. The house means to fix that." },
+      { title: "The Debunker", ornament: "✒", blurb: "Forty hauntings debunked. This one knows your name." },
+      { title: "The Herbalist", ornament: "✿", blurb: "She taught you the garden. Never what it was fed." },
+      { title: "The Restorer", ornament: "♫", blurb: "Old houses sing to you. This one is screaming." },
+      { title: "The Twin", ornament: "☍", blurb: "Your sister vanished here. The door remembers her." },
+    ],
+    traits: ["Haunted", "Stubborn", "Skeptical", "Tender", "Morbid", "Unblinking"],
   },
   {
     id: "western",
@@ -53,6 +99,17 @@ const SCENARIOS = [
     premise:
       "You ride into the copper town of Providencia with a debt to settle and a name you no longer use. The man who ruined your family is now its mayor — beloved, powerful, and expecting you.",
     tone: "Revisionist western: dusty, morally gray, tense standoffs and hard-won loyalty.",
+    question: "Who rides into Providencia?",
+    namePlaceholder: "e.g. Ellis Marner",
+    archetypes: [
+      { title: "The Gunhand", ornament: "✪", blurb: "Fast enough to be famous. Tired enough to quit." },
+      { title: "The Circuit Judge", ornament: "⚖", blurb: "You carry the law in a saddlebag. It rides light here." },
+      { title: "The Cardsharp", ornament: "♠", blurb: "You win because you must. Someone remembers losing." },
+      { title: "The Homesteader", ornament: "⚒", blurb: "They burned the claim. You kept the deed and the anger." },
+      { title: "The Printer", ornament: "✎", blurb: "Truth is a lit match in a dry town." },
+      { title: "The Preacher", ornament: "✟", blurb: "You buried the gun with your past. This town sells shovels." },
+    ],
+    traits: ["Weathered", "Loyal", "Vengeful", "Quiet", "Hot-headed", "Honest"],
   },
   {
     id: "regency",
@@ -63,9 +120,21 @@ const SCENARIOS = [
     premise:
       "London, 1813. You arrive for the Season with a dazzling reputation, an empty purse, and one chance to secure your family's future — while a rival from your past threatens to expose everything.",
     tone: "Regency romance with intrigue: wit, longing, ballroom politics, secrets behind fans.",
+    question: "Who arrives for the Season?",
+    namePlaceholder: "e.g. Miss Georgiana Hale",
+    archetypes: [
+      { title: "The Penniless Beauty", ornament: "❧", blurb: "Your face opens doors your accounts would close." },
+      { title: "The Widowed Countess", ornament: "♕", blurb: "Married up, buried well. Society calls it luck." },
+      { title: "The Secret Novelist", ornament: "✒", blurb: "All London reads your scandals. None suspect the author." },
+      { title: "The Half-Pay Officer", ornament: "⚔", blurb: "Waterloo made you a hero. Peace made you poor." },
+      { title: "The Matchmaker", ornament: "❁", blurb: "Eleven marriages arranged. Yours remains unwritten." },
+      { title: "The Fortune Hunter", ornament: "♠", blurb: "Charm is capital. You mean to invest it well." },
+    ],
+    traits: ["Witty", "Prudent", "Passionate", "Scheming", "Devoted", "Scandalous"],
   },
 ];
 
+// Fallback cast for "Write your own" worlds, where we can't know the setting.
 const ARCHETYPES = [
   { title: "The Rogue", ornament: "♠", blurb: "Quick hands, quicker wit. Rules are suggestions." },
   { title: "The Scholar", ornament: "✒", blurb: "Knowledge is your weapon — and your weakness." },
@@ -76,6 +145,7 @@ const ARCHETYPES = [
 ];
 
 const TRAITS = ["Brave", "Cunning", "Compassionate", "Ruthless", "Curious", "Haunted"];
+const DEFAULT_QUESTION = "Who are you?";
 
 const LIB_KEY = "plotwick-library-v1";
 
@@ -137,8 +207,6 @@ async function init() {
   } catch { /* cosmetic */ }
 
   renderScenarios();
-  renderArchetypes();
-  renderTraits();
   renderLibrary();
   wireEvents();
   wirePayments();
@@ -229,21 +297,34 @@ function submitCustomScenario() {
 }
 
 // ----- screen 2: character -----
+// The cast is world-specific: question, name placeholder, archetypes, and
+// traits all come from the chosen world (generic fallbacks for custom ones).
+// Selections reset on entry since each world has a different cast.
 function openCharacterScreen() {
-  $("character-scenario-label").textContent = `${draft.scenario.ornament} ${draft.scenario.title}`;
+  const s = draft.scenario;
+  $("character-question").textContent = s.question || DEFAULT_QUESTION;
+  $("character-scenario-label").textContent = `${s.ornament} ${s.title}`;
+  $("char-name").placeholder = s.namePlaceholder || "e.g. Rowan Ashford";
+  draft.character.archetype = null;
+  draft.character.archetypeBlurb = null;
+  draft.character.trait = null;
+  renderArchetypes(s.archetypes || ARCHETYPES, s.accent);
+  renderTraits(s.traits || TRAITS);
   showScreen("character");
   updateBeginButton();
 }
 
-function renderArchetypes() {
+function renderArchetypes(archetypes, accent) {
   const grid = $("archetype-grid");
   grid.innerHTML = "";
-  for (const a of ARCHETYPES) {
+  for (const a of archetypes) {
     const card = document.createElement("button");
     card.className = "card";
-    card.innerHTML = `<span class="ornament">${a.ornament}</span><h3>${a.title}</h3><p>${a.blurb}</p>`;
+    if (accent) card.style.setProperty("--card-accent", accent);
+    card.innerHTML = `<span class="ornament">${a.ornament}</span><h3>${escapeHtml(a.title)}</h3><p>${escapeHtml(a.blurb)}</p>`;
     card.addEventListener("click", () => {
       draft.character.archetype = a.title;
+      draft.character.archetypeBlurb = a.blurb;
       grid.querySelectorAll(".card").forEach((c) => c.classList.toggle("selected", c === card));
       updateBeginButton();
     });
@@ -251,10 +332,10 @@ function renderArchetypes() {
   }
 }
 
-function renderTraits() {
+function renderTraits(traits) {
   const row = $("trait-row");
   row.innerHTML = "";
-  for (const t of TRAITS) {
+  for (const t of traits) {
     const chip = document.createElement("button");
     chip.className = "chip";
     chip.textContent = t;
