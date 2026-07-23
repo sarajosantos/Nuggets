@@ -403,6 +403,10 @@ function openStoryScreen() {
   $("error-area").classList.add("hidden");
   $("journal").classList.add("hidden");
   $("journal-toggle").setAttribute("aria-pressed", "false");
+  // Tint the whole reading view with this world's accent (custom → house gold).
+  const el = $("screen-story");
+  if (story.scenario.accent) el.style.setProperty("--story-accent", story.scenario.accent);
+  else el.style.removeProperty("--story-accent");
   updateChapterCount();
   showScreen("story");
 }
@@ -641,6 +645,7 @@ async function fetchCover() {
         title: forStory.title,
         scenario: { title: forStory.scenario.title, premise: forStory.scenario.premise },
         character: forStory.character,
+        accent: forStory.scenario.accent || null,
       }),
     });
     const { svg } = await res.json();

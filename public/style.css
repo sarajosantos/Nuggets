@@ -322,7 +322,7 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: var(--gold);
+  color: var(--story-accent);
   margin-bottom: 0.35rem;
   font-weight: 500;
 }
@@ -339,6 +339,10 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
+/* The reading view is tinted with the current world's accent, set as an inline
+   --story-accent on #screen-story (custom stories fall back to house gold). */
+#screen-story { --story-accent: var(--gold); }
+
 .story-text {
   font-family: var(--prose);
   font-size: 1.17rem;
@@ -354,13 +358,13 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   font-weight: 600;
   font-size: 3.3em;
   line-height: 0.82;
-  color: var(--gold);
+  color: var(--story-accent);
   float: left;
   padding: 0.06em 0.12em 0 0;
 }
 
 .player-action {
-  color: var(--gold);
+  color: var(--story-accent);
   font-style: italic;
   font-size: 1.02rem;
   margin: 1.9em 0 0;
@@ -394,7 +398,7 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   font-family: var(--display);
   font-style: italic;
   font-size: 1.25rem;
-  color: var(--gold);
+  color: var(--story-accent);
   text-align: center;
   margin-bottom: 1rem;
 }
@@ -412,8 +416,8 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   transition: border-color 0.15s ease, background 0.15s ease, padding-left 0.15s ease;
 }
 .choice-btn:hover {
-  border-color: var(--gold-line);
-  background: linear-gradient(var(--gold-dim), var(--gold-dim)) var(--page);
+  border-color: color-mix(in srgb, var(--story-accent) 55%, transparent);
+  background: linear-gradient(color-mix(in srgb, var(--story-accent) 12%, transparent), color-mix(in srgb, var(--story-accent) 12%, transparent)) var(--page);
   padding-left: 1.5rem;
 }
 
@@ -423,7 +427,7 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 /* ---------- ending & sharing ---------- */
 
 .ending { text-align: center; margin-top: 3rem; }
-.ending-mark { color: var(--gold); font-size: 1.3rem; letter-spacing: 0.4em; }
+.ending-mark { color: var(--story-accent); font-size: 1.3rem; letter-spacing: 0.4em; }
 .ending-word {
   font-family: var(--display);
   font-style: italic;
