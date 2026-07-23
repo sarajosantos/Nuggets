@@ -231,6 +231,22 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .btn-small { font-size: 0.78rem; padding: 0.38rem 0.9rem; }
 
 .actions { display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 2.2rem; }
+.actions.actions-end { justify-content: flex-end; }
+
+/* Top-left back navigation, consistent across every sub-screen. */
+.screen-nav { margin-bottom: 1rem; }
+.back-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  padding: 0.3rem 0.1rem;
+  transition: color 0.15s ease;
+}
+.back-link:hover { color: var(--gold); }
 
 /* ---------- library ---------- */
 
@@ -458,13 +474,6 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   gap: 1rem;
 }
 .error p { color: #dfa79f; font-family: var(--prose); font-size: 1rem; }
-
-.story-footer {
-  margin-top: 3.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--hairline);
-  text-align: right;
-}
 
 /* ---------- accounts ---------- */
 
