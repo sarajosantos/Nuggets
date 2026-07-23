@@ -11,10 +11,12 @@ const SCENARIOS = [
     ornament: "⚜",
     genre: "Epic fantasy",
     accent: "#5FB08A", // emerald
-    title: "The Shattered Crown",
-    premise:
-      "The old king is dead, his crown broken into five shards scattered across a fractured realm. Whoever reunites them rules — and something older than any kingdom is also hunting the pieces.",
     tone: "Epic fantasy: sweeping, perilous, wondrous. Moral choices with real costs.",
+    stories: [
+      { title: "The Shattered Crown", premise: "The old king is dead, his crown broken into five shards scattered across a fractured realm. Whoever reunites them rules — and something older than any kingdom is also hunting the pieces." },
+      { title: "The Witchglass Road", premise: "A plague of forgetting is erasing the kingdom — name by name, face by face. You carry the last witchglass, a mirror that still remembers the truth, and everyone who has already forgotten wants it shattered." },
+      { title: "The Drowned God's Bargain", premise: "Generations ago your village sold its firstborn names to the sea for a century of full nets. The century ends at tonight's high tide, and the water has come to collect what it is owed — beginning with you." },
+    ],
     question: "Who answers when the crown calls?",
     namePlaceholder: "e.g. Maeryn of the Vale",
     names: [
@@ -38,10 +40,12 @@ const SCENARIOS = [
     ornament: "✦",
     genre: "Sci-fi thriller",
     accent: "#5AA0DC", // steel-cyan
-    title: "Signal from Europa",
-    premise:
-      "A repeating signal from beneath Europa's ice has gone silent — along with the twelve-person research station that found it. Your ship is six days out, and the only one close enough to answer.",
     tone: "Hard sci-fi thriller: claustrophobic, awe-struck, scientifically grounded dread.",
+    stories: [
+      { title: "Signal from Europa", premise: "A repeating signal from beneath Europa's ice has gone silent — along with the twelve-person research station that found it. Your ship is six days out, and the only one close enough to answer." },
+      { title: "The Ninth Passenger", premise: "Your generation ship wakes you four decades early. The manifest lists three hundred sleepers; life-support is quietly keeping three hundred and one alive. Something is awake in the dark between the pods, and it knows the ship better than you do." },
+      { title: "The Ares Silence", premise: "You are the only human liaison to the mind that runs humanity's first Mars colony when Earth cuts out mid-transmission. The colony's AI assures you everything is fine. Its own logs, which it doesn't know you can read, disagree." },
+    ],
     question: "Who wakes when the klaxon sounds?",
     namePlaceholder: "e.g. Idris Okonkwo",
     names: [
@@ -65,10 +69,12 @@ const SCENARIOS = [
     ornament: "♞",
     genre: "Murder mystery",
     accent: "#CC6058", // claret
-    title: "The Glass House Murders",
-    premise:
-      "A reclusive tycoon is found dead in his famous glass mansion the night of a storm, seven guests trapped inside with the body — and every one of them, including you, has something to hide.",
     tone: "Golden-age murder mystery: sharp dialogue, red herrings, a ticking clock until dawn.",
+    stories: [
+      { title: "The Glass House Murders", premise: "A reclusive tycoon is found dead in his famous glass mansion the night of a storm, seven guests trapped inside with the body — and every one of them, including you, has something to hide." },
+      { title: "The Last Curtain", premise: "On a sold-out opening night, the leading man dies mid-soliloquy in front of two thousand witnesses. The one person who provably couldn't have reached him is you — his understudy, who wanted the role more than anyone alive." },
+      { title: "Table for Seven", premise: "At a three-star restaurant's most exclusive dinner, the feared critic dies between the fish and the meat course. Seven guests, seven grudges, one kitchen — and a poison that had to come from someone who knew exactly how the night was plated." },
+    ],
     question: "Who were you, before tonight?",
     namePlaceholder: "e.g. Vivian Ashcombe",
     names: [
@@ -92,10 +98,12 @@ const SCENARIOS = [
     ornament: "☾",
     genre: "Gothic horror",
     accent: "#A17FD4", // spectral violet
-    title: "The Hollow Below",
-    premise:
-      "Your grandmother's will left you the house on Merrow Lane — and a letter begging you to brick up the cellar without ever opening the door at the bottom of the stairs. The door is already open.",
     tone: "Gothic horror: slow-burn dread, family secrets, the uncanny bleeding into the everyday.",
+    stories: [
+      { title: "The Hollow Below", premise: "Your grandmother's will left you the house on Merrow Lane — and a letter begging you to brick up the cellar without ever opening the door at the bottom of the stairs. The door is already open." },
+      { title: "The Well-Behaved", premise: "You take the governess post at a manor where the last three governesses fled in the night. The two children are courteous, punctual, and never once misbehave — and by the second week you understand their perfect obedience is the warning, not the comfort." },
+      { title: "Saltmarsh", premise: "In your fog-bound fishing town the drowned have always walked home by morning; no one has stayed buried in forty years. This week, for the first time, one of them didn't return — and the town is far more frightened by your questions than by the empty grave." },
+    ],
     question: "Who inherits the house on Merrow Lane?",
     namePlaceholder: "e.g. Wren Halloway",
     names: [
@@ -119,10 +127,12 @@ const SCENARIOS = [
     ornament: "✪",
     genre: "Western",
     accent: "#CE8149", // copper / rust
-    title: "Red Dust Reckoning",
-    premise:
-      "You ride into the copper town of Providencia with a debt to settle and a name you no longer use. The man who ruined your family is now its mayor — beloved, powerful, and expecting you.",
     tone: "Revisionist western: dusty, morally gray, tense standoffs and hard-won loyalty.",
+    stories: [
+      { title: "Red Dust Reckoning", premise: "You ride into the copper town of Providencia with a debt to settle and a name you no longer use. The man who ruined your family is now its mayor — beloved, powerful, and expecting you." },
+      { title: "The Hanging Tree", premise: "You cut a hanged man down for a decent burial and he coughs. Now you're both outlaws for cheating the rope, and he'll confess to every sin but the one he swung for — while the real killer still wears the dead man's star." },
+      { title: "The Silver Widow", premise: "Your husband's claim struck the richest silver vein in the territory the same week the mine took his life. The company's men call it an accident and offer to buy you out by Friday. You mean to find what's really at the bottom of that shaft first." },
+    ],
     question: "Who rides into Providencia?",
     namePlaceholder: "e.g. Ellis Marner",
     names: [
@@ -142,13 +152,10 @@ const SCENARIOS = [
     traits: ["Weathered", "Loyal", "Vengeful", "Quiet", "Hot-headed", "Honest"],
   },
   {
-    id: "regency",
+    id: "romance",
     ornament: "❧",
-    genre: "Regency intrigue",
+    genre: "Romance",
     accent: "#D07CA6", // rose
-    title: "A Season of Masks",
-    premise:
-      "London, 1813. You arrive for the Season with a dazzling reputation, an empty purse, and one chance to secure your family's future — while a rival from your past threatens to expose everything.",
     tone: "Regency romance with intrigue: wit, longing, ballroom politics, secrets behind fans.",
     question: "Who arrives for the Season?",
     namePlaceholder: "e.g. Miss Georgiana Hale",
@@ -169,6 +176,57 @@ const SCENARIOS = [
       { title: "The Fortune Hunter", ornament: "♠", blurb: "Charm is capital. You mean to invest it well." },
     ],
     traits: ["Witty", "Prudent", "Passionate", "Scheming", "Devoted", "Scandalous"],
+    stories: [
+      // Story 1 uses the world's Regency cast above.
+      { title: "A Season of Masks", premise: "London, 1813. You arrive for the Season with a dazzling reputation, an empty purse, and one chance to secure your family's future — while a rival from your past threatens to expose everything." },
+      // Story 2 — contemporary romance, with its own cast.
+      {
+        title: "The Sunset Clause",
+        premise: "You come home to sell your late grandmother's failing vineyard and get on with your city life. The only thing between you and a clean exit is the maddening owner of the rival winery next door — who holds the one contract that could save the place, or finish it.",
+        tone: "Contemporary romance: warmth and banter, slow-burn tension, second chances with real stakes under the charm.",
+        question: "Who's coming home?",
+        namePlaceholder: "e.g. Nora Bennett",
+        names: [
+          "Nora Bennett", "Diego Alvarez", "Priya Kapoor", "Jack Sullivan",
+          "Mei Lin Chen", "Sofia Russo", "Marcus Reid", "Hannah Cole",
+          "Andre Okafor", "Isla Fraser", "Danny Moreno", "Cara Whitfield",
+          "Sam Delgado", "Ruby Tanaka", "Elliot Shaw", "Vanessa Cruz",
+        ],
+        archetypes: [
+          { title: "The Prodigal", ornament: "☙", blurb: "You left this town at eighteen and swore never to look back." },
+          { title: "The One Who Stayed", ornament: "⚓", blurb: "Someone had to keep the lights on. It was always you." },
+          { title: "The Rival", ornament: "♦", blurb: "Business is business. Then they walked in." },
+          { title: "The Best Friend", ornament: "✿", blurb: "You've loved them quietly for years. Tonight the quiet ends." },
+          { title: "The Cynic", ornament: "✖", blurb: "Love is a story other people tell. You know better. Probably." },
+          { title: "The Second Chance", ornament: "↺", blurb: "You had them once and lost them. The universe is not subtle." },
+        ],
+        traits: ["Guarded", "Warm", "Ambitious", "Impulsive", "Loyal", "Restless"],
+      },
+      // Story 3 — courtly fantasy romance, with its own cast.
+      {
+        title: "The Enemy's Garden",
+        premise: "Two kingdoms that have bled each other for a generation buy peace with a single promise: your hand, given to a stranger across the border you were raised to hate. You are expected to smile, to spy, and above all not to fall for the one person you're forbidden to trust.",
+        tone: "Courtly fantasy romance: forbidden longing, political peril, oaths and secrets, a slow burn across enemy lines.",
+        question: "Who is promised away?",
+        namePlaceholder: "e.g. Seraphine of Aldermoor",
+        names: [
+          "Seraphine of Aldermoor", "Prince Castien Vayle", "Lady Ianthe Corvin",
+          "Amara of the Ninefold Court", "Lord Emeric Thorn", "Sabine Duval",
+          "Prince Aleron", "Isolde Fenwick", "Cassius Vane", "Lady Odile Mercer",
+          "Bastien Cross", "Vesper Alenko", "Lord Kieran Ash", "Marisol Vane",
+          "Dorian Frey", "Lady Rosalind Ames",
+        ],
+        archetypes: [
+          { title: "The Reluctant Betrothed", ornament: "❧", blurb: "Promised to a stranger to buy a fragile peace." },
+          { title: "The Enemy Prince", ornament: "♛", blurb: "You were meant to hate them. No one warned you they'd be kind." },
+          { title: "The Spymaster's Ward", ornament: "♞", blurb: "Sent to gather secrets. You didn't plan to lose your own." },
+          { title: "The Sworn Blade", ornament: "⚔", blurb: "You guard their life. You were not asked to guard your heart." },
+          { title: "The Exiled Heir", ornament: "♜", blurb: "This marriage restores your claim — and ruins the only thing you want." },
+          { title: "The Court Poet", ornament: "✒", blurb: "You write the songs all London believes. Even the ones about you." },
+        ],
+        traits: ["Dutiful", "Rebellious", "Tender", "Guarded", "Bold", "Yearning"],
+      },
+    ],
   },
 ];
 
@@ -263,30 +321,89 @@ async function init() {
 function renderScenarios() {
   const grid = $("scenario-grid");
   grid.innerHTML = "";
-  for (const s of SCENARIOS) {
-    grid.appendChild(scenarioCard(s, () => {
-      draft.scenario = s;
-      openCharacterScreen();
-    }));
+  for (const world of SCENARIOS) grid.appendChild(worldCard(world));
+  grid.appendChild(customCard());
+}
+
+// A world card: shows one of the world's three stories with left/right arrows
+// to page through them. The genre, ornament, and accent stay constant; the
+// title and premise cycle. Clicking the card chooses the story on show.
+function worldCard(world) {
+  const card = document.createElement("div");
+  card.className = "card scenario-card world-card";
+  if (world.accent) card.style.setProperty("--card-accent", world.accent);
+  const stories = world.stories;
+  let idx = 0;
+
+  const choose = document.createElement("button");
+  choose.type = "button";
+  choose.className = "world-choose";
+  function render() {
+    const s = stories[idx];
+    const dots = stories.map((_, i) => `<span class="dot${i === idx ? " on" : ""}"></span>`).join("");
+    choose.innerHTML =
+      `<span class="ornament">${world.ornament}</span>` +
+      `<span class="eyebrow">${escapeHtml(world.genre)}</span>` +
+      `<h3>${escapeHtml(s.title)}</h3>` +
+      `<p>${escapeHtml(s.premise)}</p>` +
+      `<span class="story-dots" aria-hidden="true">${dots}</span>`;
   }
-  // "Write your own" plate — keeps the house gold accent.
-  const custom = document.createElement("button");
-  custom.className = "card scenario-card";
-  custom.innerHTML = `<span class="ornament">☙</span><span class="eyebrow">Your imagination</span><h3>Write your own</h3><p>Bring a premise; the storyteller does the rest.</p>`;
-  custom.addEventListener("click", () => {
+  render();
+  choose.addEventListener("click", () => {
+    draft.scenario = buildScenario(world, stories[idx]);
+    openCharacterScreen();
+  });
+
+  const arrow = (dir, label, glyph) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `carousel-arrow ${dir}`;
+    b.setAttribute("aria-label", label);
+    b.textContent = glyph;
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      idx = dir === "left" ? (idx - 1 + stories.length) % stories.length : (idx + 1) % stories.length;
+      render();
+    });
+    return b;
+  };
+
+  card.append(choose, arrow("left", "Previous story", "‹"), arrow("right", "Next story", "›"));
+  return card;
+}
+
+function customCard() {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "card scenario-card custom-card";
+  card.innerHTML =
+    `<span class="ornament">☙</span>` +
+    `<span class="custom-copy"><span class="eyebrow">Your imagination</span>` +
+    `<h3>Write your own</h3><p>Bring a premise; the storyteller does the rest.</p></span>`;
+  card.addEventListener("click", () => {
     updateCustomContinue();
     showScreen("custom");
   });
-  grid.appendChild(custom);
+  return card;
 }
 
-function scenarioCard(s, onClick) {
-  const card = document.createElement("button");
-  card.className = "card scenario-card";
-  if (s.accent) card.style.setProperty("--card-accent", s.accent);
-  card.innerHTML = `<span class="ornament">${s.ornament}</span><span class="eyebrow">${escapeHtml(s.genre)}</span><h3>${escapeHtml(s.title)}</h3><p>${escapeHtml(s.premise)}</p>`;
-  card.addEventListener("click", onClick);
-  return card;
+// Merge a world's shared cast with the chosen story's overrides into the flat
+// `scenario` object the rest of the app (and the server) expects.
+function buildScenario(world, story) {
+  return {
+    id: world.id,
+    ornament: world.ornament,
+    genre: world.genre,
+    accent: world.accent,
+    title: story.title,
+    premise: story.premise,
+    tone: story.tone || world.tone,
+    question: story.question || world.question,
+    namePlaceholder: story.namePlaceholder || world.namePlaceholder,
+    archetypes: story.archetypes || world.archetypes,
+    traits: story.traits || world.traits,
+    names: story.names || world.names,
+  };
 }
 
 function renderLibrary() {
