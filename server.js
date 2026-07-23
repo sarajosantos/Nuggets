@@ -109,7 +109,7 @@ Genre & tone: ${scenario.tone}
 
 PROTAGONIST
 Name: ${character.name}
-Archetype: ${character.archetype}
+Archetype: ${character.archetype}${character.archetypeBlurb ? ` — ${character.archetypeBlurb}` : ""}
 Defining trait: ${character.trait}
 
 HOW TO WRITE EACH CHAPTER
