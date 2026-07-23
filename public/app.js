@@ -17,6 +17,12 @@ const SCENARIOS = [
     tone: "Epic fantasy: sweeping, perilous, wondrous. Moral choices with real costs.",
     question: "Who answers when the crown calls?",
     namePlaceholder: "e.g. Maeryn of the Vale",
+    names: [
+      "Maeryn of the Vale", "Corvan Ashthorne", "Sable Wren", "Aldric Thorne",
+      "Elira Dawnmere", "Bram Holloway", "Yssolde Fenn", "Gareth Stormcairn",
+      "Nima Silverbrook", "Roderick Vale", "Thessaly Marsh", "Kaelen Frost",
+      "Wynne Blackbriar", "Osric Hale", "Liora of Emberfell", "Draven Ironwood",
+    ],
     archetypes: [
       { title: "The Knight-Errant", ornament: "⚔", blurb: "Sworn to a king now dead. The oath didn't die with him." },
       { title: "The Hedge-Witch", ornament: "☽", blurb: "Small magics, old debts, a talent for surviving both." },
@@ -38,6 +44,12 @@ const SCENARIOS = [
     tone: "Hard sci-fi thriller: claustrophobic, awe-struck, scientifically grounded dread.",
     question: "Who wakes when the klaxon sounds?",
     namePlaceholder: "e.g. Idris Okonkwo",
+    names: [
+      "Idris Okonkwo", "Commander Yuki Sato", "Dr. Priya Nair", "Anton Volkov",
+      "Mara Castellanos", "Ren Takahashi", "Nadia Osei", "Elias Vance",
+      "Dr. Wen Liu", "Sofia Marchetti", "Kai Bergström", "Amara Diallo",
+      "Theo Reyes", "Ingrid Halvorsen", "Rashid Al-Amin", "Petra Novak",
+    ],
     archetypes: [
       { title: "The Commander", ornament: "✦", blurb: "Twelve people were yours to protect. You're six days late." },
       { title: "The Ship's Engineer", ornament: "⚙", blurb: "The ship talks in its sleep. You always listen." },
@@ -59,6 +71,12 @@ const SCENARIOS = [
     tone: "Golden-age murder mystery: sharp dialogue, red herrings, a ticking clock until dawn.",
     question: "Who were you, before tonight?",
     namePlaceholder: "e.g. Vivian Ashcombe",
+    names: [
+      "Vivian Ashcombe", "Inspector Cyril Hale", "Dorothea Vane", "Julian Pemberton",
+      "Beatrice Locke", "Reginald Crane", "Estelle Mercer", "Ambrose Kite",
+      "Lady Rosalind Frey", "Dr. Hugh Merrow", "Cordelia Sparrow", "Gerald Ashby",
+      "Margot Ellery", "Sebastian Vale", "Ottoline Crisp", "Nigel Barrow",
+    ],
     archetypes: [
       { title: "The Detective, Retired", ornament: "♞", blurb: "You came for the wine. Murder followed you in." },
       { title: "The Society Columnist", ornament: "✎", blurb: "You know every secret here. One is worth killing for." },
@@ -80,6 +98,12 @@ const SCENARIOS = [
     tone: "Gothic horror: slow-burn dread, family secrets, the uncanny bleeding into the everyday.",
     question: "Who inherits the house on Merrow Lane?",
     namePlaceholder: "e.g. Wren Halloway",
+    names: [
+      "Wren Halloway", "Silas Ambrose", "Tabitha Vane", "Elowen Marsh",
+      "Jasper Coldwell", "Merritt Fen", "Cassia Bell", "Lucian Graves",
+      "Verity Ashe", "Emory Sable", "Rosanna Pike", "Barnaby Frost",
+      "Delphine Crow", "Hollis Merrow", "Ivy Blackwood", "Ezra Hallow",
+    ],
     archetypes: [
       { title: "The Grandchild", ornament: "☾", blurb: "She left you the house because you never asked why." },
       { title: "The Lapsed Seminarian", ornament: "†", blurb: "You stopped believing. The house means to fix that." },
@@ -101,6 +125,12 @@ const SCENARIOS = [
     tone: "Revisionist western: dusty, morally gray, tense standoffs and hard-won loyalty.",
     question: "Who rides into Providencia?",
     namePlaceholder: "e.g. Ellis Marner",
+    names: [
+      "Ellis Marner", "Cassidy Boone", "Jethro Vance", "Della Ríos",
+      "Wade Calloway", "Josephine Hart", "Amos Deering", "Rosa Delgado",
+      "Silas Crane", "Etta McCue", "Clemente Vargas", "Hattie Fox",
+      "Levi Ransom", "Nora Bell", "Gideon Pike", "Marisol Ochoa",
+    ],
     archetypes: [
       { title: "The Gunhand", ornament: "✪", blurb: "Fast enough to be famous. Tired enough to quit." },
       { title: "The Circuit Judge", ornament: "⚖", blurb: "You carry the law in a saddlebag. It rides light here." },
@@ -122,6 +152,14 @@ const SCENARIOS = [
     tone: "Regency romance with intrigue: wit, longing, ballroom politics, secrets behind fans.",
     question: "Who arrives for the Season?",
     namePlaceholder: "e.g. Miss Georgiana Hale",
+    names: [
+      "Miss Georgiana Hale", "Lady Arabella Finch", "Mr. Percival Grey",
+      "Miss Cordelia Wynter", "Captain Frederick Ashworth", "Lady Honoria Vane",
+      "Miss Emmeline Carr", "Mr. Julian Ravensworth", "Miss Sophronia Blythe",
+      "Lord Edmund Fairfax", "Miss Adelaide Pryce", "Mrs. Rosamund Kell",
+      "Mr. Theodore Sinclair", "Miss Beatrix Lovell", "Lady Millicent Rowe",
+      "Mr. Augustus Vane",
+    ],
     archetypes: [
       { title: "The Penniless Beauty", ornament: "❧", blurb: "Your face opens doors your accounts would close." },
       { title: "The Widowed Countess", ornament: "♕", blurb: "Married up, buried well. Society calls it luck." },
@@ -146,6 +184,12 @@ const ARCHETYPES = [
 
 const TRAITS = ["Brave", "Cunning", "Compassionate", "Ruthless", "Curious", "Haunted"];
 const DEFAULT_QUESTION = "Who are you?";
+// Register-neutral names for "Write your own" worlds.
+const DEFAULT_NAMES = [
+  "Rowan Ashford", "Mira Okafor", "Kestrel Vance", "Soren Adeyemi",
+  "Juno Marlowe", "Cassian Reed", "Lira Nakamura", "Ambrose Cole",
+  "Nadia Frost", "Elian Vasquez", "Sable Quinn", "Tobias Wren",
+];
 
 const LIB_KEY = "plotwick-library-v1";
 
@@ -161,6 +205,7 @@ let user = null; // signed-in Supabase user
 let appConfig = {}; // /api/config result (creditsEnforced, payments, …)
 let credits = null; // current credit balance (null = unknown / not enforced)
 let pendingStart = false; // user tried to start a story before signing in
+let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 
 // ----- helpers -----
 const $ = (id) => document.getElementById(id);
@@ -305,6 +350,7 @@ function openCharacterScreen() {
   $("character-question").textContent = s.question || DEFAULT_QUESTION;
   $("character-scenario-label").textContent = `${s.ornament} ${s.title}`;
   $("char-name").placeholder = s.namePlaceholder || "e.g. Rowan Ashford";
+  namePool = (s.names && s.names.length) ? s.names : DEFAULT_NAMES;
   draft.character.archetype = null;
   draft.character.archetypeBlurb = null;
   draft.character.trait = null;
@@ -354,9 +400,19 @@ function updateBeginButton() {
   $("begin-btn").disabled = !(c.name && c.archetype && c.trait);
 }
 
+// Roll a random name from the current world's pool (never the one already shown).
+function rollName() {
+  const current = $("char-name").value.trim();
+  const pool = namePool.filter((n) => n !== current);
+  const name = pool[Math.floor(Math.random() * pool.length)] || namePool[0];
+  $("char-name").value = name;
+  updateBeginButton();
+}
+
 // ----- events -----
 function wireEvents() {
   $("char-name").addEventListener("input", updateBeginButton);
+  $("roll-name").addEventListener("click", rollName);
   $("back-to-scenarios").addEventListener("click", () => showScreen("scenario"));
   $("custom-back").addEventListener("click", () => showScreen("scenario"));
   ["custom-title", "custom-premise", "custom-tone"].forEach((id) =>
