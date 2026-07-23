@@ -249,10 +249,12 @@ const DEFAULT_NAMES = [
   "Nadia Frost", "Elian Vasquez", "Sable Quinn", "Tobias Wren",
 ];
 
-const LIB_KEY = "plotwick-library-v1";
+const LEGACY_LIB_KEY = "plotwick-library-v1";
+const ANON_LIB_KEY = "plotwick-library-anonymous-v2";
+const USER_LIB_PREFIX = "plotwick-library-user-v2:";
 
 // ----- state -----
-let library = loadLibrary();
+let library = loadLibrary(ANON_LIB_KEY, { migrateLegacy: true });
 let story = null; // the active story object (a member of library.stories)
 let draft = { scenario: null, character: { name: "", archetype: null, trait: null } };
 let pendingAction = null; // player action that led to the chapter now streaming
@@ -264,6 +266,7 @@ let appConfig = {}; // /api/config result (creditsEnforced, payments, …)
 let credits = null; // current credit balance (null = unknown / not enforced)
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
+const cloudSaveChains = new Map(); // serialize saves per story to prevent stale writes
 
 // ----- helpers -----
 const $ = (id) => document.getElementById(id);
@@ -280,9 +283,21 @@ function showScreen(name) {
   if (name !== "story") stopSpeaking();
 }
 
-function loadLibrary() {
+function userLibraryKey(userId) {
+  return userId ? `${USER_LIB_PREFIX}${userId}` : ANON_LIB_KEY;
+}
+
+function loadLibrary(key = userLibraryKey(user && user.id), { migrateLegacy = false } = {}) {
   try {
-    const lib = JSON.parse(localStorage.getItem(LIB_KEY));
+    let raw = localStorage.getItem(key);
+    if (!raw && migrateLegacy) {
+      raw = localStorage.getItem(LEGACY_LIB_KEY);
+      if (raw) {
+        localStorage.setItem(key, raw);
+        localStorage.removeItem(LEGACY_LIB_KEY);
+      }
+    }
+    const lib = JSON.parse(raw);
     if (lib && lib.stories) return lib;
   } catch { /* fall through */ }
   return { version: 1, stories: {} };
@@ -290,7 +305,7 @@ function loadLibrary() {
 
 function saveLibrary() {
   try {
-    localStorage.setItem(LIB_KEY, JSON.stringify(library));
+    localStorage.setItem(userLibraryKey(user && user.id), JSON.stringify(library));
   } catch (e) {
     console.warn("couldn't save library:", e);
   }
@@ -593,14 +608,14 @@ function startStory() {
   // When credits are enforced, a story requires a signed-in account with at
   // least one credit. Guide the player to sign in / top up before we build the
   // story object, and remember their intent so we can resume automatically.
-  if (appConfig.creditsEnforced) {
+  if (appConfig.authRequired || appConfig.creditsEnforced) {
     if (!user) {
       pendingStart = true;
       authMessage("Sign in (or create a free account) to begin — new readers get a few stories on the house.", true);
       openAuthModal();
       return;
     }
-    if (credits !== null && credits !== "unlimited" && credits <= 0) {
+    if (appConfig.creditsEnforced && credits !== null && credits !== "unlimited" && credits <= 0) {
       openBuyModal();
       return;
     }
@@ -608,6 +623,7 @@ function startStory() {
 
   story = {
     id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    serverId: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     scenario: draft.scenario,
@@ -640,6 +656,7 @@ function openStory(id) {
   renderFrontispiece();
   if (story.done) {
     $("ending-area").classList.remove("hidden");
+    updateShareControls();
   } else {
     const last = [...story.history].reverse().find((m) => m.role === "assistant");
     const choices = last ? parseChoices(last.content) : null;
@@ -696,7 +713,7 @@ async function requestChapter() {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
-        storyId: story.id,
+        storyId: story.serverId || null,
         scenario: {
           title: story.scenario.title,
           premise: story.scenario.premise,
@@ -728,6 +745,12 @@ async function requestChapter() {
       const body = await res.json().catch(() => ({}));
       throw Object.assign(new Error("rate limited"), { userMessage: body.error });
     }
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      throw Object.assign(new Error("story conflict"), {
+        userMessage: body.error || "This story changed elsewhere. Return home and reload it before retrying.",
+      });
+    }
     if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
     const reader = res.body.getReader();
@@ -750,6 +773,12 @@ async function requestChapter() {
           keepInView();
         } else if (evt.type === "credits") {
           setCredits(evt.credits);
+        } else if (evt.type === "story") {
+          story.serverId = evt.storyId;
+          persistStory(story);
+        } else if (evt.type === "story-reset") {
+          story.serverId = null;
+          persistStory(story);
         } else if (evt.type === "error") {
           failed = evt.error;
         }
@@ -806,7 +835,25 @@ function parseLedger(text) {
   if (!m) return null;
   try {
     const obj = JSON.parse(m[1]);
-    return typeof obj === "object" && obj ? obj : null;
+    if (!obj || typeof obj !== "object" || ![1, 2, 3].includes(obj.act)) return null;
+    const short = (value, max) => typeof value === "string" ? value.slice(0, max) : "";
+    return {
+      title: short(obj.title, 200),
+      act: obj.act,
+      condition: short(obj.condition, 200),
+      inventory: Array.isArray(obj.inventory)
+        ? obj.inventory.filter((v) => typeof v === "string").slice(0, 20).map((v) => v.slice(0, 120))
+        : [],
+      companions: Array.isArray(obj.companions)
+        ? obj.companions.filter((v) => v && typeof v === "object").slice(0, 12).map((v) => ({
+            name: short(v.name, 100),
+            standing: short(v.standing, 60),
+          }))
+        : [],
+      threads: Array.isArray(obj.threads)
+        ? obj.threads.filter((v) => typeof v === "string").slice(0, 5).map((v) => v.slice(0, 240))
+        : [],
+    };
   } catch {
     return null;
   }
@@ -817,7 +864,9 @@ function parseChoices(text) {
   if (!m) return null;
   try {
     const arr = JSON.parse(m[1]);
-    return Array.isArray(arr) ? arr.filter((c) => typeof c === "string") : null;
+    if (!Array.isArray(arr) || ![0, 3].includes(arr.length)) return null;
+    if (arr.some((c) => typeof c !== "string" || !c.trim() || c.length > 200)) return null;
+    return arr.map((c) => c.trim());
   } catch {
     return null;
   }
@@ -852,6 +901,7 @@ function finishStory() {
   story.updatedAt = Date.now();
   persistStory(story);
   $("ending-area").classList.remove("hidden");
+  updateShareControls();
   keepInView();
 }
 
@@ -865,6 +915,24 @@ async function shareStory() {
   if (!story) return;
   $("share-btn").disabled = true;
   try {
+    if (story.shareId) {
+      if (!confirm("Unpublish this story? Its public link will stop working.")) {
+        $("share-btn").disabled = false;
+        return;
+      }
+      const revoke = await fetch(`/api/share/${encodeURIComponent(story.shareId)}`, {
+        method: "DELETE",
+        headers: await authHeader(),
+      });
+      if (!revoke.ok) throw new Error(`HTTP ${revoke.status}`);
+      story.shareId = null;
+      story.updatedAt = Date.now();
+      persistStory(story);
+      $("share-result").classList.add("hidden");
+      updateShareControls();
+      $("share-btn").disabled = false;
+      return;
+    }
     const res = await fetch("/api/share", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
@@ -878,13 +946,26 @@ async function shareStory() {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { id } = await res.json();
+    story.shareId = id;
+    story.updatedAt = Date.now();
+    persistStory(story);
     $("share-link").value = `${location.origin}/s/${id}`;
     $("share-result").classList.remove("hidden");
+    updateShareControls();
   } catch (err) {
     console.error(err);
     alert("Couldn't publish the story right now. Try again in a moment.");
   }
   $("share-btn").disabled = false;
+}
+
+function updateShareControls() {
+  if (!story) return;
+  $("share-btn").textContent = story.shareId ? "Unpublish story" : "Share this story";
+  if (story.shareId) {
+    $("share-link").value = `${location.origin}/s/${story.shareId}`;
+    $("share-result").classList.remove("hidden");
+  }
 }
 
 // ----- cover art -----
@@ -894,7 +975,7 @@ async function fetchCover() {
   try {
     const res = await fetch("/api/cover", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         title: forStory.title,
         scenario: { title: forStory.scenario.title, premise: forStory.scenario.premise },
@@ -1028,7 +1109,7 @@ function loadScript(src) {
 function wireAuthEvents() {
   $("account-btn").addEventListener("click", () => {
     if (user) {
-      sb.auth.signOut(); // library stays local; onAuthStateChange updates UI
+      openAccountModal();
     } else {
       openAuthModal();
     }
@@ -1038,13 +1119,26 @@ function wireAuthEvents() {
     if (e.target === $("auth-modal")) closeAuthModal();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeAuthModal();
+    if (e.key === "Escape") {
+      closeAuthModal();
+      closeAccountModal();
+    }
   });
   $("signin-btn").addEventListener("click", () => submitAuth("signin"));
   $("signup-btn").addEventListener("click", () => submitAuth("signup"));
   $("auth-password").addEventListener("keydown", (e) => {
     if (e.key === "Enter") submitAuth("signin");
   });
+  $("account-close").addEventListener("click", closeAccountModal);
+  $("account-modal").addEventListener("click", (e) => {
+    if (e.target === $("account-modal")) closeAccountModal();
+  });
+  $("signout-btn").addEventListener("click", async () => {
+    closeAccountModal();
+    await sb.auth.signOut();
+  });
+  $("export-account-btn").addEventListener("click", exportAccountData);
+  $("delete-account-btn").addEventListener("click", deleteAccount);
 }
 
 function openAuthModal() {
@@ -1055,6 +1149,71 @@ function openAuthModal() {
 
 function closeAuthModal() {
   $("auth-modal").classList.add("hidden");
+}
+
+function openAccountModal() {
+  if (!user) return;
+  $("account-modal-email").textContent = user.email || "";
+  $("account-message").classList.add("hidden");
+  $("account-modal").classList.remove("hidden");
+}
+
+function closeAccountModal() {
+  $("account-modal").classList.add("hidden");
+}
+
+function accountMessage(text, gentle) {
+  const el = $("account-message");
+  el.textContent = text;
+  el.classList.toggle("gentle", !!gentle);
+  el.classList.remove("hidden");
+}
+
+async function exportAccountData() {
+  const button = $("export-account-btn");
+  button.disabled = true;
+  try {
+    const res = await fetch("/api/account/export", { headers: await authHeader() });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "plotwick-export.json";
+    link.click();
+    URL.revokeObjectURL(url);
+    accountMessage("Your export has been downloaded.", true);
+  } catch {
+    accountMessage("Couldn't export your data. Please try again.");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deleteAccount() {
+  if (!user) return;
+  const confirmation = prompt(
+    "This permanently deletes your account, cloud stories, and public shares. Type DELETE to continue.",
+  );
+  if (confirmation !== "DELETE") return;
+  const button = $("delete-account-btn");
+  button.disabled = true;
+  try {
+    const res = await fetch("/api/account", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ confirmation }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const deletedUserId = user.id;
+    localStorage.removeItem(userLibraryKey(deletedUserId));
+    closeAccountModal();
+    await sb.auth.signOut();
+    toast("Your Plotwick account and cloud data were deleted.");
+  } catch {
+    accountMessage("Couldn't delete the account. Please try again.");
+    button.disabled = false;
+  }
 }
 
 async function submitAuth(mode) {
@@ -1089,13 +1248,38 @@ function authMessage(text, gentle) {
 }
 
 function setUser(u) {
-  const changed = (u && u.id) !== (user && user.id);
-  user = u;
+  const previousUser = user;
+  const changed = (u && u.id) !== (previousUser && previousUser.id);
+  if (changed) {
+    saveLibrary();
+    user = u;
+    if (u) {
+      const accountLibrary = loadLibrary(userLibraryKey(u.id));
+      const anonymousLibrary = loadLibrary(ANON_LIB_KEY);
+      const anonymousStories = Object.values(anonymousLibrary.stories || {});
+      if (
+        anonymousStories.length > 0 &&
+        Object.keys(accountLibrary.stories || {}).length === 0 &&
+        confirm(`Import ${anonymousStories.length} story${anonymousStories.length === 1 ? "" : "ies"} saved on this device into ${u.email}?`)
+      ) {
+        accountLibrary.stories = {
+          ...accountLibrary.stories,
+          ...Object.fromEntries(anonymousStories.map((st) => [st.id, st])),
+        };
+      }
+      library = accountLibrary;
+    } else {
+      library = loadLibrary(ANON_LIB_KEY);
+    }
+    saveLibrary();
+  } else {
+    user = u;
+  }
   $("account-email").textContent = u ? u.email : "";
   $("account-email").classList.toggle("hidden", !u);
-  $("account-btn").textContent = u ? "Sign out" : "Sign in";
+  $("account-btn").textContent = u ? "Account" : "Sign in";
   if (u && changed) syncWithCloud();
-  if (!u) renderLibrary();
+  renderLibrary();
 
   // Show the "Buy stories" button once signed in on a payments-enabled site.
   const buyBtn = $("buy-btn");
@@ -1159,24 +1343,32 @@ async function authHeader() {
   }
 }
 
-// Two-way merge: newest updatedAt wins; local stories missing from the cloud
-// are pushed up, cloud stories missing locally are pulled down.
+// Two-way merge. Server timestamps are authoritative after first sync; a local
+// dirty flag preserves offline edits without trusting the device clock.
 async function syncWithCloud() {
   if (!sb || !user) return;
   try {
-    const { data: rows, error } = await sb.from("stories").select("id, data");
+    const { data: rows, error } = await sb.from("stories").select("id, data, updated_at");
     if (error) throw error;
-    const cloud = new Map(rows.map((r) => [r.id, r.data]));
+    const cloud = new Map(rows.map((r) => [r.id, r]));
 
-    for (const [id, cloudStory] of cloud) {
+    for (const [id, row] of cloud) {
+      const cloudStory = row.data;
       const local = library.stories[id];
-      if (!local || (cloudStory.updatedAt || 0) > (local.updatedAt || 0)) {
-        library.stories[id] = cloudStory;
+      const cloudUpdatedAt = Date.parse(row.updated_at) || 0;
+      if (!local) {
+        library.stories[id] = { ...cloudStory, cloudUpdatedAt, dirty: false };
+      } else if (local.dirty) {
+        await cloudSaveStory(local);
+      } else if (
+        cloudUpdatedAt > (local.cloudUpdatedAt || 0) ||
+        (!local.cloudUpdatedAt && (cloudStory.updatedAt || 0) > (local.updatedAt || 0))
+      ) {
+        library.stories[id] = { ...cloudStory, cloudUpdatedAt, dirty: false };
       }
     }
     for (const st of Object.values(library.stories)) {
-      const c = cloud.get(st.id);
-      if (!c || (st.updatedAt || 0) > (c.updatedAt || 0)) {
+      if (!cloud.has(st.id)) {
         await cloudSaveStory(st);
       }
     }
@@ -1188,22 +1380,40 @@ async function syncWithCloud() {
 }
 
 function persistStory(st) {
+  st.localRevision = (st.localRevision || 0) + 1;
+  st.dirty = true;
   saveLibrary();
   cloudSaveStory(st);
 }
 
-async function cloudSaveStory(st) {
-  if (!sb || !user || !st) return;
+function cloudSaveStory(st) {
+  if (!sb || !user || !st) return Promise.resolve();
+  const previous = cloudSaveChains.get(st.id) || Promise.resolve();
+  const next = previous.catch(() => {}).then(() => performCloudSave(st));
+  cloudSaveChains.set(st.id, next);
+  next.finally(() => {
+    if (cloudSaveChains.get(st.id) === next) cloudSaveChains.delete(st.id);
+  });
+  return next;
+}
+
+async function performCloudSave(st) {
+  const revision = st.localRevision || 0;
   try {
-    const { error } = await sb.from("stories").upsert({
+    const { data, error } = await sb.from("stories").upsert({
       id: st.id,
       user_id: user.id,
       data: st,
       title: st.title || st.scenario.title,
       done: !!st.done,
       updated_at: new Date().toISOString(),
-    });
+    }).select("updated_at").single();
     if (error) console.warn("cloud save failed:", error.message);
+    else if (data) {
+      st.cloudUpdatedAt = Date.parse(data.updated_at) || Date.now();
+      if ((st.localRevision || 0) === revision) st.dirty = false;
+      saveLibrary();
+    }
   } catch (err) {
     console.warn("cloud save failed:", err);
   }
@@ -1212,6 +1422,8 @@ async function cloudSaveStory(st) {
 async function cloudDeleteStory(id) {
   if (!sb || !user) return;
   try {
+    const pendingSave = cloudSaveChains.get(id);
+    if (pendingSave) await pendingSave.catch(() => {});
     await sb.from("stories").delete().eq("id", id);
   } catch (err) {
     console.warn("cloud delete failed:", err);

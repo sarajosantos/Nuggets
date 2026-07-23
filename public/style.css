@@ -59,6 +59,7 @@ body {
   cursor: pointer;
   line-height: 1.1;
 }
+.logo a { color: inherit; text-decoration: none; }
 .tagline {
   color: var(--muted);
   font-family: var(--ui);
@@ -303,6 +304,8 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .btn-primary:not(:disabled):hover { filter: brightness(1.08); }
 .btn-ghost { background: transparent; border-color: var(--hairline); color: var(--muted); }
 .btn-ghost:hover { color: var(--text); border-color: var(--gold-line); }
+.btn-danger { background: rgba(156, 77, 67, 0.12); border-color: rgba(156, 77, 67, 0.5); color: #dfa79f; }
+.btn-danger:hover { background: rgba(156, 77, 67, 0.22); }
 .btn-small { font-size: 0.78rem; padding: 0.38rem 0.9rem; }
 
 .actions { display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 2.2rem; }
@@ -667,6 +670,16 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .pack-price { font-family: var(--prose); font-size: 1.15rem; margin-top: 0.35rem; }
 .pack-each { font-size: 0.68rem; color: var(--muted); }
 .buy-fineprint { text-align: center; color: var(--muted); font-size: 0.72rem; margin-top: 1rem; }
+.account-actions { display: grid; gap: 0.65rem; margin-top: 1rem; }
+.trust-note { color: var(--muted); font-family: var(--ui); font-size: 0.72rem; margin: 0.6rem 0; }
+.footer-links { display: flex; justify-content: center; gap: 1rem; }
+.footer-links a { color: var(--muted); font-family: var(--ui); font-size: 0.72rem; }
+.footer-links a:hover { color: var(--gold); }
+.policy-page { max-width: 46rem; margin: 0 auto; padding: 0 1.5rem 4rem; }
+.policy-page h2, .policy-page h3 { font-family: var(--display); }
+.policy-page h2 { color: var(--gold); font-size: 2rem; }
+.policy-page h3 { margin-top: 2rem; font-size: 1.25rem; }
+.policy-page p { font-family: var(--prose); color: var(--muted); font-size: 1.08rem; line-height: 1.7; }
 
 .toast {
   position: fixed;

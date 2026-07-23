@@ -12,12 +12,23 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const Anthropic = require("@anthropic-ai/sdk");
+const helmet = require("helmet");
+const {
+  checkoutGrant,
+  cleanStoryInputs,
+  hashValue,
+  normalizePublicOrigin,
+  sanitizeSvg,
+  validateHistory,
+} = require("./lib/core");
 
 const PORT = process.env.PORT || 3000;
 const MODEL = process.env.STORY_MODEL || "claude-opus-4-8";
 const TARGET_CHAPTERS = Number(process.env.TARGET_CHAPTERS) || 10;
 const HARD_CAP_CHAPTERS = TARGET_CHAPTERS + 4;
 const RATE_LIMIT_PER_HOUR = Number(process.env.RATE_LIMIT_PER_HOUR) || 40;
+const PUBLIC_APP_URL = normalizePublicOrigin(process.env.PUBLIC_APP_URL);
+const AI_COVERS = process.env.AI_COVERS === "1";
 // Demo mode serves canned story content so the UI works with no API key.
 const DEMO_MODE =
   process.env.DEMO_MODE === "1" ||
@@ -68,17 +79,32 @@ const CREDIT_PACKS = {
   reader:  { credits: 15, price: 2000, label: "15 stories" }, // $20.00
   patron:  { credits: 40, price: 4500, label: "40 stories" }, // $45.00
 };
-const CURRENCY = process.env.STRIPE_CURRENCY || "usd";
+const CURRENCY = (process.env.STRIPE_CURRENCY || "usd").toLowerCase();
+const REPORT_HASH_SALT = process.env.REPORT_HASH_SALT || crypto.randomBytes(32).toString("hex");
 
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY && supabaseAdmin) {
-  stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+  stripe = require("stripe")(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2026-06-24.dahlia",
+  });
 }
 
-// Credits are enforced whenever the server can actually spend them safely
-// (i.e. the service-role key is configured). Without it — local dev, self-host
-// — generation stays open and free, exactly as before.
-const CREDITS_ENFORCED = !!supabaseAdmin && !DEMO_MODE;
+const PAYMENTS_READY = !!(stripe && process.env.STRIPE_WEBHOOK_SECRET && PUBLIC_APP_URL);
+const CREDITS_ENFORCED =
+  process.env.STORY_CREDITS_ENABLED === "1" && !!supabaseAdmin && !DEMO_MODE;
+const STORY_SESSIONS_ENABLED = !!supabaseAdmin && !DEMO_MODE;
+const REQUIRE_AUTH_FOR_LIVE =
+  STORY_SESSIONS_ENABLED && process.env.REQUIRE_AUTH_FOR_LIVE !== "0";
+if (
+  CREDITS_ENFORCED &&
+  !PAYMENTS_READY &&
+  process.env.ALLOW_FREE_ONLY_CREDITS !== "1"
+) {
+  throw new Error(
+    "STORY_CREDITS_ENABLED=1 requires Stripe, STRIPE_WEBHOOK_SECRET, and PUBLIC_APP_URL. " +
+    "Set ALLOW_FREE_ONLY_CREDITS=1 only for an intentional free-credit pilot.",
+  );
+}
 
 // Admin accounts (comma-separated emails) get unlimited stories and are never
 // charged — for story testing and staff use. Matching is case-insensitive.
@@ -99,7 +125,50 @@ if (stripe && process.env.STRIPE_WEBHOOK_SECRET) {
   app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
 }
 
-app.use(express.json({ limit: "2mb" }));
+const connectSources = ["'self'"];
+if (SUPABASE_URL) connectSources.push(SUPABASE_URL, SUPABASE_URL.replace(/^http/, "ws"));
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      connectSrc: connectSources,
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      formAction: ["'self'", "https://*.stripe.com"],
+      frameAncestors: ["'none'"],
+      frameSrc: ["https://*.stripe.com", "https://*.link.com"],
+      imgSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com"],
+      styleSrcAttr: ["'unsafe-inline'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === "production" ? [] : null,
+    },
+  },
+  hsts: process.env.NODE_ENV === "production"
+    ? { maxAge: 31_536_000, includeSubDomains: true, preload: true }
+    : false,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+}));
+app.use((req, res, next) => {
+  req.requestId = req.get("x-request-id") || crypto.randomUUID();
+  res.setHeader("x-request-id", req.requestId);
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    if (req.path.startsWith("/api/")) {
+      logEvent("info", "http_request", {
+        requestId: req.requestId,
+        method: req.method,
+        path: req.route ? req.route.path : req.path,
+        status: res.statusCode,
+        durationMs: Date.now() - startedAt,
+      });
+    }
+  });
+  next();
+});
+app.use(express.json({ limit: "512kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // Resolve the signed-in user from a Bearer token, if any.
@@ -221,21 +290,104 @@ function sseStart(res) {
 }
 
 function sseSend(res, payload) {
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  if (!res.destroyed && !res.writableEnded) {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  }
 }
 
-const rateBuckets = new Map(); // ip -> [timestamps]
-function rateLimited(ip) {
+function logEvent(level, event, details = {}) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    event,
+    ...details,
+  };
+  const output = JSON.stringify(entry);
+  if (level === "error") console.error(output);
+  else if (level === "warn") console.warn(output);
+  else console.log(output);
+}
+
+async function recordUsage({ req, user, kind, storyId, usage, status = "ok", metadata = {} }) {
+  const inputTokens = Number(usage && (usage.input_tokens || usage.inputTokens)) || 0;
+  const outputTokens = Number(usage && (usage.output_tokens || usage.outputTokens)) || 0;
+  logEvent("info", "model_usage", {
+    requestId: req && req.requestId,
+    userId: user && user.id,
+    storyId,
+    kind,
+    model: MODEL,
+    inputTokens,
+    outputTokens,
+    status,
+  });
+  if (!supabaseAdmin) return;
+  const { error } = await supabaseAdmin.from("usage_events").insert({
+    request_id: req && req.requestId,
+    user_id: user && user.id,
+    story_id: storyId || null,
+    kind,
+    model: MODEL,
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    status,
+    metadata,
+  });
+  if (error) logEvent("warn", "usage_event_insert_failed", { error: error.message });
+}
+
+const rateBuckets = new Map();
+function memoryRateLimited(key, limit, windowSeconds) {
   const now = Date.now();
-  const windowStart = now - 3600_000;
-  const hits = (rateBuckets.get(ip) || []).filter((t) => t > windowStart);
-  if (hits.length >= RATE_LIMIT_PER_HOUR) {
-    rateBuckets.set(ip, hits);
+  const windowStart = now - windowSeconds * 1000;
+  const hits = (rateBuckets.get(key) || []).filter((t) => t > windowStart);
+  if (hits.length >= limit) {
+    rateBuckets.set(key, hits);
     return true;
   }
   hits.push(now);
-  rateBuckets.set(ip, hits);
+  rateBuckets.set(key, hits);
+  if (rateBuckets.size > 10_000) {
+    for (const [bucketKey, timestamps] of rateBuckets) {
+      if (!timestamps.some((t) => t > windowStart)) rateBuckets.delete(bucketKey);
+    }
+  }
   return false;
+}
+
+function rateKey(req, user, scope) {
+  if (user) return `${scope}:user:${user.id}`;
+  const ipHash = crypto.createHash("sha256").update(String(req.ip)).digest("hex").slice(0, 24);
+  return `${scope}:ip:${ipHash}`;
+}
+
+async function enforceRateLimit(req, res, { user, scope, limit, windowSeconds }) {
+  const key = rateKey(req, user, scope);
+  let limited;
+  if (supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.rpc("consume_rate_limit", {
+      p_key: key,
+      p_limit: limit,
+      p_window_seconds: windowSeconds,
+    });
+    if (error) {
+      logEvent("warn", "distributed_rate_limit_failed", {
+        requestId: req.requestId,
+        scope,
+        error: error.message,
+      });
+      limited = memoryRateLimited(key, limit, windowSeconds);
+    } else {
+      const row = Array.isArray(data) ? data[0] : data;
+      limited = !row || !row.allowed;
+    }
+  } else {
+    limited = memoryRateLimited(key, limit, windowSeconds);
+  }
+  if (!limited) return false;
+  res.setHeader("Retry-After", String(windowSeconds));
+  res.status(429).json({ error: "Too many requests. Please try again later." });
+  return true;
 }
 
 // ----------------------------------------------------------------------
@@ -251,7 +403,9 @@ app.get("/api/config", (_req, res) => {
       ? { url: SUPABASE_URL, anonKey: process.env.SUPABASE_ANON_KEY }
       : null,
     creditsEnforced: CREDITS_ENFORCED,
-    payments: stripe && process.env.STRIPE_WEBHOOK_SECRET
+    authRequired: REQUIRE_AUTH_FOR_LIVE,
+    aiCovers: AI_COVERS,
+    payments: PAYMENTS_READY
       ? {
           currency: CURRENCY,
           packs: Object.fromEntries(
@@ -276,78 +430,164 @@ app.get("/api/credits", async (req, res) => {
   res.json({ credits: data ? data.credits : 0, enforced: CREDITS_ENFORCED });
 });
 
-// Refund a charged story start (server-internal helper).
-async function refundStart(userId, storyId) {
-  try {
-    await supabaseAdmin.rpc("refund_story", { p_user_id: userId, p_story_id: storyId });
-  } catch (e) {
-    console.error("refund_story failed:", e.message);
+async function failStorySession({ user, storyId, requestId }) {
+  if (!STORY_SESSIONS_ENABLED || !user || !storyId || !requestId) return { reset: false };
+  const { data, error } = await supabaseAdmin.rpc("fail_story_chapter", {
+    p_user_id: user.id,
+    p_story_id: storyId,
+    p_request_id: requestId,
+  });
+  if (error) {
+    logEvent("error", "story_session_release_failed", {
+      userId: user.id,
+      storyId,
+      error: error.message,
+    });
+    return { reset: false };
   }
+  const row = Array.isArray(data) ? data[0] : data;
+  return { reset: !!(row && row.reset) };
+}
+
+async function beginOrClaimStory({ user, storyId, requestId, scenario, character, history, admin }) {
+  if (!STORY_SESSIONS_ENABLED) {
+    return {
+      ok: true,
+      storyId: typeof storyId === "string" && storyId ? storyId : crypto.randomUUID(),
+      credits: null,
+      firstChapter: !storyId,
+    };
+  }
+  const scenarioHash = hashValue(scenario);
+  const characterHash = hashValue(character);
+  if (!storyId) {
+    const newStoryId = crypto.randomUUID();
+    const { data, error } = await supabaseAdmin.rpc("begin_story_session", {
+      p_user_id: user.id,
+      p_story_id: newStoryId,
+      p_scenario_hash: scenarioHash,
+      p_character_hash: characterHash,
+      p_request_id: requestId,
+      p_charge: CREDITS_ENFORCED && !admin,
+    });
+    if (error) throw new Error(`begin_story_session: ${error.message}`);
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      ok: !!(row && row.ok),
+      storyId: newStoryId,
+      credits: row && row.credits,
+      charged: !!(row && row.charged),
+      firstChapter: true,
+    };
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storyId)) {
+    return { ok: false, invalid: true };
+  }
+  const priorHistoryHash = hashValue(history.slice(0, -1));
+  const { data, error } = await supabaseAdmin.rpc("claim_story_chapter", {
+    p_user_id: user.id,
+    p_story_id: storyId,
+    p_scenario_hash: scenarioHash,
+    p_character_hash: characterHash,
+    p_prior_history_hash: priorHistoryHash,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(`claim_story_chapter: ${error.message}`);
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    ok: !!(row && row.ok),
+    storyId,
+    credits: row && row.credits,
+    firstChapter: false,
+    conflict: !!(row && row.conflict),
+  };
 }
 
 // Body: { scenario, character, history: [{role, content}, ...] }
 // history is the raw message list: assistant turns are full chapter text
 // (including <state> and <choices> tags), user turns are player actions.
 app.post("/api/story", async (req, res) => {
-  const { scenario, character, history, storyId } = req.body || {};
-  if (!scenario || !character || !Array.isArray(history) || history.length === 0) {
-    return res.status(400).json({ error: "scenario, character and non-empty history are required" });
+  const { history, storyId: requestedStoryId } = req.body || {};
+  const cleaned = cleanStoryInputs(req.body && req.body.scenario, req.body && req.body.character);
+  const historyCheck = validateHistory(history, { firstChapter: !requestedStoryId });
+  if (!cleaned || !historyCheck.ok) {
+    return res.status(400).json({ error: historyCheck.error || "invalid scenario or character" });
   }
+  const { scenario, character } = cleaned;
   // Rate limit per account when signed in, per IP otherwise.
   const user = await userFromReq(req);
-  if (!DEMO_MODE && rateLimited(user ? `user:${user.id}` : `ip:${req.ip}`)) {
-    return res.status(429).json({
-      error: "You've reached the hourly story limit. Take a breath — the tale will wait.",
-    });
+  if (REQUIRE_AUTH_FOR_LIVE && !user) {
+    return res.status(401).json({ error: "Please sign in to begin or continue a story.", needAuth: true });
+  }
+  if (
+    !DEMO_MODE &&
+    await enforceRateLimit(req, res, {
+      user,
+      scope: "story",
+      limit: RATE_LIMIT_PER_HOUR,
+      windowSeconds: 3600,
+    })
+  ) {
+    return;
   }
 
-  // Credit gate: when enforced, a story requires a signed-in user and one
-  // credit, spent atomically in the database on the first chapter only.
-  // (All of this runs BEFORE sseStart so we can still send real HTTP statuses.)
-  let chargedThisCall = false;
   const admin = isAdmin(user);
-  if (CREDITS_ENFORCED && !admin) {
-    if (!user) {
-      return res.status(401).json({ error: "Please sign in to begin a story.", needAuth: true });
-    }
-    if (!storyId || typeof storyId !== "string") {
-      return res.status(400).json({ error: "storyId is required" });
-    }
-    const { data, error } = await supabaseAdmin.rpc("start_story", {
-      p_user_id: user.id,
-      p_story_id: storyId,
+  const requestId = crypto.randomUUID();
+  let session;
+  try {
+    session = await beginOrClaimStory({
+      user,
+      storyId: requestedStoryId,
+      requestId,
+      scenario,
+      character,
+      history,
+      admin,
     });
-    if (error) {
-      console.error("start_story failed:", error.message);
-      return res.status(500).json({ error: "Couldn't check your story credits. Please try again." });
-    }
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row || !row.ok) {
+    if (!session.ok) {
+      if (session.invalid) return res.status(400).json({ error: "invalid story id" });
+      if (session.conflict) {
+        return res.status(409).json({
+          error: "This story changed elsewhere or is already generating. Reload your library before retrying.",
+        });
+      }
       return res.status(402).json({
         error: "You're out of story credits.",
         needCredits: true,
         credits: 0,
       });
     }
-    chargedThisCall = !!row.charged;
+  } catch (error) {
+    logEvent("error", "story_session_failed", {
+      requestId: req.requestId,
+      userId: user && user.id,
+      error: error.message,
+    });
+    return res.status(500).json({ error: "Couldn't secure this story session. Please try again." });
   }
 
   const chapterNum = history.filter((m) => m.role === "assistant").length + 1;
   sseStart(res);
+  sseSend(res, { type: "story", storyId: session.storyId });
   if (CREDITS_ENFORCED && admin) {
     sseSend(res, { type: "credits", credits: "unlimited" });
-  } else if (CREDITS_ENFORCED) {
-    // Push the (possibly newly-decremented) balance so the UI updates live.
-    const { data } = await supabaseAdmin
-      .from("profiles").select("credits").eq("id", user.id).maybeSingle();
-    if (data) sseSend(res, { type: "credits", credits: data.credits });
+  } else if (CREDITS_ENFORCED && Number.isInteger(session.credits)) {
+    sseSend(res, { type: "credits", credits: session.credits });
   }
 
+  let streamedText = "";
+  let finalUsage = null;
+  let stream = null;
+  let completed = false;
+  res.on("close", () => {
+    if (!completed && stream && typeof stream.abort === "function") stream.abort();
+  });
   try {
     if (DEMO_MODE) {
-      await streamDemoChapter(res, chapterNum);
+      streamedText = await streamDemoChapter(res, chapterNum);
+      completed = true;
     } else {
-      const stream = client.messages.stream({
+      stream = client.messages.stream({
         model: MODEL,
         max_tokens: MAX_CHAPTER_TOKENS,
         thinking: { type: "adaptive" },
@@ -355,30 +595,74 @@ app.post("/api/story", async (req, res) => {
         messages: buildMessages(history, chapterNum),
       });
 
-      stream.on("text", (text) => sseSend(res, { type: "text", text }));
+      stream.on("text", (text) => {
+        streamedText += text;
+        sseSend(res, { type: "text", text });
+      });
 
       const final = await stream.finalMessage();
+      finalUsage = final.usage;
 
       if (final.stop_reason === "refusal") {
-        if (chargedThisCall) await refundStart(user.id, storyId);
+        const failed = await failStorySession({
+          user, storyId: session.storyId, requestId,
+        });
+        if (failed.reset) sseSend(res, { type: "story-reset" });
         sseSend(res, {
           type: "error",
           error: "The storyteller declined to continue this scene. Try a different action.",
         });
       } else if (final.stop_reason === "max_tokens") {
-        if (chargedThisCall) await refundStart(user.id, storyId);
+        const failed = await failStorySession({
+          user, storyId: session.storyId, requestId,
+        });
+        if (failed.reset) sseSend(res, { type: "story-reset" });
         sseSend(res, {
           type: "error",
           error: "The chapter ran too long and was cut off. Try again.",
         });
       } else {
+        if (STORY_SESSIONS_ENABLED) {
+          const completedHistoryHash = hashValue([
+            ...history,
+            { role: "assistant", content: streamedText },
+          ]);
+          const { data, error } = await supabaseAdmin.rpc("complete_story_chapter", {
+            p_user_id: user.id,
+            p_story_id: session.storyId,
+            p_request_id: requestId,
+            p_history_hash: completedHistoryHash,
+            p_chapter_count: chapterNum,
+          });
+          const row = Array.isArray(data) ? data[0] : data;
+          if (error || !row || !row.ok) {
+            throw new Error(`complete_story_chapter: ${error ? error.message : "session mismatch"}`);
+          }
+        }
+        completed = true;
         sseSend(res, { type: "done" });
       }
     }
+    await recordUsage({
+      req,
+      user,
+      kind: "chapter",
+      storyId: session.storyId,
+      usage: finalUsage,
+      status: completed ? "ok" : "failed",
+      metadata: { chapter: chapterNum },
+    });
   } catch (err) {
-    console.error("story generation failed:", err);
-    // The charged first chapter never rendered — give the credit back.
-    if (chargedThisCall) await refundStart(user.id, storyId);
+    logEvent("error", "story_generation_failed", {
+      requestId: req.requestId,
+      userId: user && user.id,
+      storyId: session.storyId,
+      error: err.message,
+    });
+    const failed = await failStorySession({
+      user, storyId: session.storyId, requestId,
+    });
+    if (failed.reset) sseSend(res, { type: "story-reset" });
     let message = "The storyteller hit a snag. Please try again.";
     if (err instanceof Anthropic.AuthenticationError) {
       message = "Server API key is invalid — check ANTHROPIC_API_KEY.";
@@ -387,16 +671,33 @@ app.post("/api/story", async (req, res) => {
     }
     sseSend(res, { type: "error", error: message });
   }
+  completed = true;
   res.end();
 });
 
 // Cover art: Claude designs a minimalist SVG book cover for the story.
 app.post("/api/cover", async (req, res) => {
   const { title, scenario, character, accent } = req.body || {};
-  if (!title || !scenario) return res.status(400).json({ error: "title and scenario required" });
+  if (
+    typeof title !== "string" || !title.trim() || title.length > 200 ||
+    !scenario || typeof scenario.title !== "string" || scenario.title.length > 120 ||
+    typeof scenario.premise !== "string" || scenario.premise.length > 1_000
+  ) {
+    return res.status(400).json({ error: "valid title and scenario required" });
+  }
   const accentHex = /^#[0-9a-fA-F]{6}$/.test(accent || "") ? accent : null;
+  const user = await userFromReq(req);
+  if (REQUIRE_AUTH_FOR_LIVE && !user) {
+    return res.status(401).json({ error: "Please sign in first." });
+  }
+  if (await enforceRateLimit(req, res, {
+    user,
+    scope: "cover",
+    limit: AI_COVERS ? 6 : 60,
+    windowSeconds: 86_400,
+  })) return;
 
-  if (DEMO_MODE) {
+  if (DEMO_MODE || !AI_COVERS) {
     return res.json({ svg: fallbackCover(title, scenario.title, accentHex) });
   }
   try {
@@ -423,9 +724,20 @@ Rules: return ONLY the SVG markup, nothing else. Self-contained — no scripts, 
     const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
     const match = text.match(/<svg[\s\S]*<\/svg>/);
     const svg = match ? sanitizeSvg(match[0]) : null;
+    await recordUsage({
+      req,
+      user,
+      kind: "cover",
+      usage: response.usage,
+      status: svg ? "ok" : "fallback",
+    });
     res.json({ svg: svg || fallbackCover(title, scenario.title, accentHex) });
   } catch (err) {
-    console.error("cover generation failed:", err.message);
+    logEvent("warn", "cover_generation_failed", {
+      requestId: req.requestId,
+      userId: user && user.id,
+      error: err.message,
+    });
     res.json({ svg: fallbackCover(title, scenario.title, accentHex) });
   }
 });
@@ -443,15 +755,6 @@ function hexToHue(hex) {
   else h = (r - g) / d + 4;
   h = Math.round(h * 60);
   return (h + 360) % 360;
-}
-
-function sanitizeSvg(svg) {
-  return svg
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
-    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
-    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
-    .replace(/(href|xlink:href)\s*=\s*"(?!#)[^"]*"/gi, "");
 }
 
 // Deterministic decorative cover used in demo mode and as a live fallback.
@@ -497,21 +800,30 @@ function fallbackCover(title, subtitle, accentHex) {
 
 // Create a Stripe Checkout session for a credit pack and return its URL.
 app.post("/api/checkout", async (req, res) => {
-  if (!stripe) return res.status(400).json({ error: "Payments aren't configured." });
+  if (!PAYMENTS_READY) return res.status(503).json({ error: "Payments aren't configured." });
   const user = await userFromReq(req);
   if (!user) return res.status(401).json({ error: "Please sign in first." });
+  if (await enforceRateLimit(req, res, {
+    user,
+    scope: "checkout",
+    limit: 10,
+    windowSeconds: 3600,
+  })) return;
 
-  const pack = CREDIT_PACKS[(req.body || {}).pack];
+  const packId = (req.body || {}).pack;
+  const pack = CREDIT_PACKS[packId];
   if (!pack) return res.status(400).json({ error: "Unknown credit pack." });
 
-  const origin = req.headers.origin || `${req.protocol}://${req.get("host")}`;
   try {
+    const suffix = crypto.randomBytes(6).toString("base64url").replace(/[^a-z]/gi, "").slice(0, 8).padEnd(8, "x");
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      integration_identifier: `plotwick_${suffix}`,
       // Attribute this purchase to the user and pack so the webhook can grant
       // the right credits to the right account.
       client_reference_id: user.id,
-      metadata: { user_id: user.id, credits: String(pack.credits) },
+      customer_email: user.email || undefined,
+      metadata: { user_id: user.id, pack_id: packId },
       line_items: [
         {
           quantity: 1,
@@ -522,12 +834,16 @@ app.post("/api/checkout", async (req, res) => {
           },
         },
       ],
-      success_url: `${origin}/?checkout=success`,
-      cancel_url: `${origin}/?checkout=cancel`,
+      success_url: `${PUBLIC_APP_URL}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${PUBLIC_APP_URL}/?checkout=cancel`,
     });
     res.json({ url: session.url });
   } catch (err) {
-    console.error("checkout session failed:", err.message);
+    logEvent("error", "checkout_session_failed", {
+      requestId: req.requestId,
+      userId: user.id,
+      error: err.message,
+    });
     res.status(500).json({ error: "Couldn't start checkout. Please try again." });
   }
 });
@@ -543,30 +859,45 @@ async function handleStripeWebhook(req, res) {
       process.env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (err) {
-    console.error("stripe webhook signature verification failed:", err.message);
+    logEvent("warn", "stripe_webhook_signature_failed", { error: err.message });
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const userId = session.metadata?.user_id || session.client_reference_id;
-    const credits = parseInt(session.metadata?.credits || "0", 10);
-    if (userId && credits > 0) {
+  if (event.type === "checkout.session.async_payment_failed") {
+    logEvent("warn", "stripe_async_payment_failed", {
+      eventId: event.id,
+      sessionId: event.data.object && event.data.object.id,
+    });
+  } else {
+    const grant = checkoutGrant(event, CREDIT_PACKS, CURRENCY);
+    if (grant) {
       try {
         // Idempotent by event id: replays never double-grant.
         const { error } = await supabaseAdmin.rpc("grant_stripe_credits", {
           p_event_id: event.id,
-          p_user_id: userId,
-          p_credits: credits,
+          p_user_id: grant.userId,
+          p_credits: grant.credits,
+          p_session_id: grant.sessionId,
+          p_pack_id: grant.packId,
         });
         // supabase-js reports failures via the returned `error`, not a throw.
         if (error) throw new Error(error.message);
       } catch (err) {
-        console.error("grant_stripe_credits failed:", err.message);
+        logEvent("error", "stripe_credit_grant_failed", {
+          eventId: event.id,
+          userId: grant.userId,
+          error: err.message,
+        });
         // 500 tells Stripe to retry the webhook later so the paid-for credits
         // still land — never swallow a grant failure with a 200.
         return res.status(500).send("credit grant failed");
       }
+      logEvent("info", "stripe_credits_granted", {
+        eventId: event.id,
+        sessionId: grant.sessionId,
+        userId: grant.userId,
+        credits: grant.credits,
+      });
     }
   }
 
@@ -592,16 +923,26 @@ function persistShares() {
 }
 
 app.post("/api/share", async (req, res) => {
+  const user = await userFromReq(req);
+  if (supabaseAdmin && !user) {
+    return res.status(401).json({ error: "Please sign in before publishing a story." });
+  }
+  if (await enforceRateLimit(req, res, {
+    user,
+    scope: "share",
+    limit: 20,
+    windowSeconds: 86_400,
+  })) return;
   const { title, scenario, character, chapters, cover } = req.body || {};
   if (
-    typeof title !== "string" || title.length > 200 ||
+    typeof title !== "string" || !title.trim() || title.length > 200 ||
     !scenario || !character ||
     !Array.isArray(chapters) || chapters.length === 0 || chapters.length > 60 ||
-    chapters.some((c) => typeof c.prose !== "string" || c.prose.length > 20000)
+    chapters.some((c) => !c || typeof c.prose !== "string" || c.prose.length > 20000)
   ) {
     return res.status(400).json({ error: "invalid story payload" });
   }
-  const id = crypto.randomBytes(5).toString("hex");
+  const id = crypto.randomBytes(16).toString("hex");
   const record = {
     title,
     scenario: { title: String(scenario.title || "").slice(0, 120) },
@@ -619,12 +960,15 @@ app.post("/api/share", async (req, res) => {
   };
 
   if (supabaseAdmin) {
-    const user = await userFromReq(req);
     const { error } = await supabaseAdmin
       .from("shared_stories")
-      .insert({ id, user_id: user ? user.id : null, data: record });
+      .insert({ id, user_id: user.id, data: record });
     if (error) {
-      console.error("share insert failed:", error.message);
+      logEvent("error", "share_insert_failed", {
+        requestId: req.requestId,
+        userId: user.id,
+        error: error.message,
+      });
       return res.status(500).json({ error: "couldn't publish the story" });
     }
     return res.json({ id });
@@ -636,6 +980,48 @@ app.post("/api/share", async (req, res) => {
   sharedStories[id] = record;
   persistShares();
   res.json({ id });
+});
+
+app.delete("/api/share/:id", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Share revocation requires accounts." });
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ error: "Please sign in first." });
+  const { data, error } = await supabaseAdmin
+    .from("shared_stories")
+    .delete()
+    .eq("id", req.params.id)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: "couldn't revoke the share" });
+  if (!data) return res.status(404).json({ error: "share not found" });
+  res.status(204).end();
+});
+
+app.post("/api/share/:id/report", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Reporting isn't configured." });
+  if (await enforceRateLimit(req, res, {
+    user: null,
+    scope: "share-report",
+    limit: 10,
+    windowSeconds: 3600,
+  })) return;
+  const reason = typeof req.body?.reason === "string" ? req.body.reason.trim().slice(0, 500) : "";
+  if (!reason) return res.status(400).json({ error: "Please include a reason." });
+  const { data: share } = await supabaseAdmin
+    .from("shared_stories").select("id").eq("id", req.params.id).maybeSingle();
+  if (!share) return res.status(404).json({ error: "story not found" });
+  const reporterHash = crypto
+    .createHash("sha256")
+    .update(`${req.ip}:${REPORT_HASH_SALT}`)
+    .digest("hex");
+  const { error } = await supabaseAdmin.from("share_reports").insert({
+    share_id: req.params.id,
+    reason,
+    reporter_hash: reporterHash,
+  });
+  if (error) return res.status(500).json({ error: "couldn't submit the report" });
+  res.status(202).json({ received: true });
 });
 
 app.get("/api/share/:id", async (req, res) => {
@@ -656,6 +1042,77 @@ app.get("/api/share/:id", async (req, res) => {
 
 app.get("/s/:id", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "share.html"));
+});
+
+app.get("/api/account/export", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Accounts aren't configured." });
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ error: "Please sign in first." });
+  const [{ data: profile, error: profileError }, { data: stories, error: storiesError }, { data: shares, error: sharesError }] =
+    await Promise.all([
+      supabaseAdmin.from("profiles").select("credits, created_at").eq("id", user.id).maybeSingle(),
+      supabaseAdmin.from("stories").select("id, data, created_at, updated_at").eq("user_id", user.id),
+      supabaseAdmin.from("shared_stories").select("id, data, created_at").eq("user_id", user.id),
+    ]);
+  if (profileError || storiesError || sharesError) {
+    return res.status(500).json({ error: "Couldn't export account data." });
+  }
+  res.setHeader("Content-Disposition", 'attachment; filename="plotwick-export.json"');
+  res.json({
+    exportedAt: new Date().toISOString(),
+    account: { id: user.id, email: user.email, profile },
+    stories,
+    shares,
+  });
+});
+
+app.delete("/api/account", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Accounts aren't configured." });
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ error: "Please sign in first." });
+  if ((req.body || {}).confirmation !== "DELETE") {
+    return res.status(400).json({ error: 'Type "DELETE" to confirm account deletion.' });
+  }
+  const { error: shareDeleteError } = await supabaseAdmin
+    .from("shared_stories").delete().eq("user_id", user.id);
+  if (shareDeleteError) {
+    return res.status(500).json({ error: "Couldn't remove public shares." });
+  }
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+  if (error) {
+    logEvent("error", "account_delete_failed", {
+      requestId: req.requestId,
+      userId: user.id,
+      error: error.message,
+    });
+    return res.status(500).json({ error: "Couldn't delete the account." });
+  }
+  logEvent("info", "account_deleted", { requestId: req.requestId, userId: user.id });
+  res.status(204).end();
+});
+
+app.get("/api/admin/metrics", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Metrics aren't configured." });
+  const user = await userFromReq(req);
+  if (!isAdmin(user)) return res.status(403).json({ error: "forbidden" });
+  const requestedDays = Number(req.query.days) || 30;
+  const days = Math.min(Math.max(requestedDays, 1), 90);
+  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("usage_events")
+    .select("kind, status, input_tokens, output_tokens, created_at")
+    .gte("created_at", since)
+    .limit(20_000);
+  if (error) return res.status(500).json({ error: "couldn't load metrics" });
+  const totals = (data || []).reduce((acc, row) => {
+    const key = `${row.kind}:${row.status}`;
+    if (!acc[key]) acc[key] = { requests: 0, inputTokens: 0, outputTokens: 0 };
+    acc[key].requests += 1;
+    acc[key].inputTokens += row.input_tokens || 0;
+    acc[key].outputTokens += row.output_tokens || 0;
+    return acc;
+  }, {});
+  res.json({ since, generatedAt: new Date().toISOString(), totals });
 });
 
 // ----------------------------------------------------------------------
@@ -714,12 +1171,15 @@ async function streamDemoChapter(res, chapterNum) {
     await new Promise((r) => setTimeout(r, 8));
   }
   sseSend(res, { type: "done" });
+  return chapter;
 }
 
-app.listen(PORT, () => {
+if (require.main === module) app.listen(PORT, () => {
   console.log(`Plotwick running at http://localhost:${PORT}`);
   console.log(DEMO_MODE
     ? "Mode: DEMO (no API key found — canned story content). Set ANTHROPIC_API_KEY for live stories."
     : `Mode: LIVE (model: ${MODEL}, target ~${TARGET_CHAPTERS} chapters, ${RATE_LIMIT_PER_HOUR} chapters/hr/IP)`);
-  console.log(`Accounts: ${supabaseAuth ? "on" : "off"} · Credits: ${CREDITS_ENFORCED ? "enforced" : "off"} · Payments: ${stripe && process.env.STRIPE_WEBHOOK_SECRET ? "Stripe" : "off"}`);
+  console.log(`Accounts: ${supabaseAuth ? "on" : "off"} · Credits: ${CREDITS_ENFORCED ? "enforced" : "off"} · Payments: ${PAYMENTS_READY ? "Stripe" : "off"} · AI covers: ${AI_COVERS ? "on" : "off"}`);
 });
+
+module.exports = { app };

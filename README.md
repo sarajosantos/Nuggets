@@ -9,18 +9,18 @@
 - **A hidden "story director"** — the server injects private pacing directives each chapter (setup → escalation → midpoint reversal → convergence → climax) so stories arc properly instead of meandering, and a hard cap forces a finale if a story runs long. Players choose *how* events unfold; the director ensures they *do*.
 - **State ledger & journal** — the model maintains hidden JSON state every chapter (title, act, condition, inventory, companions, open plot threads) and re-reads it for continuity. The Journal panel shows the player their condition, items, and companions.
 - **Accounts & cloud library (Supabase)** — sign in with email/password and your library follows you across devices. Local stories merge into your account on sign-in.
-- **Pay-per-story credits (Stripe)** — one credit begins one story (all its chapters). New accounts get a few free credits; more are bought in packs via Stripe Checkout. Credits are spent **server-side only** and can't be forged from the browser; a failed first chapter is auto-refunded.
+- **Pay-per-story credits (Stripe)** — one credit begins one story (all its chapters). Server-owned story sessions bind continuations to their owner, scenario, character, and rolling history hash; a failed first chapter is auto-refunded.
 - **Story library** — every story is saved locally; resume in-progress tales or re-read finished ones.
 - **Share links** — publish a finished story to a read-only link (`/s/:id`) with its cover and full text.
-- **Generated cover art** — Claude designs a minimalist SVG book cover per story (with a deterministic fallback).
+- **Generated cover art** — deterministic SVG covers by default; optional, authenticated AI covers are strictly sanitized and quota-limited.
 - **Read aloud** — browser text-to-speech narration toggle.
-- **Rate limiting** — per-IP hourly chapter cap for public deployments.
+- **Rate limiting** — distributed per-user/per-IP limits backed by Supabase in production.
 - **Demo mode** — with no API key, the app serves a canned three-chapter preview so the entire UI works out of the box.
 
 ## How it works
 
 - **Frontend** (`public/`) — vanilla HTML/CSS/JS, no build step. A deliberate single dark theme ("the midnight reading room"): Cormorant Garamond display, Crimson Pro book prose, candle-gold accent.
-- **Backend** (`server.js`) — Express. Keeps the Anthropic API key server-side, streams chapters from `claude-opus-4-8` (adaptive thinking), and stores shared stories in `data/stories.json` (swap for a real database when accounts land). Chapter generation is stateless: the client sends full history each turn.
+- **Backend** (`server.js`) — Express. Keeps provider keys server-side and streams chapters from `claude-opus-4-8` (adaptive thinking). The client sends full history each turn, while Supabase stores compact integrity metadata so the server can reject forged or replayed continuations.
 - **Story protocol** — each model response is `prose + <state>{...}</state> + <choices>[...]</choices>`. An empty choices array signals the ending. Pacing notes ride as mid-conversation system messages on `claude-opus-4-8` (merged into the user turn on other models).
 
 ## Running it
@@ -42,7 +42,7 @@ npm start              # http://localhost:3000
 
 Without these vars the app runs exactly as before — libraries stay device-local and shares fall back to a JSON file. The browser talks to Supabase directly for auth and story sync (protected by RLS); the server only verifies tokens (for per-account rate limiting) and writes shares.
 
-**Story credits turn on automatically once the service-role key is set.** From that point, starting a story requires a signed-in account with a credit. New signups get a few free credits (the `credits` default in `supabase/schema.sql` — tune it).
+Story credits are deliberately opt-in. Set `STORY_CREDITS_ENABLED=1` only after Stripe, its webhook, and `PUBLIC_APP_URL` are configured and tested. The server refuses to start with an incomplete paid setup unless `ALLOW_FREE_ONLY_CREDITS=1` explicitly declares a free-credit pilot.
 
 ## Payments setup (Stripe)
 
@@ -52,11 +52,11 @@ Selling credits needs Stripe on top of Supabase:
 2. **Developers → API keys** → copy the **Secret key** into `.env` as `STRIPE_SECRET_KEY`.
 3. **Developers → Webhooks → Add endpoint**:
    - URL: `https://YOUR-DOMAIN/api/stripe/webhook`
-   - Event to send: **`checkout.session.completed`**
+   - Events: **`checkout.session.completed`**, **`checkout.session.async_payment_succeeded`**, and **`checkout.session.async_payment_failed`**
    - After creating it, copy the endpoint's **Signing secret** into `.env` as `STRIPE_WEBHOOK_SECRET`.
 4. Restart. The "Buy stories" button appears for signed-in users.
-5. Test with Stripe's card `4242 4242 4242 4242`, any future expiry/CVC. Confirm credits appear after checkout.
-6. When ready for real money, flip Stripe to **live mode** and swap in the live `sk_live_…` key and a live webhook signing secret.
+5. Set `PUBLIC_APP_URL`, run the payment test matrix in [`TODO.md`](TODO.md), then set `STORY_CREDITS_ENABLED=1`.
+6. Prefer a restricted Stripe key (`rk_…`) with only the permissions this service needs. Use separate test and live credentials and restrict their network access in Stripe.
 
 > ⚠️ **Pricing is a placeholder.** The credit packs and prices live in `CREDIT_PACKS` near the top of `server.js` (currently 5/$8, 15/$20, 40/$45). A full story costs roughly ~$1 in Claude API usage, so a credit is priced above that for margin — but review and set your own numbers before charging anyone. Prices are defined server-side; the browser can never change them.
 
@@ -66,9 +66,15 @@ Selling credits needs Stripe on top of Supabase:
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Enables live story generation |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | — | Enables accounts + cloud library |
-| `SUPABASE_SERVICE_ROLE_KEY` | — | Stores shares in Supabase **and enables story credits** |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | Enables buying credits via Stripe |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | Enables server story sessions, distributed limits, shares, credits, and operations |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | Enables buying credits via Stripe; prefer a restricted key |
 | `STRIPE_CURRENCY` | `usd` | Checkout currency |
+| `PUBLIC_APP_URL` | — | Authoritative origin for Stripe return URLs |
+| `STORY_CREDITS_ENABLED` | `0` | Explicitly enables pay-per-story enforcement |
+| `ALLOW_FREE_ONLY_CREDITS` | `0` | Allows an intentional no-purchase credit pilot |
+| `REQUIRE_AUTH_FOR_LIVE` | `1` with Supabase | Requires accounts for live generation |
+| `AI_COVERS` | `0` | Enables authenticated, quota-limited model-generated SVG covers |
+| `REPORT_HASH_SALT` | — | Salt used to pseudonymize share reporters' IPs |
 | `ADMIN_EMAILS` | — | Comma-separated emails that get unlimited stories (testing/staff) |
 | `STORY_MODEL` | `claude-opus-4-8` | Which Claude model narrates |
 | `TARGET_CHAPTERS` | `10` | Target story length; finale forced by target + 4 |
