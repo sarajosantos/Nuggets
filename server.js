@@ -71,6 +71,19 @@ if (process.env.STRIPE_SECRET_KEY && supabaseAdmin) {
 // — generation stays open and free, exactly as before.
 const CREDITS_ENFORCED = !!supabaseAdmin && !DEMO_MODE;
 
+// Admin accounts (comma-separated emails) get unlimited stories and are never
+// charged — for story testing and staff use. Matching is case-insensitive.
+// These emails still sign in normally; they simply bypass the credit gate.
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);
+function isAdmin(user) {
+  return !!(user && user.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
+}
+
 // The Stripe webhook must read the RAW request body to verify the signature,
 // so it is mounted BEFORE express.json(). Everything else gets parsed JSON.
 if (stripe && process.env.STRIPE_WEBHOOK_SECRET) {
@@ -245,6 +258,9 @@ app.get("/api/credits", async (req, res) => {
   if (!supabaseAdmin) return res.json({ credits: null, enforced: false });
   const user = await userFromReq(req);
   if (!user) return res.status(401).json({ error: "not signed in" });
+  if (isAdmin(user)) {
+    return res.json({ credits: "unlimited", enforced: CREDITS_ENFORCED, admin: true });
+  }
   const { data, error } = await supabaseAdmin
     .from("profiles").select("credits").eq("id", user.id).maybeSingle();
   if (error) return res.status(500).json({ error: "couldn't read credits" });
@@ -280,7 +296,8 @@ app.post("/api/story", async (req, res) => {
   // credit, spent atomically in the database on the first chapter only.
   // (All of this runs BEFORE sseStart so we can still send real HTTP statuses.)
   let chargedThisCall = false;
-  if (CREDITS_ENFORCED) {
+  const admin = isAdmin(user);
+  if (CREDITS_ENFORCED && !admin) {
     if (!user) {
       return res.status(401).json({ error: "Please sign in to begin a story.", needAuth: true });
     }
@@ -308,7 +325,9 @@ app.post("/api/story", async (req, res) => {
 
   const chapterNum = history.filter((m) => m.role === "assistant").length + 1;
   sseStart(res);
-  if (CREDITS_ENFORCED) {
+  if (CREDITS_ENFORCED && admin) {
+    sseSend(res, { type: "credits", credits: "unlimited" });
+  } else if (CREDITS_ENFORCED) {
     // Push the (possibly newly-decremented) balance so the UI updates live.
     const { data } = await supabaseAdmin
       .from("profiles").select("credits").eq("id", user.id).maybeSingle();
