@@ -69,6 +69,7 @@ Selling credits needs Stripe on top of Supabase:
 | `SUPABASE_SERVICE_ROLE_KEY` | — | Stores shares in Supabase **and enables story credits** |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | Enables buying credits via Stripe |
 | `STRIPE_CURRENCY` | `usd` | Checkout currency |
+| `ADMIN_EMAILS` | — | Comma-separated emails that get unlimited stories (testing/staff) |
 | `STORY_MODEL` | `claude-opus-4-8` | Which Claude model narrates |
 | `TARGET_CHAPTERS` | `10` | Target story length; finale forced by target + 4 |
 | `RATE_LIMIT_PER_HOUR` | `40` | Max chapters per IP per hour |

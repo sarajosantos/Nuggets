@@ -600,7 +600,7 @@ function startStory() {
       openAuthModal();
       return;
     }
-    if (credits !== null && credits <= 0) {
+    if (credits !== null && credits !== "unlimited" && credits <= 0) {
       openBuyModal();
       return;
     }
@@ -1126,6 +1126,11 @@ function setCredits(n) {
     return;
   }
   pill.classList.remove("hidden");
+  if (n === "unlimited") {
+    pill.textContent = "∞ stories";
+    pill.classList.remove("empty");
+    return;
+  }
   const word = n === 1 ? "story" : "stories";
   pill.textContent = `${n} ${word} left`;
   pill.classList.toggle("empty", n <= 0);
