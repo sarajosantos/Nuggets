@@ -364,13 +364,17 @@ app.post("/api/story", async (req, res) => {
 
 // Cover art: Claude designs a minimalist SVG book cover for the story.
 app.post("/api/cover", async (req, res) => {
-  const { title, scenario, character } = req.body || {};
+  const { title, scenario, character, accent } = req.body || {};
   if (!title || !scenario) return res.status(400).json({ error: "title and scenario required" });
+  const accentHex = /^#[0-9a-fA-F]{6}$/.test(accent || "") ? accent : null;
 
   if (DEMO_MODE) {
-    return res.json({ svg: fallbackCover(title, scenario.title) });
+    return res.json({ svg: fallbackCover(title, scenario.title, accentHex) });
   }
   try {
+    const palette = accentHex
+      ? `Anchor the palette to this accent color: ${accentHex} (use it, and shades/tints of it, for the motif and highlights against the dark ground).`
+      : "Choose a restrained palette of 2–4 colors that fits the setting.";
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 4000,
@@ -382,7 +386,7 @@ app.post("/api/cover", async (req, res) => {
 
 The book: "${title}" — an interactive novella. Setting: ${scenario.title}. ${scenario.premise} Protagonist: ${character?.name || "unknown"}, ${character?.archetype || ""}.
 
-Style: minimalist literary cover. Dark, atmospheric background; a restrained palette of 2–4 colors; one striking central symbolic motif built from simple geometric shapes or paths (no attempt at realism); the title set in an elegant generic serif font near the top or bottom; a small line reading "an interactive novella". Subtle texture via gradients or opacity is welcome.
+Style: minimalist literary cover. Dark, atmospheric background. ${palette} One striking central symbolic motif built from simple geometric shapes or paths (no attempt at realism); the title set in an elegant generic serif font near the top or bottom; a small line reading "an interactive novella". Subtle texture via gradients or opacity is welcome.
 
 Rules: return ONLY the SVG markup, nothing else. Self-contained — no scripts, no external images or fonts (generic font families only).`,
         },
@@ -391,12 +395,27 @@ Rules: return ONLY the SVG markup, nothing else. Self-contained — no scripts, 
     const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
     const match = text.match(/<svg[\s\S]*<\/svg>/);
     const svg = match ? sanitizeSvg(match[0]) : null;
-    res.json({ svg: svg || fallbackCover(title, scenario.title) });
+    res.json({ svg: svg || fallbackCover(title, scenario.title, accentHex) });
   } catch (err) {
     console.error("cover generation failed:", err.message);
-    res.json({ svg: fallbackCover(title, scenario.title) });
+    res.json({ svg: fallbackCover(title, scenario.title, accentHex) });
   }
 });
+
+// Convert a #rrggbb hex to an HSL hue (0–359). Returns null on bad input.
+function hexToHue(hex) {
+  const m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex || "");
+  if (!m) return null;
+  const r = parseInt(m[1], 16) / 255, g = parseInt(m[2], 16) / 255, b = parseInt(m[3], 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return 0;
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h = Math.round(h * 60);
+  return (h + 360) % 360;
+}
 
 function sanitizeSvg(svg) {
   return svg
@@ -408,11 +427,16 @@ function sanitizeSvg(svg) {
 }
 
 // Deterministic decorative cover used in demo mode and as a live fallback.
-function fallbackCover(title, subtitle) {
+// When the world's accent hex is known, seed the palette from its hue so the
+// cover matches the story's colour; otherwise fall back to a title hash.
+function fallbackCover(title, subtitle, accentHex) {
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  let hash = 0;
-  for (const ch of String(title)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  const hue = hash % 360;
+  let hue = hexToHue(accentHex);
+  if (hue === null) {
+    let hash = 0;
+    for (const ch of String(title)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+    hue = hash % 360;
+  }
   const hue2 = (hue + 40) % 360;
   const words = esc(title).split(" ");
   const lines = [];
