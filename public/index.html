@@ -30,11 +30,53 @@
   <main>
     <!-- Screen 1: home — scenario selection + library -->
     <section id="screen-scenario" class="screen">
-      <h2 class="screen-title">Choose your world</h2>
+      <section id="activation-intro" class="activation-intro" aria-labelledby="activation-title">
+        <div class="activation-copy">
+          <p class="activation-kicker">The story waits for you</p>
+          <h2 id="activation-title">A novella that changes when you do.</h2>
+          <p>Choose the trouble. Become someone worth following. Then decide what happens, chapter by chapter.</p>
+          <div class="activation-actions">
+            <button id="surprise-story" class="btn btn-primary">Choose a story for me →</button>
+            <span>About a minute to your first page</span>
+          </div>
+          <p class="activation-fineprint">Explore first. A free account is requested only when you begin.</p>
+        </div>
+        <ol class="reader-ritual" aria-label="How Plotwick works">
+          <li>
+            <span class="ritual-number">I</span>
+            <div><strong>Choose the trouble</strong><p>Find a premise that makes you lean closer.</p></div>
+          </li>
+          <li>
+            <span class="ritual-number">II</span>
+            <div><strong>Become the protagonist</strong><p>Name your character and choose what drives them.</p></div>
+          </li>
+          <li>
+            <span class="ritual-number">III</span>
+            <div><strong>Write the next turn</strong><p>Every decision becomes part of your novella.</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <div class="worlds-heading">
+        <p class="section-kicker">The opening shelf</p>
+        <h2 id="worlds-title" class="screen-title">Choose your world</h2>
+        <p class="screen-sub">Each world holds three beginnings. Turn the small arrows to browse.</p>
+      </div>
       <div id="scenario-grid" class="card-grid"></div>
 
       <div id="library-section" class="library hidden">
-        <h2 class="screen-title small">Your library</h2>
+        <div class="library-header">
+          <div>
+            <p class="section-kicker">Your reading room</p>
+            <h2 class="screen-title small">Your library</h2>
+            <p id="library-summary" class="library-summary"></p>
+          </div>
+          <div id="library-filters" class="library-filters" role="group" aria-label="Filter your library">
+            <button class="active" data-library-filter="all" aria-pressed="true">All</button>
+            <button data-library-filter="reading" aria-pressed="false">In progress</button>
+            <button data-library-filter="finished" aria-pressed="false">Finished</button>
+          </div>
+        </div>
         <div id="library-grid" class="library-grid"></div>
       </div>
     </section>
@@ -62,8 +104,14 @@
     <!-- Screen 2: character creation -->
     <section id="screen-character" class="screen hidden">
       <nav class="screen-nav"><button id="back-to-scenarios" class="back-link">← All worlds</button></nav>
+      <ol class="journey-progress" aria-label="Story setup progress">
+        <li class="complete"><span>1</span>World chosen</li>
+        <li class="current" aria-current="step"><span>2</span>Shape your character</li>
+        <li><span>3</span>Read chapter one</li>
+      </ol>
       <h2 class="screen-title" id="character-question">Who are you?</h2>
       <p class="screen-sub" id="character-scenario-label"></p>
+      <p id="character-premise" class="character-premise"></p>
 
       <label class="field-label" for="char-name">Your name</label>
       <div class="name-row">
@@ -115,9 +163,12 @@
       <div id="ending-area" class="ending hidden">
         <p class="ending-mark">⁂</p>
         <p class="ending-word">The End</p>
+        <p id="ending-summary" class="ending-summary"></p>
+        <p class="discovery-note">Where will the next opening line find you?</p>
         <div class="ending-actions">
           <button id="share-btn" class="btn btn-ghost">Share this story</button>
-          <button id="new-story-btn" class="btn btn-primary">Begin a new story</button>
+          <button id="next-world-btn" class="btn btn-ghost">Another tale in this world</button>
+          <button id="new-story-btn" class="btn btn-primary">Choose a new world</button>
         </div>
         <div id="share-result" class="share-result hidden">
           <input type="text" id="share-link" readonly>
@@ -146,7 +197,7 @@
     <div class="modal-card">
       <button id="auth-close" class="modal-close" aria-label="Close">×</button>
       <h3 id="auth-title" class="modal-title">Your library, anywhere</h3>
-      <p class="modal-sub">Sign in and your stories follow you across devices.</p>
+      <p id="auth-sub" class="modal-sub">Sign in and your stories follow you across devices.</p>
 
       <label class="field-label" for="auth-email">Email</label>
       <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com">

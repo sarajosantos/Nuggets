@@ -266,6 +266,7 @@ let appConfig = {}; // /api/config result (creditsEnforced, payments, …)
 let credits = null; // current credit balance (null = unknown / not enforced)
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
+let libraryFilter = "all";
 const cloudSaveChains = new Map(); // serialize saves per story to prevent stale writes
 
 // ----- helpers -----
@@ -338,6 +339,13 @@ function renderScenarios() {
   grid.innerHTML = "";
   for (const world of SCENARIOS) grid.appendChild(worldCard(world));
   grid.appendChild(customCard());
+}
+
+function openSurpriseStory() {
+  const world = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
+  const selectedStory = world.stories[Math.floor(Math.random() * world.stories.length)];
+  draft.scenario = buildScenario(world, selectedStory);
+  openCharacterScreen();
 }
 
 // A world card: shows one of the world's three stories with left/right arrows
@@ -422,21 +430,53 @@ function buildScenario(world, story) {
 }
 
 function renderLibrary() {
-  const entries = Object.values(library.stories).sort((a, b) => b.updatedAt - a.updatedAt);
-  $("library-section").classList.toggle("hidden", entries.length === 0);
+  const allEntries = Object.values(library.stories).sort((a, b) => b.updatedAt - a.updatedAt);
+  const entries = allEntries.filter((st) => (
+    libraryFilter === "all" ||
+    (libraryFilter === "finished" ? st.done : !st.done)
+  ));
+  const readingCount = allEntries.filter((st) => !st.done).length;
+  const finishedCount = allEntries.length - readingCount;
+  $("activation-intro").classList.toggle("hidden", allEntries.length > 0);
+  $("worlds-title").textContent = allEntries.length > 0 ? "Choose another world" : "Choose your world";
+  $("library-section").classList.toggle("hidden", allEntries.length === 0);
+  $("library-summary").textContent =
+    `${allEntries.length} ${allEntries.length === 1 ? "story" : "stories"} · ` +
+    `${readingCount} in progress · ${finishedCount} finished`;
+  document.querySelectorAll("[data-library-filter]").forEach((button) => {
+    const active = button.dataset.libraryFilter === libraryFilter;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
   const grid = $("library-grid");
   grid.innerHTML = "";
+  if (entries.length === 0) {
+    grid.innerHTML = `<p class="library-empty">${
+      libraryFilter === "finished"
+        ? "No finished stories yet. Your endings will gather here."
+        : "No stories are waiting mid-chapter."
+    }</p>`;
+    return;
+  }
   for (const st of entries) {
     const card = document.createElement("div");
     card.className = "library-card";
+    const chapterCount = st.chapters.length;
+    const target = Math.max(1, Number(appConfig.targetChapters) || 10);
+    const progress = st.done ? 100 : Math.min(92, Math.max(8, Math.round((chapterCount / target) * 100)));
     const coverHtml = st.cover
       ? `<img alt="" src="data:image/svg+xml;utf8,${encodeURIComponent(st.cover)}">`
       : `<span>${st.scenario.ornament || "❦"}</span>`;
     card.innerHTML = `
       <div class="cover">${coverHtml}</div>
       <div class="lib-body">
+        <span class="lib-status ${st.done ? "finished" : "reading"}">${st.done ? "Finished" : "In progress"}</span>
         <h3>${escapeHtml(st.title || st.scenario.title)}</h3>
-        <p class="lib-meta">${escapeHtml(st.scenario.title)} · ${st.done ? "finished" : `chapter ${st.chapters.length}`}</p>
+        <p class="lib-meta">${escapeHtml(st.scenario.title)} · ${chapterCount} ${chapterCount === 1 ? "chapter" : "chapters"}</p>
+        <div class="lib-progress" role="progressbar" aria-label="Story progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+          <span style="width:${progress}%"></span>
+        </div>
+        <p class="lib-updated">${formatLibraryDate(st.updatedAt)}</p>
         <div class="lib-actions">
           <button class="btn btn-primary btn-small" data-act="open">${st.done ? "Read" : "Resume"}</button>
           <button class="btn btn-ghost btn-small" data-act="delete">Delete</button>
@@ -453,6 +493,15 @@ function renderLibrary() {
     });
     grid.appendChild(card);
   }
+}
+
+function formatLibraryDate(timestamp) {
+  if (!timestamp) return "Saved in your library";
+  const days = Math.floor((Date.now() - timestamp) / 86400000);
+  if (days <= 0) return "Read today";
+  if (days === 1) return "Read yesterday";
+  if (days < 7) return `Read ${days} days ago`;
+  return `Read ${new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
 // ----- screen 1b: custom scenario -----
@@ -481,6 +530,7 @@ function openCharacterScreen() {
   const s = draft.scenario;
   $("character-question").textContent = s.question || DEFAULT_QUESTION;
   $("character-scenario-label").textContent = `${s.ornament} ${s.title}`;
+  $("character-premise").textContent = s.premise;
   $("char-name").placeholder = s.namePlaceholder || "e.g. Rowan Ashford";
   namePool = (s.names && s.names.length) ? s.names : DEFAULT_NAMES;
   draft.character.archetype = null;
@@ -543,6 +593,13 @@ function rollName() {
 
 // ----- events -----
 function wireEvents() {
+  $("surprise-story").addEventListener("click", openSurpriseStory);
+  $("library-filters").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-library-filter]");
+    if (!button) return;
+    libraryFilter = button.dataset.libraryFilter;
+    renderLibrary();
+  });
   $("char-name").addEventListener("input", updateBeginButton);
   $("roll-name").addEventListener("click", rollName);
   $("back-to-scenarios").addEventListener("click", () => showScreen("scenario"));
@@ -554,6 +611,7 @@ function wireEvents() {
 
   $("begin-btn").addEventListener("click", startStory);
   $("new-story-btn").addEventListener("click", goHome);
+  $("next-world-btn").addEventListener("click", openAnotherInWorld);
   $("abandon-btn").addEventListener("click", () => {
     if (generating) return;
     if (story && !story.done && !confirm("Leave this story? It stays in your library.")) return;
@@ -653,9 +711,9 @@ function openStory(id) {
   openStoryScreen();
   renderAllChapters();
   updateJournal(story.state);
-  renderFrontispiece();
   if (story.done) {
     $("ending-area").classList.remove("hidden");
+    renderEndingRitual();
     updateShareControls();
   } else {
     const last = [...story.history].reverse().find((m) => m.role === "assistant");
@@ -901,8 +959,30 @@ function finishStory() {
   story.updatedAt = Date.now();
   persistStory(story);
   $("ending-area").classList.remove("hidden");
+  renderEndingRitual();
   updateShareControls();
   keepInView();
+}
+
+function renderEndingRitual() {
+  if (!story) return;
+  const count = story.chapters.length;
+  $("ending-summary").textContent =
+    `${story.character.name}'s story now rests in your library after ${count} ` +
+    `${count === 1 ? "chapter" : "chapters"}. Return whenever you want to read it again.`;
+  const world = SCENARIOS.find((candidate) => candidate.id === story.scenario.id);
+  $("next-world-btn").classList.toggle("hidden", !world || world.stories.length < 2);
+}
+
+function openAnotherInWorld() {
+  if (!story || !story.done) return;
+  const world = SCENARIOS.find((candidate) => candidate.id === story.scenario.id);
+  if (!world) return goHome();
+  const alternatives = world.stories.filter((candidate) => candidate.title !== story.scenario.title);
+  const selectedStory = alternatives[Math.floor(Math.random() * alternatives.length)] || world.stories[0];
+  story = null;
+  draft.scenario = buildScenario(world, selectedStory);
+  openCharacterScreen();
 }
 
 function showError(msg) {
@@ -988,22 +1068,10 @@ async function fetchCover() {
       forStory.cover = svg;
       forStory.updatedAt = Date.now();
       persistStory(forStory);
-      if (story === forStory) renderFrontispiece();
     }
   } catch (err) {
     console.warn("cover fetch failed:", err);
   }
-}
-
-function renderFrontispiece() {
-  let el = document.querySelector(".frontispiece");
-  if (!story || !story.cover) { if (el) el.remove(); return; }
-  if (!el) {
-    el = document.createElement("div");
-    el.className = "frontispiece";
-    $("story-text").prepend(el);
-  }
-  el.innerHTML = `<img alt="Cover of ${escapeHtml(story.title || "")}" src="data:image/svg+xml;utf8,${encodeURIComponent(story.cover)}">`;
 }
 
 // ----- journal -----
@@ -1142,6 +1210,10 @@ function wireAuthEvents() {
 }
 
 function openAuthModal() {
+  $("auth-title").textContent = pendingStart ? "Save your place, then begin" : "Your library, anywhere";
+  $("auth-sub").textContent = pendingStart
+    ? "Create a free account or sign in. Your world and character are waiting."
+    : "Sign in and your stories follow you across devices.";
   $("auth-message").classList.add("hidden");
   $("auth-modal").classList.remove("hidden");
   $("auth-email").focus();

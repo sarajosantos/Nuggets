@@ -18,9 +18,6 @@
   }
 
   const parts = [];
-  if (story.cover) {
-    parts.push(`<div class="frontispiece"><img alt="" src="data:image/svg+xml;utf8,${encodeURIComponent(story.cover)}"></div>`);
-  }
   parts.push(`<h2 class="share-title">${esc(story.title)}</h2>`);
   parts.push(`<p class="share-byline">A tale of ${esc(story.scenario.title)}, lived by ${esc(story.character.name)}${story.character.archetype ? `, ${esc(story.character.archetype)}` : ""}</p>`);
   parts.push('<article class="story-text">');

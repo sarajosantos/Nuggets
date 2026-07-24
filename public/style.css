@@ -109,6 +109,175 @@ main { width: 100%; max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4r
   margin-bottom: 1.2rem;
 }
 
+/* ---------- first-story flyleaf ---------- */
+
+.activation-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(230px, 0.92fr);
+  gap: clamp(1.5rem, 5vw, 3.4rem);
+  align-items: center;
+  border-top: 1px solid var(--gold-line);
+  border-bottom: 1px solid var(--hairline);
+  padding: clamp(1.8rem, 5vw, 3rem) 0;
+  margin: 0.4rem 0 2.8rem;
+}
+.activation-kicker, .section-kicker {
+  color: var(--gold);
+  font-size: 0.66rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.activation-copy h2 {
+  color: var(--text);
+  font-family: var(--display);
+  font-size: clamp(2.25rem, 6vw, 3.45rem);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 0.98;
+  margin: 0.65rem 0 1rem;
+  text-wrap: balance;
+}
+.activation-copy > p:not(.activation-kicker):not(.activation-fineprint) {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 1.08rem;
+  line-height: 1.55;
+  max-width: 32rem;
+}
+.activation-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 1.35rem;
+}
+.activation-actions span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  max-width: 8rem;
+}
+.activation-fineprint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-top: 0.85rem;
+}
+.reader-ritual {
+  counter-reset: ritual;
+  list-style: none;
+  position: relative;
+}
+.reader-ritual::before {
+  background: linear-gradient(var(--gold-line), var(--hairline));
+  content: "";
+  position: absolute;
+  left: 1rem;
+  top: 1.2rem;
+  bottom: 1.2rem;
+  width: 1px;
+}
+.reader-ritual li {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.85rem;
+  position: relative;
+}
+.reader-ritual li + li { margin-top: 1.25rem; }
+.ritual-number {
+  align-items: center;
+  background: var(--ink-well);
+  border: 1px solid var(--gold-line);
+  border-radius: 50%;
+  color: var(--gold);
+  display: flex;
+  font-family: var(--display);
+  font-size: 0.78rem;
+  height: 2rem;
+  justify-content: center;
+  position: relative;
+  width: 2rem;
+  z-index: 1;
+}
+.reader-ritual strong {
+  display: block;
+  font-family: var(--display);
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.reader-ritual p {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  margin-top: 0.18rem;
+}
+.worlds-heading { text-align: center; }
+.worlds-heading .screen-title { margin-top: 0.15rem; }
+.worlds-heading .screen-sub { margin-bottom: 0; }
+#screen-scenario { display: flex; flex-direction: column; }
+#activation-intro { order: 0; }
+#library-section { order: 1; }
+.worlds-heading { order: 2; }
+#scenario-grid { order: 3; }
+
+.journey-progress {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  margin: 0.2rem 0 2.2rem;
+  position: relative;
+}
+.journey-progress::before {
+  background: var(--hairline);
+  content: "";
+  height: 1px;
+  left: 16.66%;
+  position: absolute;
+  right: 16.66%;
+  top: 0.78rem;
+}
+.journey-progress li {
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  position: relative;
+  text-align: center;
+}
+.journey-progress li span {
+  align-items: center;
+  background: var(--ink-well);
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  display: flex;
+  height: 1.55rem;
+  justify-content: center;
+  margin: 0 auto 0.35rem;
+  position: relative;
+  width: 1.55rem;
+  z-index: 1;
+}
+.journey-progress .complete, .journey-progress .current { color: var(--text); }
+.journey-progress .complete span {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #221a0e;
+}
+.journey-progress .current span {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px var(--gold-dim);
+  color: var(--gold);
+}
+.character-premise {
+  border-left: 1px solid var(--gold-line);
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 1rem;
+  font-style: italic;
+  margin: 0 auto 1.8rem;
+  max-width: 34rem;
+  padding-left: 1rem;
+}
+
 .field-label {
   display: block;
   font-size: 0.72rem;
@@ -328,7 +497,45 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 
 /* ---------- library ---------- */
 
-.library { border-top: 1px solid var(--hairline); margin-top: 3rem; }
+.library {
+  border-bottom: 1px solid var(--hairline);
+  border-top: 1px solid var(--gold-line);
+  margin: 0.4rem 0 3rem;
+  padding: 2rem 0 2.4rem;
+}
+.library-header {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.library-header .screen-title {
+  margin: 0.15rem 0 0;
+  text-align: left;
+}
+.library-summary {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+.library-filters { display: flex; gap: 0.3rem; }
+.library-filters button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 0.68rem;
+  padding: 0.35rem 0.7rem;
+}
+.library-filters button:hover { color: var(--text); }
+.library-filters button.active {
+  background: var(--gold-dim);
+  border-color: var(--gold-line);
+  color: var(--gold);
+}
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -359,6 +566,15 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 }
 .library-card .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .library-card .lib-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.library-card .lib-status {
+  align-self: flex-start;
+  color: var(--muted);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+.library-card .lib-status.reading { color: var(--gold); }
 .library-card h3 {
   font-family: var(--display);
   font-weight: 600;
@@ -367,8 +583,25 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.library-card .lib-meta { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; margin: 0.25rem 0 auto; }
+.library-card .lib-meta { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.04em; margin: 0.25rem 0 0; }
+.library-card .lib-progress {
+  background: var(--hairline);
+  height: 2px;
+  margin-top: 0.55rem;
+  overflow: hidden;
+  width: 100%;
+}
+.library-card .lib-progress span { background: var(--gold); display: block; height: 100%; }
+.library-card .lib-updated { color: var(--muted); font-size: 0.65rem; margin-top: 0.35rem; }
 .library-card .lib-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.library-empty {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-style: italic;
+  grid-column: 1 / -1;
+  padding: 1.5rem 0;
+  text-align: center;
+}
 
 /* ---------- story screen: the book page ---------- */
 
@@ -424,14 +657,6 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .journal ul { list-style: none; }
 .journal li + li { margin-top: 0.15rem; }
 .journal .standing { color: var(--muted); font-style: italic; }
-
-.frontispiece { text-align: center; margin: 0.5rem 0 2rem; }
-.frontispiece img {
-  width: min(210px, 60%);
-  border-radius: 2px;
-  border: 1px solid var(--hairline);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-}
 
 /* The reading view is tinted with the current world's accent, set as an inline
    --story-accent on #screen-story (custom stories fall back to house gold). */
@@ -522,6 +747,20 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 
 .ending { text-align: center; margin-top: 3rem; }
 .ending-mark { color: var(--story-accent); font-size: 1.3rem; letter-spacing: 0.4em; }
+.ending-summary {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  margin: 0.8rem auto 0;
+  max-width: 31rem;
+}
+.discovery-note {
+  color: var(--gold);
+  font-family: var(--display);
+  font-size: 1.12rem;
+  margin-top: 1.8rem;
+}
 .ending-word {
   font-family: var(--display);
   font-style: italic;
@@ -736,6 +975,15 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 
 @media (max-width: 540px) {
   .site-header { padding-top: 2rem; }
+  .activation-intro { grid-template-columns: 1fr; }
+  .activation-actions { align-items: stretch; flex-direction: column; }
+  .activation-actions .btn { width: 100%; }
+  .activation-actions span { max-width: none; text-align: center; }
+  .reader-ritual { margin-top: 0.35rem; }
+  .journey-progress li { font-size: 0.58rem; }
+  .library-header { align-items: flex-start; flex-direction: column; }
+  .library-filters { width: 100%; }
+  .library-filters button { flex: 1; }
   .story-text { font-size: 1.08rem; }
   .actions { flex-direction: column-reverse; }
   .actions .btn { width: 100%; }
