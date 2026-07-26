@@ -153,7 +153,7 @@ const SCENARIOS = [
   },
   {
     id: "romance",
-    ornament: "❧",
+    ornament: "♡",
     genre: "Romance",
     accent: "#D07CA6", // rose
     tone: "Regency romance with intrigue: wit, longing, ballroom politics, secrets behind fans.",
@@ -438,6 +438,7 @@ function renderLibrary() {
   const readingCount = allEntries.filter((st) => !st.done).length;
   const finishedCount = allEntries.length - readingCount;
   $("activation-intro").classList.toggle("hidden", allEntries.length > 0);
+  $("activation-shortcut").classList.toggle("hidden", allEntries.length > 0);
   $("worlds-title").textContent = allEntries.length > 0 ? "Choose another world" : "Choose your world";
   $("library-section").classList.toggle("hidden", allEntries.length === 0);
   $("library-summary").textContent =

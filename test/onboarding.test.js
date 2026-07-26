@@ -11,18 +11,18 @@ const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "public", "style.css"), "utf8");
 const share = fs.readFileSync(path.join(root, "public", "share.js"), "utf8");
 
-test("first-time readers get a complete three-step orientation", () => {
+test("first-time readers get a concise orientation before the story shelf", () => {
   assert.match(html, /id="activation-intro"/);
-  assert.match(html, /aria-label="How Plotwick works"/);
-  assert.match(html, /Choose the trouble/);
-  assert.match(html, /Become the protagonist/);
-  assert.match(html, /Write the next turn/);
+  assert.match(html, /Choose a world, become its protagonist/);
+  assert.doesNotMatch(html, /reader-ritual/);
 });
 
-test("the activation flow offers a wired surprise route", () => {
+test("the activation flow offers a wired surprise route after the story shelf", () => {
   assert.match(html, /id="surprise-story"/);
+  assert.ok(html.indexOf('id="surprise-story"') > html.indexOf('id="scenario-grid"'));
   assert.match(app, /function openSurpriseStory\(\)/);
   assert.match(app, /\$\("surprise-story"\)\.addEventListener\("click", openSurpriseStory\)/);
+  assert.match(app, /\$\("activation-shortcut"\)\.classList\.toggle\("hidden", allEntries\.length > 0\)/);
 });
 
 test("character setup explains progress and preserves the selected premise", () => {
@@ -49,4 +49,12 @@ test("reading view keeps generated covers on the bookshelf only", () => {
   assert.doesNotMatch(app, /renderFrontispiece/);
   assert.doesNotMatch(css, /\.frontispiece/);
   assert.doesNotMatch(share, /story\.cover/);
+});
+
+test("the world shelf stays stable and has generous page-turn controls", () => {
+  assert.match(css, /\.world-card\s*\{[^}]*height:\s*23rem/s);
+  assert.match(css, /\.world-choose\s*\{[^}]*height:\s*100%/s);
+  assert.match(css, /\.carousel-arrow\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*3\.5rem[^}]*font-size:\s*2\.1rem/s);
+  assert.match(css, /\.story-dots\s*\{[^}]*margin-top:\s*auto/s);
+  assert.match(app, /id:\s*"romance",\s*ornament:\s*"♡"/s);
 });
