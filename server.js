@@ -491,7 +491,11 @@ app.get("/api/config", (_req, res) => {
     creditSystem: STORY_SESSIONS_ENABLED,
     authRequired: REQUIRE_AUTH_FOR_LIVE,
     aiCovers: AI_COVERS,
-    payments: PAYMENTS_READY
+    // Sandbox credentials may be connected before launch. Keep every purchase
+    // control out of the public client until credit enforcement is explicitly
+    // enabled; the server-side Checkout route remains available for controlled
+    // readiness tests.
+    payments: CREDITS_ENFORCED && PAYMENTS_READY
       ? {
           currency: CURRENCY,
           packs: Object.fromEntries(

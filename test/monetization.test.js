@@ -32,6 +32,7 @@ test("novella packs are server-owned and keep purchase reconciliation metadata",
   assert.match(server, /single:\s*\{ credits: 1, price: 399/);
   assert.match(server, /reader:\s*\{ credits: 5, price: 1500/);
   assert.match(server, /library:\s*\{ credits: 15, price: 3600/);
+  assert.match(server, /payments:\s*CREDITS_ENFORCED && PAYMENTS_READY/);
   assert.match(server, /p_amount_total: grant\.amountTotal/);
   assert.match(server, /p_currency: grant\.currency/);
   assert.match(server, /integration_identifier: `plotwick_\$\{suffix\}`/);
