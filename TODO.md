@@ -29,8 +29,8 @@ P0 item is deployed and tested in the production environment.
       refunds, and balance reconciliation.
 - [x] Grant exactly one welcome novella to new accounts and expose a verified
       reader-facing balance counter.
-- [ ] Run the updated `supabase/schema.sql` in the production Supabase project.
-- [ ] Deploy with `PUBLIC_APP_URL=https://plotwick.com`,
+- [x] Run the updated `supabase/schema.sql` in the production Supabase project.
+- [x] Deploy with `PUBLIC_APP_URL=https://plotwick.com`,
       `REQUIRE_AUTH_FOR_LIVE=1`, and a unique `REPORT_HASH_SALT`.
 - [ ] Configure Stripe with a restricted API key, then subscribe the webhook to
       `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
