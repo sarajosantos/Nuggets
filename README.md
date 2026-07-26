@@ -9,7 +9,8 @@
 - **A hidden "story director"** — the server injects private pacing directives each chapter (setup → escalation → midpoint reversal → convergence → climax) so stories arc properly instead of meandering, and a hard cap forces a finale if a story runs long. Players choose *how* events unfold; the director ensures they *do*.
 - **State ledger & journal** — the model maintains hidden JSON state every chapter (title, act, condition, inventory, companions, open plot threads) and re-reads it for continuity. The Journal panel shows the player their condition, items, and companions.
 - **Accounts & cloud library (Supabase)** — sign in with email/password and your library follows you across devices. Local stories merge into your account on sign-in.
-- **Pay-per-story credits (Stripe)** — one credit begins one story (all its chapters). Server-owned story sessions bind continuations to their owner, scenario, character, and rolling history hash; a failed first chapter is auto-refunded.
+- **One free novella + novella packs (Stripe)** — every new account receives one complete novella. After that, readers buy whole novellas rather than tokens or chapters. An immutable server ledger records every grant, start, purchase, and automatic refund.
+- **Publisher’s ledger** — staff can inspect the activation funnel, world performance, verified reader balances, outstanding novella obligations, revenue, and configured model-cost estimates without exposing story text.
 - **Story library** — every story is saved locally; resume in-progress tales or re-read finished ones.
 - **Share links** — publish a finished story to a read-only link (`/s/:id`) with its cover and full text.
 - **Generated cover art** — deterministic SVG covers by default; optional, authenticated AI covers are strictly sanitized and quota-limited.
@@ -49,16 +50,16 @@ Story credits are deliberately opt-in. Set `STORY_CREDITS_ENABLED=1` only after 
 Selling credits needs Stripe on top of Supabase:
 
 1. Create an account at [stripe.com](https://stripe.com). Start in **test mode** (toggle top-right) so you can rehearse with fake cards.
-2. **Developers → API keys** → copy the **Secret key** into `.env` as `STRIPE_SECRET_KEY`.
+2. **Developers → API keys** → create a restricted key with only the Checkout access this service needs, then store it as `STRIPE_SECRET_KEY`.
 3. **Developers → Webhooks → Add endpoint**:
    - URL: `https://YOUR-DOMAIN/api/stripe/webhook`
    - Events: **`checkout.session.completed`**, **`checkout.session.async_payment_succeeded`**, and **`checkout.session.async_payment_failed`**
    - After creating it, copy the endpoint's **Signing secret** into `.env` as `STRIPE_WEBHOOK_SECRET`.
-4. Restart. The "Buy stories" button appears for signed-in users.
+4. Restart. The “Add novellas” button appears for signed-in users.
 5. Set `PUBLIC_APP_URL`, run the payment test matrix in [`TODO.md`](TODO.md), then set `STORY_CREDITS_ENABLED=1`.
 6. Prefer a restricted Stripe key (`rk_…`) with only the permissions this service needs. Use separate test and live credentials and restrict their network access in Stripe.
 
-> ⚠️ **Pricing is a placeholder.** The credit packs and prices live in `CREDIT_PACKS` near the top of `server.js` (currently 5/$8, 15/$20, 40/$45). A full story costs roughly ~$1 in Claude API usage, so a credit is priced above that for margin — but review and set your own numbers before charging anyone. Prices are defined server-side; the browser can never change them.
+The launch pack hypotheses live in `CREDIT_PACKS` near the top of `server.js`: one novella for $3.99, five for $15, or fifteen for $36. Prices are server-owned; the browser cannot change them. Revisit them after the publisher’s ledger has enough completion, purchase, and true model-cost data.
 
 ## Configuration
 
@@ -75,6 +76,7 @@ Selling credits needs Stripe on top of Supabase:
 | `REQUIRE_AUTH_FOR_LIVE` | `1` with Supabase | Requires accounts for live generation |
 | `AI_COVERS` | `0` | Enables authenticated, quota-limited model-generated SVG covers |
 | `REPORT_HASH_SALT` | — | Salt used to pseudonymize share reporters' IPs |
+| `MODEL_INPUT_USD_PER_MILLION` / `MODEL_OUTPUT_USD_PER_MILLION` | `0` | Exact provider rates used for publisher-ledger cost estimates |
 | `ADMIN_EMAILS` | — | Comma-separated emails that get unlimited stories (testing/staff) |
 | `STORY_MODEL` | `claude-opus-4-8` | Which Claude model narrates |
 | `TARGET_CHAPTERS` | `10` | Target story length; finale forced by target + 4 |
@@ -82,9 +84,13 @@ Selling credits needs Stripe on top of Supabase:
 | `PORT` | `3000` | Server port |
 | `DEMO_MODE` | auto | `1` forces canned demo content |
 
+The safe database-first launch sequence, Stripe test matrix, monitoring, and
+rollback procedure are in
+[`docs/MONETIZATION_ROLLOUT.md`](docs/MONETIZATION_ROLLOUT.md).
+
 ## Roadmap
 
 - **OAuth sign-in** (Google/GitHub) — Supabase supports it; add providers in the dashboard and a button per provider
 - **Raster cover art** via an image model, replacing SVG covers
 - **Dice-style skill checks** driven by archetype/trait for mechanical depth
-- **Cost dashboards** and per-user quotas before a public launch
+- **Per-user spending controls** after real completion and cost data establish useful limits

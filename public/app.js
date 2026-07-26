@@ -264,6 +264,9 @@ let sb = null; // Supabase client (null when accounts aren't configured)
 let user = null; // signed-in Supabase user
 let appConfig = {}; // /api/config result (creditsEnforced, payments, …)
 let credits = null; // current credit balance (null = unknown / not enforced)
+let creditAccount = null; // verified balance metadata from the server
+let currentUserAdmin = false;
+let adminDays = 30;
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 let libraryFilter = "all";
@@ -273,10 +276,44 @@ const cloudSaveChains = new Map(); // serialize saves per story to prevent stale
 const $ = (id) => document.getElementById(id);
 const screens = {
   scenario: $("screen-scenario"),
+  admin: $("screen-admin"),
   custom: $("screen-custom"),
   character: $("screen-character"),
   story: $("screen-story"),
 };
+
+const PRODUCT_SESSION_KEY = "plotwick-product-session-v1";
+
+function productSessionId() {
+  try {
+    let id = sessionStorage.getItem(PRODUCT_SESSION_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      sessionStorage.setItem(PRODUCT_SESSION_KEY, id);
+    }
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
+async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
+  try {
+    await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({
+        eventId: crypto.randomUUID(),
+        event,
+        sessionId: productSessionId(),
+        worldId: worldId || null,
+        storyId: storyId || null,
+        metadata: metadata || {},
+      }),
+      keepalive: true,
+    });
+  } catch { /* analytics must never interrupt reading */ }
+}
 
 function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
@@ -345,6 +382,7 @@ function openSurpriseStory() {
   const world = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
   const selectedStory = world.stories[Math.floor(Math.random() * world.stories.length)];
   draft.scenario = buildScenario(world, selectedStory);
+  trackProductEvent("world_selected", { worldId: world.id });
   openCharacterScreen();
 }
 
@@ -374,6 +412,7 @@ function worldCard(world) {
   render();
   choose.addEventListener("click", () => {
     draft.scenario = buildScenario(world, stories[idx]);
+    trackProductEvent("world_selected", { worldId: world.id });
     openCharacterScreen();
   });
 
@@ -520,6 +559,7 @@ function submitCustomScenario() {
     premise: $("custom-premise").value.trim(),
     tone: $("custom-tone").value.trim() || "Let the premise suggest the genre; write it with conviction.",
   };
+  trackProductEvent("world_selected", { worldId: "custom" });
   openCharacterScreen();
 }
 
@@ -670,7 +710,7 @@ function startStory() {
   if (appConfig.authRequired || appConfig.creditsEnforced) {
     if (!user) {
       pendingStart = true;
-      authMessage("Sign in (or create a free account) to begin — new readers get a few stories on the house.", true);
+      authMessage("Sign in or create a free account to begin — your first complete novella is included.", true);
       openAuthModal();
       return;
     }
@@ -680,6 +720,7 @@ function startStory() {
     }
   }
 
+  trackProductEvent("setup_completed", { worldId: draft.scenario.id });
   story = {
     id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     serverId: null,
@@ -773,6 +814,8 @@ async function requestChapter() {
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         storyId: story.serverId || null,
+        sessionId: productSessionId(),
+        worldId: story.scenario.id,
         scenario: {
           title: story.scenario.title,
           premise: story.scenario.premise,
@@ -959,6 +1002,11 @@ function finishStory() {
   story.done = true;
   story.updatedAt = Date.now();
   persistStory(story);
+  trackProductEvent("story_completed", {
+    worldId: story.scenario.id,
+    storyId: story.serverId || story.id,
+    metadata: { chapterCount: story.chapters.length },
+  });
   $("ending-area").classList.remove("hidden");
   renderEndingRitual();
   updateShareControls();
@@ -1208,6 +1256,17 @@ function wireAuthEvents() {
   });
   $("export-account-btn").addEventListener("click", exportAccountData);
   $("delete-account-btn").addEventListener("click", deleteAccount);
+  $("admin-btn").addEventListener("click", openAdminDashboard);
+  $("admin-back").addEventListener("click", goHome);
+  $("admin-range").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-days]");
+    if (!button) return;
+    adminDays = Number(button.dataset.days) || 30;
+    $("admin-range").querySelectorAll("[data-days]").forEach((candidate) => {
+      candidate.classList.toggle("selected", candidate === button);
+    });
+    loadAdminDashboard();
+  });
 }
 
 function openAuthModal() {
@@ -1324,6 +1383,8 @@ function setUser(u) {
   const previousUser = user;
   const changed = (u && u.id) !== (previousUser && previousUser.id);
   if (changed) {
+    currentUserAdmin = false;
+    $("admin-btn").classList.add("hidden");
     saveLibrary();
     user = u;
     if (u) {
@@ -1357,6 +1418,10 @@ function setUser(u) {
   // Show the "Buy stories" button once signed in on a payments-enabled site.
   const buyBtn = $("buy-btn");
   if (buyBtn) buyBtn.classList.toggle("hidden", !(u && appConfig.payments));
+  if (!u) {
+    currentUserAdmin = false;
+    $("admin-btn").classList.add("hidden");
+  }
 
   // Credits follow the signed-in user.
   if (u) {
@@ -1374,8 +1439,9 @@ function setUser(u) {
 }
 
 // ----- credits display -----
-function setCredits(n) {
+function setCredits(n, account = creditAccount) {
   credits = n;
+  creditAccount = account && typeof account === "object" ? account : creditAccount;
   const pill = $("credits-pill");
   if (!pill) return;
   if (n === null || !appConfig.creditsEnforced) {
@@ -1384,12 +1450,23 @@ function setCredits(n) {
   }
   pill.classList.remove("hidden");
   if (n === "unlimited") {
-    pill.textContent = "∞ stories";
+    pill.innerHTML =
+      '<span class="balance-number">∞</span>' +
+      '<span class="balance-copy"><strong>Novellas</strong><small>staff access</small></span>';
+    pill.setAttribute("aria-label", "Unlimited novellas. Open story packs.");
     pill.classList.remove("empty");
     return;
   }
-  const word = n === 1 ? "story" : "stories";
-  pill.textContent = `${n} ${word} left`;
+  const word = n === 1 ? "novella left" : "novellas left";
+  const note = creditAccount && creditAccount.firstNovellaIncluded
+    ? "first one included"
+    : creditAccount && creditAccount.ledgerStatus === "verified"
+      ? "balance verified"
+      : "tap to add more";
+  pill.innerHTML =
+    `<span class="balance-number">${n}</span>` +
+    `<span class="balance-copy"><strong>${word}</strong><small>${note}</small></span>`;
+  pill.setAttribute("aria-label", `${n} ${word}. Open novella packs.`);
   pill.classList.toggle("empty", n <= 0);
 }
 
@@ -1400,10 +1477,128 @@ async function refreshCredits() {
   }
   try {
     const res = await fetch("/api/credits", { headers: await authHeader() });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      if (body.ledgerStatus === "mismatch") toast(body.error);
+      return;
+    }
     const body = await res.json();
-    setCredits(body.credits);
+    currentUserAdmin = !!body.admin;
+    $("admin-btn").classList.toggle("hidden", !currentUserAdmin);
+    setCredits(body.credits, body);
   } catch { /* leave as-is */ }
+}
+
+function dashboardMoney(cents, currency = "usd") {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    maximumFractionDigits: 2,
+  }).format((Number(cents) || 0) / 100);
+}
+
+function dashboardCost(micros, currency = "usd") {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    maximumFractionDigits: 2,
+  }).format((Number(micros) || 0) / 1_000_000);
+}
+
+function openAdminDashboard() {
+  if (!currentUserAdmin) return;
+  showScreen("admin");
+  loadAdminDashboard();
+}
+
+async function loadAdminDashboard() {
+  if (!currentUserAdmin) return;
+  const status = $("admin-status");
+  status.textContent = "Opening the ledger…";
+  status.classList.add("gentle");
+  status.classList.remove("hidden");
+  try {
+    const res = await fetch(`/api/admin/monetization?days=${adminDays}`, {
+      headers: await authHeader(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "dashboard unavailable");
+    renderAdminDashboard(data);
+    status.classList.add("hidden");
+  } catch (error) {
+    status.textContent = error.message || "The publisher’s ledger could not be opened.";
+    status.classList.remove("gentle");
+  }
+}
+
+function renderAdminDashboard(data) {
+  const overview = data.overview || {};
+  const funnel = data.funnel || {};
+  const currency = data.currency || "usd";
+  const started = funnel.story_started ? funnel.story_started.readers : 0;
+  const completed = funnel.story_completed ? funnel.story_completed.readers : 0;
+  const kpis = [
+    ["Gross revenue", dashboardMoney(overview.revenueCents, currency), `${overview.purchases || 0} paid checkouts`],
+    ["Model cost", data.costRatesConfigured ? dashboardCost(overview.estimatedCostMicros, currency) : "Not set", data.costRatesConfigured ? "token estimate" : "configure model rates"],
+    ["Before-fee contribution", data.costRatesConfigured ? dashboardCost(overview.contributionBeforeFeesMicros, currency) : "Not set", "revenue less model cost"],
+    ["Reader accounts", String(overview.accounts || 0), `${overview.storySessions || 0} stories opened`],
+    ["Outstanding novellas", String(overview.outstandingCredits || 0), "future generation obligation"],
+    ["Finished readers", String(completed), started ? `${Math.round(completed / started * 100)}% of starters` : "no starts yet"],
+  ];
+  $("admin-overview").innerHTML = kpis.map(([label, value, note]) =>
+    `<article class="ledger-kpi"><span>${escapeHtml(label)}</span>` +
+    `<strong>${escapeHtml(value)}</strong><small>${escapeHtml(note)}</small></article>`
+  ).join("");
+
+  const eventLabels = {
+    world_selected: "Selected a world",
+    setup_completed: "Completed character setup",
+    story_started: "Opened the first chapter",
+    story_completed: "Finished a novella",
+    checkout_opened: "Opened checkout",
+    purchase_completed: "Completed a purchase",
+  };
+  const maxReaders = Math.max(
+    1,
+    ...Object.values(funnel).map((entry) => Number(entry.readers) || 0),
+  );
+  $("admin-funnel").innerHTML = Object.entries(eventLabels).map(([event, label]) => {
+    const readers = funnel[event] ? Number(funnel[event].readers) || 0 : 0;
+    const width = Math.max(readers ? 2 : 0, Math.round(readers / maxReaders * 100));
+    return `<div class="funnel-row"><span class="funnel-label">${escapeHtml(label)}</span>` +
+      `<span class="funnel-track"><span class="funnel-fill" style="--funnel-width:${width}%"></span></span>` +
+      `<span class="funnel-value">${readers}</span></div>`;
+  }).join("");
+
+  const worldRows = (data.worlds || []).map((world) => {
+    const known = SCENARIOS.find((candidate) => candidate.id === world.worldId);
+    const name = known ? known.genre : world.worldId === "custom" ? "Write your own" : world.worldId;
+    return `<div class="ledger-row"><strong>${escapeHtml(name)}</strong>` +
+      `<span>${world.selected} chosen · ${world.completed} finished</span></div>`;
+  }).join("");
+  $("admin-worlds").innerHTML = worldRows || '<p class="ledger-empty">No world choices in this period.</p>';
+
+  const creditLabels = {
+    welcome_novella: "Welcome novellas granted",
+    stripe_purchase: "Paid novellas granted",
+    story_start: "Novellas begun",
+    story_refund: "Failed starts refunded",
+    admin_adjustment: "Staff adjustments",
+  };
+  const creditRows = Object.entries(creditLabels).map(([reason, label]) => {
+    const row = data.credits && data.credits[reason];
+    const creditsMoved = row ? Math.abs(Number(row.credits) || 0) : 0;
+    return `<div class="ledger-row"><strong>${escapeHtml(label)}</strong>` +
+      `<span>${creditsMoved}</span></div>`;
+  }).join("");
+  $("admin-credit-activity").innerHTML = creditRows;
+
+  const reconciliation = data.reconciliation || {};
+  const reconciliationEl = $("admin-reconciliation");
+  reconciliationEl.className = `ledger-reconciliation ${reconciliation.status || "mismatch"}`;
+  reconciliationEl.textContent = reconciliation.status === "verified"
+    ? `Verified: all ${reconciliation.profiles || 0} reader balances agree with the immutable ledger.`
+    : `Action required: ${reconciliation.mismatches || 0} reader balances do not agree with the ledger.`;
 }
 
 async function authHeader() {
@@ -1522,7 +1717,7 @@ function openBuyModal() {
   if (!modal) return;
   if (!appConfig.payments) {
     // Payments not configured on this server — nothing to sell.
-    alert("Buying credits isn't set up on this site yet.");
+    alert("Novella packs aren't set up on this site yet.");
     return;
   }
   if (!user) { pendingStart = false; openAuthModal(); return; }
@@ -1592,7 +1787,7 @@ function handleCheckoutReturn() {
   // Clean the URL so a refresh doesn't re-trigger this.
   history.replaceState({}, "", location.pathname);
   if (status === "success") {
-    toast("Payment received — your story credits are being added.");
+    toast("Payment received — your novellas are being added.");
     let tries = 0;
     const poll = setInterval(async () => {
       await refreshCredits();

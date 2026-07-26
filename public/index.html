@@ -18,7 +18,8 @@
   <header class="site-header">
     <div id="account-bar" class="account-bar hidden">
       <button id="credits-pill" class="credits-pill hidden"></button>
-      <button id="buy-btn" class="tool-btn hidden">Buy stories</button>
+      <button id="buy-btn" class="tool-btn hidden">Add novellas</button>
+      <button id="admin-btn" class="tool-btn hidden">Publisher’s ledger</button>
       <span id="account-email" class="account-email hidden"></span>
       <button id="account-btn" class="tool-btn">Sign in</button>
     </div>
@@ -67,6 +68,44 @@
         </div>
         <div id="library-grid" class="library-grid"></div>
       </div>
+    </section>
+
+    <section id="screen-admin" class="screen hidden" aria-labelledby="admin-title">
+      <nav class="screen-nav">
+        <button id="admin-back" class="back-link">← Home</button>
+      </nav>
+      <header class="ledger-masthead">
+        <div>
+          <p class="section-kicker">Private · staff only</p>
+          <h2 id="admin-title" class="screen-title">Publisher’s ledger</h2>
+          <p class="screen-sub">Reader momentum, novella balances, and the true cost of every page.</p>
+        </div>
+        <div id="admin-range" class="ledger-range" role="group" aria-label="Dashboard period">
+          <button type="button" data-days="7">7 days</button>
+          <button type="button" data-days="30" class="selected">30 days</button>
+          <button type="button" data-days="90">90 days</button>
+        </div>
+      </header>
+      <div id="admin-reconciliation" class="ledger-reconciliation" role="status"></div>
+      <section aria-labelledby="admin-overview-title">
+        <h3 id="admin-overview-title" class="ledger-section-title">The house account</h3>
+        <div id="admin-overview" class="ledger-kpis"></div>
+      </section>
+      <section class="ledger-section" aria-labelledby="admin-funnel-title">
+        <h3 id="admin-funnel-title" class="ledger-section-title">From first glance to finished novella</h3>
+        <div id="admin-funnel" class="ledger-funnel"></div>
+      </section>
+      <div class="ledger-columns">
+        <section class="ledger-section" aria-labelledby="admin-worlds-title">
+          <h3 id="admin-worlds-title" class="ledger-section-title">Worlds readers enter</h3>
+          <div id="admin-worlds" class="ledger-rows"></div>
+        </section>
+        <section class="ledger-section" aria-labelledby="admin-credits-title">
+          <h3 id="admin-credits-title" class="ledger-section-title">Novella movements</h3>
+          <div id="admin-credit-activity" class="ledger-rows"></div>
+        </section>
+      </div>
+      <p id="admin-status" class="auth-message hidden"></p>
     </section>
 
     <!-- Screen 1b: custom scenario -->
@@ -218,15 +257,15 @@
     </div>
   </div>
 
-  <!-- Buy story credits -->
+  <!-- Buy novella packs -->
   <div id="buy-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="buy-title">
     <div class="modal-card">
       <button id="buy-close" class="modal-close" aria-label="Close">×</button>
-      <h3 id="buy-title" class="modal-title">Story credits</h3>
-      <p class="modal-sub">One credit begins one story — as long as it needs to be, choices and all.</p>
+      <h3 id="buy-title" class="modal-title">Novella packs</h3>
+      <p class="modal-sub">One novella begins one complete story—as long as it needs to be, choices and all.</p>
       <div id="pack-grid" class="pack-grid"></div>
       <p id="buy-message" class="auth-message hidden"></p>
-      <p class="buy-fineprint">Secure checkout by Stripe. Credits never expire.</p>
+      <p class="buy-fineprint">Secure checkout by Stripe. Your novellas never expire.</p>
     </div>
   </div>
 

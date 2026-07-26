@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plotwick monetization UI fixture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="account-bar">
+      <button class="credits-pill" aria-label="1 novella left">
+        <span class="balance-number">1</span>
+        <span class="balance-copy"><strong>novella left</strong><small>first one included</small></span>
+      </button>
+      <button class="tool-btn">Add novellas</button>
+      <button class="tool-btn">Publisher’s ledger</button>
+    </div>
+    <p class="header-rule" aria-hidden="true">❦</p>
+    <h1 class="logo">Plotwick</h1>
+    <p class="tagline">interactive novellas · every story is yours alone</p>
+  </header>
+  <main>
+    <section class="screen">
+      <nav class="screen-nav"><button class="back-link">← Home</button></nav>
+      <header class="ledger-masthead">
+        <div>
+          <p class="section-kicker">Private · staff only</p>
+          <h2 class="screen-title">Publisher’s ledger</h2>
+          <p class="screen-sub">Reader momentum, novella balances, and the true cost of every page.</p>
+        </div>
+        <div class="ledger-range" role="group" aria-label="Dashboard period">
+          <button type="button">7 days</button>
+          <button type="button" class="selected">30 days</button>
+          <button type="button">90 days</button>
+        </div>
+      </header>
+      <div class="ledger-reconciliation verified">Verified: all 128 reader balances agree with the immutable ledger.</div>
+      <section>
+        <h3 class="ledger-section-title">The house account</h3>
+        <div class="ledger-kpis">
+          <article class="ledger-kpi"><span>Gross revenue</span><strong>$486</strong><small>23 paid checkouts</small></article>
+          <article class="ledger-kpi"><span>Model cost</span><strong>$117</strong><small>token estimate</small></article>
+          <article class="ledger-kpi"><span>Before-fee contribution</span><strong>$369</strong><small>revenue less model cost</small></article>
+          <article class="ledger-kpi"><span>Reader accounts</span><strong>128</strong><small>94 stories opened</small></article>
+          <article class="ledger-kpi"><span>Outstanding novellas</span><strong>212</strong><small>future generation obligation</small></article>
+          <article class="ledger-kpi"><span>Finished readers</span><strong>41</strong><small>44% of starters</small></article>
+        </div>
+      </section>
+      <section class="ledger-section">
+        <h3 class="ledger-section-title">From first glance to finished novella</h3>
+        <div class="ledger-funnel">
+          <div class="funnel-row"><span class="funnel-label">Selected a world</span><span class="funnel-track"><span class="funnel-fill" style="--funnel-width:100%"></span></span><span class="funnel-value">181</span></div>
+          <div class="funnel-row"><span class="funnel-label">Completed character setup</span><span class="funnel-track"><span class="funnel-fill" style="--funnel-width:72%"></span></span><span class="funnel-value">131</span></div>
+          <div class="funnel-row"><span class="funnel-label">Opened the first chapter</span><span class="funnel-track"><span class="funnel-fill" style="--funnel-width:52%"></span></span><span class="funnel-value">94</span></div>
+          <div class="funnel-row"><span class="funnel-label">Finished a novella</span><span class="funnel-track"><span class="funnel-fill" style="--funnel-width:23%"></span></span><span class="funnel-value">41</span></div>
+          <div class="funnel-row"><span class="funnel-label">Opened checkout</span><span class="funnel-track"><span class="funnel-fill" style="--funnel-width:17%"></span></span><span class="funnel-value">30</span></div>
+          <div class="funnel-row"><span class="funnel-label">Completed a purchase</span><span class="funnel-track"><span class="funnel-fill" style="--funnel-width:13%"></span></span><span class="funnel-value">23</span></div>
+        </div>
+      </section>
+      <div class="ledger-columns">
+        <section class="ledger-section">
+          <h3 class="ledger-section-title">Worlds readers enter</h3>
+          <div class="ledger-rows">
+            <div class="ledger-row"><strong>Romance</strong><span>42 chosen · 14 finished</span></div>
+            <div class="ledger-row"><strong>Murder mystery</strong><span>37 chosen · 11 finished</span></div>
+            <div class="ledger-row"><strong>Epic fantasy</strong><span>31 chosen · 8 finished</span></div>
+          </div>
+        </section>
+        <section class="ledger-section">
+          <h3 class="ledger-section-title">Novella movements</h3>
+          <div class="ledger-rows">
+            <div class="ledger-row"><strong>Welcome novellas granted</strong><span>52</span></div>
+            <div class="ledger-row"><strong>Paid novellas granted</strong><span>115</span></div>
+            <div class="ledger-row"><strong>Novellas begun</strong><span>94</span></div>
+            <div class="ledger-row"><strong>Failed starts refunded</strong><span>3</span></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

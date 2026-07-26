@@ -8,6 +8,7 @@ const {
   hashValue,
   normalizePublicOrigin,
   sanitizeSvg,
+  summarizeMonetization,
   validateHistory,
 } = require("../lib/core");
 
@@ -68,6 +69,8 @@ test("Stripe grants only exact, paid, server-defined packs", () => {
     credits: 5,
     packId: "starter",
     sessionId: "cs_test_1",
+    amountTotal: 800,
+    currency: "usd",
   });
   assert.equal(checkoutGrant({
     ...paid,
@@ -84,4 +87,30 @@ test("public origin rejects credentials and insecure remote HTTP", () => {
   assert.equal(normalizePublicOrigin("http://localhost:3000"), "http://localhost:3000");
   assert.equal(normalizePublicOrigin("http://plotwick.com"), null);
   assert.equal(normalizePublicOrigin("https://user:pass@plotwick.com"), null);
+});
+
+test("monetization summary reconciles balances and counts unique funnel readers", () => {
+  const summary = summarizeMonetization({
+    currency: "usd",
+    profiles: [{ id: "u1", credits: 4 }],
+    ledger: [
+      { user_id: "u1", reason: "stripe_purchase", delta: 5, balance_after: 4, created_at: "2026-07-02" },
+      { user_id: "u1", reason: "story_start", delta: -1, balance_after: 0, created_at: "2026-07-01" },
+    ],
+    events: [
+      { event: "world_selected", actor_key: "user:u1", world_id: "romance", created_at: "2026-07-02" },
+      { event: "world_selected", actor_key: "user:u1", world_id: "romance", created_at: "2026-07-02" },
+      { event: "story_completed", actor_key: "user:u1", world_id: "romance", created_at: "2026-07-02" },
+    ],
+    usage: [{ input_tokens: 100, output_tokens: 200, estimated_cost_micros: 25_000, status: "ok", created_at: "2026-07-02" }],
+    purchases: [{ amount_total: 1500, currency: "usd", created_at: "2026-07-02" }],
+    sessions: [{ id: "story-1" }],
+    since: "2026-07-01",
+  });
+  assert.equal(summary.overview.outstandingCredits, 4);
+  assert.equal(summary.overview.revenueCents, 1500);
+  assert.equal(summary.funnel.world_selected.events, 2);
+  assert.equal(summary.funnel.world_selected.readers, 1);
+  assert.equal(summary.worlds[0].completed, 1);
+  assert.equal(summary.reconciliation.status, "verified");
 });

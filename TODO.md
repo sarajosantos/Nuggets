@@ -25,6 +25,10 @@ P0 item is deployed and tested in the production environment.
 - [x] Add security headers, a strict Content Security Policy, and a strict SVG
       allowlist.
 - [x] Add automated tests, dependency auditing, and GitHub Actions CI.
+- [x] Add an immutable novella-credit ledger with idempotent grants, charges,
+      refunds, and balance reconciliation.
+- [x] Grant exactly one welcome novella to new accounts and expose a verified
+      reader-facing balance counter.
 - [ ] Run the updated `supabase/schema.sql` in the production Supabase project.
 - [ ] Deploy with `PUBLIC_APP_URL=https://plotwick.com`,
       `REQUIRE_AUTH_FOR_LIVE=1`, and a unique `REPORT_HASH_SALT`.
@@ -39,7 +43,8 @@ P0 item is deployed and tested in the production environment.
 ## P1 — operations and trust
 
 - [x] Record model usage by request, user, story, model, endpoint, and status.
-- [x] Add an admin metrics endpoint for recent request and token totals.
+- [x] Add a publisher dashboard for activation, completion, purchases,
+      outstanding novellas, revenue, model cost, and ledger reconciliation.
 - [x] Add account data export and permanent account deletion.
 - [x] Add share revocation and reader reporting.
 - [x] Add initial privacy, terms, AI-content, and public-sharing disclosures.
@@ -55,9 +60,9 @@ P0 item is deployed and tested in the production environment.
 
 ## P2 — product polish (choose a direction after the hardening PR)
 
-- [ ] Improve product explanation and first-story onboarding.
-- [ ] Turn the library into a richer bookshelf/resume experience.
-- [ ] Improve retention with deliberate reading rituals and post-story discovery.
+- [x] Improve product explanation and first-story onboarding.
+- [x] Turn the library into a richer bookshelf/resume experience.
+- [x] Improve retention with deliberate reading rituals and post-story discovery.
 - [ ] Expand worlds only after activation, completion, and cost data are visible.
 
 ## Guardrail

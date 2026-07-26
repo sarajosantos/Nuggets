@@ -33,6 +33,7 @@ test("reports safe demo configuration", async () => {
   const config = await response.json();
   assert.equal(config.demo, true);
   assert.equal(config.creditsEnforced, false);
+  assert.equal(config.creditSystem, false);
   assert.equal(config.payments, null);
 });
 

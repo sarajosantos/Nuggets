@@ -862,17 +862,167 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .credits-pill {
   background: var(--gold-dim);
   border: 1px solid var(--gold-line);
-  border-radius: 999px;
+  border-radius: 3px;
   color: var(--gold);
   cursor: pointer;
+  display: grid;
+  grid-template-columns: 1.55rem auto;
+  align-items: center;
+  column-gap: 0.45rem;
   font-family: var(--ui);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  padding: 0.3rem 0.8rem;
+  padding: 0.28rem 0.62rem 0.3rem 0.42rem;
+  text-align: left;
   transition: filter 0.15s ease;
 }
 .credits-pill:hover { filter: brightness(1.15); }
 .credits-pill.empty { color: var(--wine); border-color: rgba(156, 77, 67, 0.5); background: rgba(156, 77, 67, 0.12); }
+.balance-number {
+  align-items: center;
+  border-right: 1px solid currentColor;
+  display: flex;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  justify-content: center;
+  line-height: 1;
+  min-height: 1.55rem;
+  padding-right: 0.42rem;
+}
+.balance-copy { display: flex; flex-direction: column; line-height: 1.05; }
+.balance-copy strong {
+  color: currentColor;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.balance-copy small {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 0.66rem;
+  font-style: italic;
+  letter-spacing: 0;
+  margin-top: 0.18rem;
+}
+
+/* ---------- publisher's ledger ---------- */
+
+.ledger-masthead {
+  align-items: end;
+  border-bottom: 1px solid var(--gold-line);
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  padding-bottom: 1.2rem;
+}
+.ledger-masthead .screen-title { margin: 0.25rem 0 0.2rem; text-align: left; }
+.ledger-masthead .screen-sub { margin: 0; text-align: left; }
+.ledger-range {
+  display: flex;
+  flex: 0 0 auto;
+}
+.ledger-range button {
+  background: transparent;
+  border: 1px solid var(--hairline);
+  color: var(--muted);
+  cursor: pointer;
+  font: 500 0.65rem var(--ui);
+  letter-spacing: 0.08em;
+  padding: 0.45rem 0.65rem;
+  text-transform: uppercase;
+}
+.ledger-range button + button { border-left: 0; }
+.ledger-range button.selected {
+  background: var(--gold-dim);
+  border-color: var(--gold-line);
+  color: var(--gold);
+}
+.ledger-reconciliation {
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--gold);
+  color: var(--muted);
+  font: 0.78rem var(--ui);
+  margin: 1.25rem 0 1.6rem;
+  padding: 0.7rem 0.85rem;
+}
+.ledger-reconciliation.verified { color: #9dc5aa; border-left-color: #6ea47f; }
+.ledger-reconciliation.mismatch { color: #dfa79f; border-left-color: var(--wine); }
+.ledger-section { margin-top: 2rem; }
+.ledger-section-title {
+  color: var(--muted);
+  font: 500 0.67rem var(--ui);
+  letter-spacing: 0.18em;
+  margin-bottom: 0.7rem;
+  text-transform: uppercase;
+}
+.ledger-kpis {
+  border-bottom: 1px solid var(--hairline);
+  border-top: 1px solid var(--hairline);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.ledger-kpi {
+  min-height: 7rem;
+  padding: 1rem 0.9rem;
+}
+.ledger-kpi + .ledger-kpi { border-left: 1px solid var(--hairline); }
+.ledger-kpi span {
+  color: var(--muted);
+  display: block;
+  font: 0.62rem var(--ui);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.ledger-kpi strong {
+  color: var(--text);
+  display: block;
+  font: 600 2rem/1 var(--display);
+  margin-top: 0.75rem;
+}
+.ledger-kpi small {
+  color: var(--muted);
+  display: block;
+  font: italic 0.75rem var(--prose);
+  margin-top: 0.45rem;
+}
+.ledger-funnel { display: grid; gap: 0.55rem; }
+.funnel-row {
+  align-items: center;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: minmax(8.5rem, 1fr) minmax(8rem, 2fr) 3rem;
+}
+.funnel-label { color: var(--text); font: 0.78rem var(--ui); }
+.funnel-track {
+  background: var(--hairline);
+  height: 0.42rem;
+  overflow: hidden;
+}
+.funnel-fill {
+  background: linear-gradient(90deg, var(--gold-line), var(--gold));
+  height: 100%;
+  min-width: 2px;
+  width: var(--funnel-width);
+}
+.funnel-value { color: var(--muted); font: 0.72rem var(--ui); text-align: right; }
+.ledger-columns {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+.ledger-rows { border-top: 1px solid var(--hairline); }
+.ledger-row {
+  align-items: baseline;
+  border-bottom: 1px solid var(--hairline);
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: 1fr auto;
+  padding: 0.7rem 0.15rem;
+}
+.ledger-row strong { font: 500 0.82rem var(--ui); }
+.ledger-row span { color: var(--muted); font: 0.75rem var(--ui); }
+.ledger-empty { color: var(--muted); font: italic 0.9rem var(--prose); padding: 0.9rem 0; }
 
 .pack-grid {
   display: grid;
@@ -965,7 +1115,18 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 /* ---------- responsive ---------- */
 
 @media (max-width: 540px) {
-  .site-header { padding-top: 2rem; }
+  .site-header { padding-top: 6.5rem; }
+  .account-bar {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+    left: 0.6rem;
+    right: 0.6rem;
+  }
+  .account-email { display: none; }
+  .credits-pill { grid-template-columns: 1.25rem auto; }
+  .credits-pill .balance-copy small { display: none; }
+  .tool-btn { font-size: 0.64rem; padding: 0.32rem 0.65rem; }
   .activation-intro { padding: 1.1rem 1.2rem; }
   .activation-copy { display: block; text-align: center; }
   .activation-copy h2 { margin: 0.2rem 0 0; }
@@ -988,4 +1149,12 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   .actions .btn { width: 100%; }
   .running-head { letter-spacing: 0.12em; }
   .world-card { height: 21rem; }
+  .ledger-masthead { align-items: stretch; flex-direction: column; gap: 1rem; }
+  .ledger-range button { flex: 1; }
+  .ledger-kpis { grid-template-columns: repeat(2, 1fr); }
+  .ledger-kpi + .ledger-kpi { border-left: 0; }
+  .ledger-kpi:nth-child(even) { border-left: 1px solid var(--hairline); }
+  .ledger-kpi:nth-child(n + 3) { border-top: 1px solid var(--hairline); }
+  .ledger-columns { grid-template-columns: 1fr; }
+  .funnel-row { grid-template-columns: minmax(7.5rem, 1fr) minmax(5rem, 1.5fr) 2.5rem; }
 }

@@ -19,6 +19,7 @@ const {
   hashValue,
   normalizePublicOrigin,
   sanitizeSvg,
+  summarizeMonetization,
   validateHistory,
 } = require("./lib/core");
 
@@ -29,6 +30,10 @@ const HARD_CAP_CHAPTERS = TARGET_CHAPTERS + 4;
 const RATE_LIMIT_PER_HOUR = Number(process.env.RATE_LIMIT_PER_HOUR) || 40;
 const PUBLIC_APP_URL = normalizePublicOrigin(process.env.PUBLIC_APP_URL);
 const AI_COVERS = process.env.AI_COVERS === "1";
+const MODEL_INPUT_USD_PER_MILLION =
+  Math.max(Number(process.env.MODEL_INPUT_USD_PER_MILLION) || 0, 0);
+const MODEL_OUTPUT_USD_PER_MILLION =
+  Math.max(Number(process.env.MODEL_OUTPUT_USD_PER_MILLION) || 0, 0);
 // Demo mode serves canned story content so the UI works with no API key.
 const DEMO_MODE =
   process.env.DEMO_MODE === "1" ||
@@ -75,9 +80,9 @@ if (SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
 // story costs us roughly ~$1 in API calls, so a credit is priced above that
 // for margin. Tune the numbers, then keep them in sync with what you tell users.
 const CREDIT_PACKS = {
-  starter: { credits: 5, price: 800, label: "5 stories" },    // $8.00
-  reader:  { credits: 15, price: 2000, label: "15 stories" }, // $20.00
-  patron:  { credits: 40, price: 4500, label: "40 stories" }, // $45.00
+  single:  { credits: 1, price: 399, label: "Single novella" },
+  reader:  { credits: 5, price: 1500, label: "Reader pack" },
+  library: { credits: 15, price: 3600, label: "Library pack" },
 };
 const CURRENCY = (process.env.STRIPE_CURRENCY || "usd").toLowerCase();
 const REPORT_HASH_SALT = process.env.REPORT_HASH_SALT || crypto.randomBytes(32).toString("hex");
@@ -311,6 +316,10 @@ function logEvent(level, event, details = {}) {
 async function recordUsage({ req, user, kind, storyId, usage, status = "ok", metadata = {} }) {
   const inputTokens = Number(usage && (usage.input_tokens || usage.inputTokens)) || 0;
   const outputTokens = Number(usage && (usage.output_tokens || usage.outputTokens)) || 0;
+  const estimatedCostMicros = Math.round(
+    inputTokens * MODEL_INPUT_USD_PER_MILLION +
+    outputTokens * MODEL_OUTPUT_USD_PER_MILLION,
+  );
   logEvent("info", "model_usage", {
     requestId: req && req.requestId,
     userId: user && user.id,
@@ -319,6 +328,7 @@ async function recordUsage({ req, user, kind, storyId, usage, status = "ok", met
     model: MODEL,
     inputTokens,
     outputTokens,
+    estimatedCostMicros,
     status,
   });
   if (!supabaseAdmin) return;
@@ -330,10 +340,85 @@ async function recordUsage({ req, user, kind, storyId, usage, status = "ok", met
     model: MODEL,
     input_tokens: inputTokens,
     output_tokens: outputTokens,
+    estimated_cost_micros: estimatedCostMicros,
     status,
     metadata,
   });
   if (error) logEvent("warn", "usage_event_insert_failed", { error: error.message });
+}
+
+const PRODUCT_EVENT_NAMES = new Set([
+  "world_selected",
+  "setup_completed",
+  "story_started",
+  "story_completed",
+  "checkout_opened",
+  "purchase_completed",
+]);
+
+function boundedId(value, max = 120) {
+  if (typeof value !== "string") return null;
+  const clean = value.trim();
+  return clean && clean.length <= max && /^[a-zA-Z0-9:_-]+$/.test(clean) ? clean : null;
+}
+
+function uuidFromKey(value) {
+  const hex = crypto.createHash("sha256").update(String(value)).digest("hex").slice(0, 32);
+  const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+function productActorKey(user, anonymousSessionId) {
+  if (user) return `user:${user.id}`;
+  const sessionId = boundedId(anonymousSessionId, 80);
+  if (!sessionId) return null;
+  const digest = crypto
+    .createHash("sha256")
+    .update(`${REPORT_HASH_SALT}:product:${sessionId}`)
+    .digest("hex");
+  return `anon:${digest}`;
+}
+
+async function recordProductEvent({
+  eventId,
+  event,
+  user,
+  anonymousSessionId,
+  worldId,
+  storyId,
+  metadata = {},
+}) {
+  if (!supabaseAdmin || !PRODUCT_EVENT_NAMES.has(event)) return false;
+  const actorKey = productActorKey(user, anonymousSessionId);
+  if (!actorKey) return false;
+  const id = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId || "")
+    ? eventId
+    : crypto.randomUUID();
+  const safeMetadata = {};
+  if (metadata && typeof metadata === "object") {
+    if (Number.isInteger(metadata.chapterCount) && metadata.chapterCount >= 0 && metadata.chapterCount <= 30) {
+      safeMetadata.chapterCount = metadata.chapterCount;
+    }
+    if (boundedId(metadata.packId, 40)) safeMetadata.packId = boundedId(metadata.packId, 40);
+    if (Number.isInteger(metadata.amountTotal) && metadata.amountTotal > 0) {
+      safeMetadata.amountTotal = metadata.amountTotal;
+    }
+    if (boundedId(metadata.currency, 8)) safeMetadata.currency = boundedId(metadata.currency, 8).toLowerCase();
+  }
+  const { error } = await supabaseAdmin.from("product_events").insert({
+    id,
+    actor_key: actorKey,
+    user_id: user ? user.id : null,
+    event,
+    world_id: boundedId(worldId, 80),
+    story_id: boundedId(storyId, 120),
+    metadata: safeMetadata,
+  });
+  if (error && error.code !== "23505") {
+    logEvent("warn", "product_event_insert_failed", { event, error: error.message });
+    return false;
+  }
+  return true;
 }
 
 const rateBuckets = new Map();
@@ -403,6 +488,7 @@ app.get("/api/config", (_req, res) => {
       ? { url: SUPABASE_URL, anonKey: process.env.SUPABASE_ANON_KEY }
       : null,
     creditsEnforced: CREDITS_ENFORCED,
+    creditSystem: STORY_SESSIONS_ENABLED,
     authRequired: REQUIRE_AUTH_FOR_LIVE,
     aiCovers: AI_COVERS,
     payments: PAYMENTS_READY
@@ -422,12 +508,86 @@ app.get("/api/credits", async (req, res) => {
   const user = await userFromReq(req);
   if (!user) return res.status(401).json({ error: "not signed in" });
   if (isAdmin(user)) {
-    return res.json({ credits: "unlimited", enforced: CREDITS_ENFORCED, admin: true });
+    return res.json({
+      credits: "unlimited",
+      enforced: CREDITS_ENFORCED,
+      admin: true,
+      ledgerStatus: "admin",
+    });
   }
-  const { data, error } = await supabaseAdmin
-    .from("profiles").select("credits").eq("id", user.id).maybeSingle();
-  if (error) return res.status(500).json({ error: "couldn't read credits" });
-  res.json({ credits: data ? data.credits : 0, enforced: CREDITS_ENFORCED });
+  const [
+    { data: profile, error: profileError },
+    { data: ledgerRows, error: ledgerError },
+    { count: storyCount, error: storyCountError },
+    { count: libraryStoryCount, error: libraryStoryCountError },
+  ] = await Promise.all([
+    supabaseAdmin.from("profiles").select("credits").eq("id", user.id).maybeSingle(),
+    supabaseAdmin
+      .from("credit_ledger")
+      .select("balance_after")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1),
+    supabaseAdmin
+      .from("story_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabaseAdmin
+      .from("stories")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+  ]);
+  if (profileError || ledgerError || storyCountError || libraryStoryCountError) {
+    return res.status(500).json({ error: "couldn't verify novella balance" });
+  }
+  const balance = profile ? profile.credits : 0;
+  const ledgerBalance = ledgerRows && ledgerRows.length ? ledgerRows[0].balance_after : 0;
+  if (balance !== ledgerBalance) {
+    logEvent("error", "credit_ledger_mismatch", {
+      requestId: req.requestId,
+      userId: user.id,
+      profileBalance: balance,
+      ledgerBalance,
+    });
+    return res.status(503).json({
+      error: "Your novella balance needs review. No credits were changed.",
+      ledgerStatus: "mismatch",
+    });
+  }
+  res.json({
+    credits: balance,
+    enforced: CREDITS_ENFORCED,
+    admin: false,
+    ledgerStatus: "verified",
+    firstNovellaIncluded:
+      (storyCount || 0) === 0 && (libraryStoryCount || 0) === 0 && balance > 0,
+  });
+});
+
+app.post("/api/events", async (req, res) => {
+  if (!supabaseAdmin) return res.status(202).json({ recorded: false });
+  const event = req.body && req.body.event;
+  if (!PRODUCT_EVENT_NAMES.has(event)) {
+    return res.status(400).json({ error: "unknown product event" });
+  }
+  const user = await userFromReq(req);
+  if (await enforceRateLimit(req, res, {
+    user,
+    scope: "product-event",
+    limit: 120,
+    windowSeconds: 3600,
+  })) return;
+  const recorded = await recordProductEvent({
+    eventId: req.body.eventId,
+    event,
+    user,
+    anonymousSessionId: req.body.sessionId,
+    worldId: req.body.worldId,
+    storyId: req.body.storyId,
+    metadata: req.body.metadata,
+  });
+  res.status(202).json({ recorded });
 });
 
 async function failStorySession({ user, storyId, requestId }) {
@@ -552,8 +712,9 @@ app.post("/api/story", async (req, res) => {
         });
       }
       return res.status(402).json({
-        error: "You're out of story credits.",
+        error: "You have no novellas left.",
         needCredits: true,
+        needNovellas: true,
         credits: 0,
       });
     }
@@ -564,6 +725,16 @@ app.post("/api/story", async (req, res) => {
       error: error.message,
     });
     return res.status(500).json({ error: "Couldn't secure this story session. Please try again." });
+  }
+
+  if (session.firstChapter) {
+    await recordProductEvent({
+      event: "story_started",
+      user,
+      anonymousSessionId: req.body && req.body.sessionId,
+      worldId: req.body && req.body.worldId,
+      storyId: session.storyId,
+    });
   }
 
   const chapterNum = history.filter((m) => m.role === "assistant").length + 1;
@@ -830,12 +1001,20 @@ app.post("/api/checkout", async (req, res) => {
           price_data: {
             currency: CURRENCY,
             unit_amount: pack.price,
-            product_data: { name: `Plotwick — ${pack.label}` },
+            product_data: {
+              name: `Plotwick — ${pack.label} (${pack.credits} ${pack.credits === 1 ? "novella" : "novellas"})`,
+            },
           },
         },
       ],
       success_url: `${PUBLIC_APP_URL}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${PUBLIC_APP_URL}/?checkout=cancel`,
+    });
+    await recordProductEvent({
+      event: "checkout_opened",
+      user,
+      storyId: null,
+      metadata: { packId, amountTotal: pack.price, currency: CURRENCY },
     });
     res.json({ url: session.url });
   } catch (err) {
@@ -879,6 +1058,8 @@ async function handleStripeWebhook(req, res) {
           p_credits: grant.credits,
           p_session_id: grant.sessionId,
           p_pack_id: grant.packId,
+          p_amount_total: grant.amountTotal,
+          p_currency: grant.currency,
         });
         // supabase-js reports failures via the returned `error`, not a throw.
         if (error) throw new Error(error.message);
@@ -897,6 +1078,16 @@ async function handleStripeWebhook(req, res) {
         sessionId: grant.sessionId,
         userId: grant.userId,
         credits: grant.credits,
+      });
+      await recordProductEvent({
+        eventId: uuidFromKey(`plotwick:purchase:${event.id}`),
+        event: "purchase_completed",
+        user: { id: grant.userId },
+        metadata: {
+          packId: grant.packId,
+          amountTotal: grant.amountTotal,
+          currency: grant.currency,
+        },
       });
     }
   }
@@ -1048,19 +1239,30 @@ app.get("/api/account/export", async (req, res) => {
   if (!supabaseAdmin) return res.status(501).json({ error: "Accounts aren't configured." });
   const user = await userFromReq(req);
   if (!user) return res.status(401).json({ error: "Please sign in first." });
-  const [{ data: profile, error: profileError }, { data: stories, error: storiesError }, { data: shares, error: sharesError }] =
+  const [
+    { data: profile, error: profileError },
+    { data: stories, error: storiesError },
+    { data: shares, error: sharesError },
+    { data: creditLedger, error: ledgerError },
+  ] =
     await Promise.all([
       supabaseAdmin.from("profiles").select("credits, created_at").eq("id", user.id).maybeSingle(),
       supabaseAdmin.from("stories").select("id, data, created_at, updated_at").eq("user_id", user.id),
       supabaseAdmin.from("shared_stories").select("id, data, created_at").eq("user_id", user.id),
+      supabaseAdmin
+        .from("credit_ledger")
+        .select("delta, balance_after, reason, story_id, metadata, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
     ]);
-  if (profileError || storiesError || sharesError) {
+  if (profileError || storiesError || sharesError || ledgerError) {
     return res.status(500).json({ error: "Couldn't export account data." });
   }
   res.setHeader("Content-Disposition", 'attachment; filename="plotwick-export.json"');
   res.json({
     exportedAt: new Date().toISOString(),
     account: { id: user.id, email: user.email, profile },
+    creditLedger,
     stories,
     shares,
   });
@@ -1091,29 +1293,91 @@ app.delete("/api/account", async (req, res) => {
   res.status(204).end();
 });
 
-app.get("/api/admin/metrics", async (req, res) => {
+async function adminMonetizationMetrics(req, res) {
   if (!supabaseAdmin) return res.status(501).json({ error: "Metrics aren't configured." });
   const user = await userFromReq(req);
   if (!isAdmin(user)) return res.status(403).json({ error: "forbidden" });
   const requestedDays = Number(req.query.days) || 30;
   const days = Math.min(Math.max(requestedDays, 1), 90);
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("usage_events")
-    .select("kind, status, input_tokens, output_tokens, created_at")
-    .gte("created_at", since)
-    .limit(20_000);
-  if (error) return res.status(500).json({ error: "couldn't load metrics" });
-  const totals = (data || []).reduce((acc, row) => {
-    const key = `${row.kind}:${row.status}`;
-    if (!acc[key]) acc[key] = { requests: 0, inputTokens: 0, outputTokens: 0 };
-    acc[key].requests += 1;
-    acc[key].inputTokens += row.input_tokens || 0;
-    acc[key].outputTokens += row.output_tokens || 0;
-    return acc;
-  }, {});
-  res.json({ since, generatedAt: new Date().toISOString(), totals });
-});
+  const [reconciliationResult, ledgerResult, eventsResult, usageResult, purchasesResult, sessionsResult] =
+    await Promise.all([
+      supabaseAdmin.rpc("credit_ledger_reconciliation"),
+      supabaseAdmin
+        .from("credit_ledger")
+        .select("delta, reason, created_at")
+        .gte("created_at", since)
+        .limit(50_000),
+      supabaseAdmin
+        .from("product_events")
+        .select("event, actor_key, world_id, metadata, created_at")
+        .gte("created_at", since)
+        .limit(50_000),
+      supabaseAdmin
+        .from("usage_events")
+        .select("kind, status, input_tokens, output_tokens, estimated_cost_micros, created_at")
+        .gte("created_at", since)
+        .limit(50_000),
+      supabaseAdmin
+        .from("stripe_events")
+        .select("credits_granted, amount_total, currency, created_at")
+        .gte("created_at", since)
+        .limit(20_000),
+      supabaseAdmin
+        .from("story_sessions")
+        .select("id, created_at")
+        .gte("created_at", since)
+        .limit(50_000),
+    ]);
+  const failed = [
+    reconciliationResult,
+    ledgerResult,
+    eventsResult,
+    usageResult,
+    purchasesResult,
+    sessionsResult,
+  ].find((result) => result.error);
+  if (failed) {
+    logEvent("error", "admin_metrics_failed", {
+      requestId: req.requestId,
+      error: failed.error.message,
+    });
+    return res.status(500).json({ error: "couldn't load the publisher's ledger" });
+  }
+  const summary = summarizeMonetization({
+    ledger: ledgerResult.data || [],
+    events: eventsResult.data || [],
+    usage: usageResult.data || [],
+    purchases: purchasesResult.data || [],
+    sessions: sessionsResult.data || [],
+    since,
+    currency: CURRENCY,
+  });
+  const reconciliation = Array.isArray(reconciliationResult.data)
+    ? reconciliationResult.data[0]
+    : reconciliationResult.data;
+  const mismatchCount = Number(reconciliation && reconciliation.mismatches) || 0;
+  summary.overview.accounts = Number(reconciliation && reconciliation.profiles) || 0;
+  summary.overview.outstandingCredits =
+    Number(reconciliation && reconciliation.outstanding_credits) || 0;
+  summary.reconciliation = {
+    profiles: summary.overview.accounts,
+    mismatches: mismatchCount,
+    status: mismatchCount === 0 ? "verified" : "mismatch",
+  };
+  res.json({
+    since,
+    days,
+    generatedAt: new Date().toISOString(),
+    currency: CURRENCY,
+    costRatesConfigured:
+      MODEL_INPUT_USD_PER_MILLION > 0 && MODEL_OUTPUT_USD_PER_MILLION > 0,
+    ...summary,
+  });
+}
+
+app.get("/api/admin/metrics", adminMonetizationMetrics);
+app.get("/api/admin/monetization", adminMonetizationMetrics);
 
 // ----------------------------------------------------------------------
 // Demo mode: canned chapters (with state ledgers) streamed word-by-word so
