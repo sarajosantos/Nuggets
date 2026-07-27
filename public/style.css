@@ -609,7 +609,47 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 }
 .running-head #story-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.story-toolbar { display: flex; gap: 0.5rem; justify-content: flex-end; margin: 0.7rem 0 1.4rem; }
+.story-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; justify-content: flex-end; margin: 0.7rem 0 1.4rem; }
+
+/* auto-scroll pace selector (appears when auto-scroll is on) */
+.pace-control { display: inline-flex; border: 1px solid var(--hairline); border-radius: 999px; overflow: hidden; }
+.pace-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.34rem 0.72rem;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.pace-btn + .pace-btn { border-left: 1px solid var(--hairline); }
+.pace-btn:hover { color: var(--text); }
+.pace-btn[aria-pressed="true"] { color: var(--gold); background: var(--gold-dim); }
+
+/* floating "catch up to the live edge" pill during streaming */
+.follow-latest {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 40;
+  background: var(--gold);
+  color: #1a1206;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 1.3rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.follow-latest:hover { transform: translateX(-50%) translateY(-1px); }
+.follow-latest.hidden { display: none; }
 .tool-btn {
   background: transparent;
   border: 1px solid var(--hairline);
