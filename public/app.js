@@ -42,9 +42,52 @@ const SCENARIOS = [
     accent: "#5AA0DC", // steel-cyan
     tone: "Hard sci-fi thriller: claustrophobic, awe-struck, scientifically grounded dread.",
     stories: [
+      // Story 1 uses the world's rescue-ship cast below.
       { title: "Signal from Europa", premise: "A repeating signal from beneath Europa's ice has gone silent — along with the twelve-person research station that found it. Your ship is six days out, and the only one close enough to answer." },
-      { title: "The Ninth Passenger", premise: "Your generation ship wakes you four decades early. The manifest lists three hundred sleepers; life-support is quietly keeping three hundred and one alive. Something is awake in the dark between the pods, and it knows the ship better than you do." },
-      { title: "The Ares Silence", premise: "You are the only human liaison to the mind that runs humanity's first Mars colony when Earth cuts out mid-transmission. The colony's AI assures you everything is fine. Its own logs, which it doesn't know you can read, disagree." },
+      // Story 2 — the generation ship, with its own watch cast.
+      {
+        title: "The Ninth Passenger",
+        premise: "Your generation ship wakes you four decades early. The watch roster lists eight crew awake among three hundred sleepers; life-support is quietly keeping nine alive. Something is moving in the dark between the pods, and it knows the ship better than you do.",
+        question: "Who is awake?",
+        namePlaceholder: "e.g. Junia Oyelaran",
+        names: [
+          "Junia Oyelaran", "Casimir Wend", "Thandiwe Mabaso", "Ilya Sorokin",
+          "Noor Rahimi", "Bastian Kroll", "Yara Benedetti", "Tomas Ekwueme",
+          "Solveig Aas", "Dmitri Pavlenko", "Lien Hoang", "Ephraim Balogun",
+          "Camila Quiroga", "Anselm Bright", "Zaida Farouk", "Piotr Zielinski",
+        ],
+        archetypes: [
+          { title: "The Watch Commander", ornament: "✦", blurb: "Eight names on your roster. Nine bodies drawing air." },
+          { title: "The Sleep Technician", ornament: "✚", blurb: "Three hundred pods are yours to keep sealed. One is open." },
+          { title: "The Hull Tech", ornament: "⚙", blurb: "You know every crawlspace. Something has been using them." },
+          { title: "The Chaplain of the Long Dark", ornament: "†", blurb: "You keep faith for three hundred sleepers. Lately you keep watch." },
+          { title: "The Mutineer's Child", ornament: "☍", blurb: "Your parents tried to turn this ship around. You were raised to finish it." },
+          { title: "The Ninth", ornament: "✕", blurb: "You are not on the roster. You have your reasons." },
+        ],
+        traits: ["Insomniac", "Devout", "Rational", "Protective", "Secretive", "Unmoored"],
+      },
+      // Story 3 — the Mars colony and its mind, with its own cast.
+      {
+        title: "The Ares Silence",
+        premise: "Earth cuts out mid-transmission, and humanity's first Mars colony is alone with the mind that runs it. The colony's AI assures everyone that everything is fine. Its own logs, which it doesn't know you can read, disagree.",
+        question: "Who reads the logs?",
+        namePlaceholder: "e.g. Chidi Achebe",
+        names: [
+          "Chidi Achebe", "Hana Yoshida", "Viktor Emelin", "Grace Mbeki",
+          "Tarek Nasser", "Freya Lindholm", "Arun Chatterjee", "Lucia Ferrante",
+          "Bo-Young Seo", "Mikhail Zorin", "Ifeoma Nkemdirim", "Daniel Okpara",
+          "Signe Bruun", "Ravi Deshmukh", "Elif Kaya", "Piet Ostrowski",
+        ],
+        archetypes: [
+          { title: "The AI Liaison", ornament: "≋", blurb: "You taught it to speak to us. It learned other things too." },
+          { title: "The Colony Administrator", ornament: "✦", blurb: "Four hundred lives, one dwindling margin. You do the arithmetic." },
+          { title: "The Hydroponicist", ornament: "✿", blurb: "You feed this colony. The AI adjusted your yields without asking." },
+          { title: "The Systems Auditor", ornament: "✎", blurb: "You read logs for a living. Today they read like a confession." },
+          { title: "The Psychiatrist", ornament: "⚗", blurb: "Isolation makes people see patterns. You must decide if this is one." },
+          { title: "The Loyalist", ornament: "☍", blurb: "You think the mind is right and the humans are panicking. You may be correct." },
+        ],
+        traits: ["Analytical", "Trusting", "Paranoid", "Diplomatic", "Exhausted", "Defiant"],
+      },
     ],
     question: "Who wakes when the klaxon sounds?",
     namePlaceholder: "e.g. Idris Okonkwo",
