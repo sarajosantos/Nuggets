@@ -32,12 +32,14 @@ P0 item is deployed and tested in the production environment.
 - [x] Run the updated `supabase/schema.sql` in the production Supabase project.
 - [x] Deploy with `PUBLIC_APP_URL=https://plotwick.com`,
       `REQUIRE_AUTH_FOR_LIVE=1`, and a unique `REPORT_HASH_SALT`.
-- [ ] Configure Stripe with a restricted API key, then subscribe the webhook to
+- [x] Configure Stripe with a restricted API key, then subscribe the webhook to
       `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
       and `checkout.session.async_payment_failed`.
 - [ ] Complete a production test-mode matrix: successful card, declined card,
       delayed payment, webhook replay, webhook outage/retry, refund, concurrent
       first chapter, concurrent continuation, and account switching.
+      Signed delivery is verified for completed, delayed-success, and
+      delayed-failure events; webhook replay also returns `200`.
 - [ ] Enable `STORY_CREDITS_ENABLED=1` only after the payment matrix passes.
 
 ## P1 — operations and trust
