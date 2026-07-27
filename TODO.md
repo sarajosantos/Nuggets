@@ -74,6 +74,10 @@ P0 item is deployed and tested in the production environment.
 - [x] Improve product explanation and first-story onboarding.
 - [x] Turn the library into a richer bookshelf/resume experience.
 - [x] Improve retention with deliberate reading rituals and post-story discovery.
+- [x] QA the existing worlds' questions, names, archetypes, and traits. Every
+      one of the 18 stories now has a cast that fits it: story one keeps the
+      cast written for it, stories two and three have their own, so no story
+      inherits another's people, places, or props.
 - [ ] Expand worlds only after activation, completion, and cost data are visible.
 
 ## Guardrail
