@@ -28,15 +28,34 @@ test("story starts, refunds, and Stripe grants all write the immutable ledger", 
   assert.match(schema, /raise exception 'credit ledger mismatch'/);
 });
 
+test("concurrent first chapters share an idempotent start token", () => {
+  assert.match(schema, /start_token uuid/);
+  assert.match(schema, /unique index if not exists story_sessions_start_token_idx/);
+  assert.match(schema, /on conflict \(user_id, start_token\) where start_token is not null do nothing/);
+  assert.match(server, /begin_story_session_v2/);
+  assert.match(server, /p_start_token: startToken \|\| crypto\.randomUUID\(\)/);
+  assert.match(app, /startToken: crypto\.randomUUID\(\)/);
+});
+
 test("novella packs are server-owned and keep purchase reconciliation metadata", () => {
   assert.match(server, /single:\s*\{ credits: 1, price: 399/);
   assert.match(server, /reader:\s*\{ credits: 5, price: 1500/);
   assert.match(server, /library:\s*\{ credits: 15, price: 3600/);
-  assert.match(server, /payments:\s*CREDITS_ENFORCED && PAYMENTS_READY/);
+  assert.match(server, /payments:\s*PAYMENTS_ENABLED/);
   assert.match(server, /p_amount_total: grant\.amountTotal/);
   assert.match(server, /p_currency: grant\.currency/);
   assert.match(server, /integration_identifier: `plotwick_\$\{suffix\}`/);
   assert.doesNotMatch(server, /payment_method_types/);
+});
+
+test("sandbox checkout is explicit, visibly labeled, and cannot use live credentials", () => {
+  assert.match(server, /STRIPE_SANDBOX_TESTING === "1"/);
+  assert.match(server, /STRIPE_TEST_KEY/);
+  assert.match(server, /requires a Stripe test-mode key/);
+  assert.match(server, /cannot be combined with STORY_CREDITS_ENABLED=1/);
+  assert.match(server, /if \(!PAYMENTS_ENABLED\) return res\.status\(503\)/);
+  assert.match(html, /Sandbox test · no real charges/);
+  assert.match(app, /Stripe sandbox checkout\. Test cards only; no real charge will be made\./);
 });
 
 test("the reader counter and staff ledger are wired into the product", () => {

@@ -412,14 +412,19 @@ create table if not exists public.story_sessions (
   chapter_count integer not null default 0 check (chapter_count >= 0),
   status text not null default 'generating' check (status in ('ready', 'generating')),
   active_request_id uuid,
+  start_token uuid,
   charged boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 alter table public.story_sessions enable row level security;
+alter table public.story_sessions add column if not exists start_token uuid;
 create index if not exists story_sessions_user_idx
   on public.story_sessions (user_id, updated_at desc);
+create unique index if not exists story_sessions_start_token_idx
+  on public.story_sessions (user_id, start_token)
+  where start_token is not null;
 
 create or replace function public.begin_story_session(
   p_user_id uuid,
@@ -620,6 +625,79 @@ revoke all on function public.complete_story_chapter(uuid, uuid, uuid, text, int
   from public, anon, authenticated;
 revoke all on function public.fail_story_chapter(uuid, uuid, uuid)
   from public, anon, authenticated;
+
+-- A first chapter carries a stable client start token. Two simultaneous
+-- requests for the same click can no longer create or charge two stories.
+-- Keep the original function above during rolling deploys; the server uses v2.
+create or replace function public.begin_story_session_v2(
+  p_user_id uuid,
+  p_story_id uuid,
+  p_scenario_hash text,
+  p_character_hash text,
+  p_request_id uuid,
+  p_start_token uuid,
+  p_charge boolean
+)
+returns table (ok boolean, charged boolean, credits integer, conflict boolean)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_credits integer;
+begin
+  insert into public.story_sessions (
+    id, user_id, scenario_hash, character_hash, status,
+    active_request_id, start_token, charged
+  ) values (
+    p_story_id, p_user_id, p_scenario_hash, p_character_hash, 'generating',
+    p_request_id, p_start_token, p_charge
+  )
+  on conflict (user_id, start_token) where start_token is not null do nothing;
+
+  if not found then
+    select profiles.credits into v_credits
+      from public.profiles where id = p_user_id;
+    return query select false, false, coalesce(v_credits, 0), true;
+    return;
+  end if;
+
+  if p_charge then
+    perform public.assert_credit_ledger_balance(p_user_id);
+    update public.profiles
+      set credits = profiles.credits - 1
+      where id = p_user_id and profiles.credits > 0
+      returning profiles.credits into v_credits;
+    if not found then
+      delete from public.story_sessions
+        where id = p_story_id and active_request_id = p_request_id;
+      return query select false, false, 0, false;
+      return;
+    end if;
+    insert into public.credit_ledger (
+      user_id, delta, balance_after, reason, idempotency_key, story_id
+    ) values (
+      p_user_id,
+      -1,
+      v_credits,
+      'story_start',
+      'story:' || p_story_id::text || ':start',
+      p_story_id
+    );
+    insert into public.story_starts (story_id, user_id)
+      values (p_story_id::text, p_user_id);
+  else
+    select profiles.credits into v_credits
+      from public.profiles where id = p_user_id;
+  end if;
+
+  return query select true, p_charge, coalesce(v_credits, 0), false;
+end;
+$$;
+
+revoke all on function public.begin_story_session_v2(
+  uuid, uuid, text, text, uuid, uuid, boolean
+) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Distributed rate limits and operational usage

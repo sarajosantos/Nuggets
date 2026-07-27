@@ -97,6 +97,23 @@ if (process.env.STRIPE_SECRET_KEY && supabaseAdmin) {
 const PAYMENTS_READY = !!(stripe && process.env.STRIPE_WEBHOOK_SECRET && PUBLIC_APP_URL);
 const CREDITS_ENFORCED =
   process.env.STORY_CREDITS_ENABLED === "1" && !!supabaseAdmin && !DEMO_MODE;
+const SANDBOX_CHECKOUT_REQUESTED = process.env.STRIPE_SANDBOX_TESTING === "1";
+const STRIPE_TEST_KEY = /^(?:rk|sk)_test_/.test(process.env.STRIPE_SECRET_KEY || "");
+if (SANDBOX_CHECKOUT_REQUESTED && !STRIPE_TEST_KEY) {
+  throw new Error(
+    "STRIPE_SANDBOX_TESTING=1 requires a Stripe test-mode key. " +
+    "Refusing to expose a sandbox checkout backed by live credentials.",
+  );
+}
+if (SANDBOX_CHECKOUT_REQUESTED && CREDITS_ENFORCED) {
+  throw new Error(
+    "STRIPE_SANDBOX_TESTING=1 cannot be combined with STORY_CREDITS_ENABLED=1.",
+  );
+}
+const SANDBOX_CHECKOUT_ENABLED =
+  SANDBOX_CHECKOUT_REQUESTED && PAYMENTS_READY && !CREDITS_ENFORCED;
+const PAYMENTS_ENABLED =
+  PAYMENTS_READY && (CREDITS_ENFORCED || SANDBOX_CHECKOUT_ENABLED);
 const STORY_SESSIONS_ENABLED = !!supabaseAdmin && !DEMO_MODE;
 const REQUIRE_AUTH_FOR_LIVE =
   STORY_SESSIONS_ENABLED && process.env.REQUIRE_AUTH_FOR_LIVE !== "0";
@@ -491,13 +508,12 @@ app.get("/api/config", (_req, res) => {
     creditSystem: STORY_SESSIONS_ENABLED,
     authRequired: REQUIRE_AUTH_FOR_LIVE,
     aiCovers: AI_COVERS,
-    // Sandbox credentials may be connected before launch. Keep every purchase
-    // control out of the public client until credit enforcement is explicitly
-    // enabled; the server-side Checkout route remains available for controlled
-    // readiness tests.
-    payments: CREDITS_ENFORCED && PAYMENTS_READY
+    // Sandbox checkout is a separate, explicit launch-readiness mode. The
+    // server refuses to enable it with live credentials or credit enforcement.
+    payments: PAYMENTS_ENABLED
       ? {
           currency: CURRENCY,
+          testMode: SANDBOX_CHECKOUT_ENABLED,
           packs: Object.fromEntries(
             Object.entries(CREDIT_PACKS).map(([id, p]) => [id, { credits: p.credits, price: p.price, label: p.label }]),
           ),
@@ -613,7 +629,7 @@ async function failStorySession({ user, storyId, requestId }) {
   return { reset: !!(row && row.reset) };
 }
 
-async function beginOrClaimStory({ user, storyId, requestId, scenario, character, history, admin }) {
+async function beginOrClaimStory({ user, storyId, startToken, requestId, scenario, character, history, admin }) {
   if (!STORY_SESSIONS_ENABLED) {
     return {
       ok: true,
@@ -625,16 +641,23 @@ async function beginOrClaimStory({ user, storyId, requestId, scenario, character
   const scenarioHash = hashValue(scenario);
   const characterHash = hashValue(character);
   if (!storyId) {
+    if (
+      startToken &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(startToken)
+    ) {
+      return { ok: false, invalid: true };
+    }
     const newStoryId = crypto.randomUUID();
-    const { data, error } = await supabaseAdmin.rpc("begin_story_session", {
+    const { data, error } = await supabaseAdmin.rpc("begin_story_session_v2", {
       p_user_id: user.id,
       p_story_id: newStoryId,
       p_scenario_hash: scenarioHash,
       p_character_hash: characterHash,
       p_request_id: requestId,
+      p_start_token: startToken || crypto.randomUUID(),
       p_charge: CREDITS_ENFORCED && !admin,
     });
-    if (error) throw new Error(`begin_story_session: ${error.message}`);
+    if (error) throw new Error(`begin_story_session_v2: ${error.message}`);
     const row = Array.isArray(data) ? data[0] : data;
     return {
       ok: !!(row && row.ok),
@@ -642,6 +665,7 @@ async function beginOrClaimStory({ user, storyId, requestId, scenario, character
       credits: row && row.credits,
       charged: !!(row && row.charged),
       firstChapter: true,
+      conflict: !!(row && row.conflict),
     };
   }
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storyId)) {
@@ -702,6 +726,7 @@ app.post("/api/story", async (req, res) => {
     session = await beginOrClaimStory({
       user,
       storyId: requestedStoryId,
+      startToken: req.body && req.body.startToken,
       requestId,
       scenario,
       character,
@@ -975,7 +1000,7 @@ function fallbackCover(title, subtitle, accentHex) {
 
 // Create a Stripe Checkout session for a credit pack and return its URL.
 app.post("/api/checkout", async (req, res) => {
-  if (!PAYMENTS_READY) return res.status(503).json({ error: "Payments aren't configured." });
+  if (!PAYMENTS_ENABLED) return res.status(503).json({ error: "Payments aren't enabled." });
   const user = await userFromReq(req);
   if (!user) return res.status(401).json({ error: "Please sign in first." });
   if (await enforceRateLimit(req, res, {
@@ -1447,7 +1472,7 @@ if (require.main === module) app.listen(PORT, () => {
   console.log(DEMO_MODE
     ? "Mode: DEMO (no API key found — canned story content). Set ANTHROPIC_API_KEY for live stories."
     : `Mode: LIVE (model: ${MODEL}, target ~${TARGET_CHAPTERS} chapters, ${RATE_LIMIT_PER_HOUR} chapters/hr/IP)`);
-  console.log(`Accounts: ${supabaseAuth ? "on" : "off"} · Credits: ${CREDITS_ENFORCED ? "enforced" : "off"} · Payments: ${PAYMENTS_READY ? "Stripe" : "off"} · AI covers: ${AI_COVERS ? "on" : "off"}`);
+  console.log(`Accounts: ${supabaseAuth ? "on" : "off"} · Credits: ${CREDITS_ENFORCED ? "enforced" : "off"} · Payments: ${SANDBOX_CHECKOUT_ENABLED ? "Stripe sandbox" : PAYMENTS_ENABLED ? "Stripe" : "off"} · AI covers: ${AI_COVERS ? "on" : "off"}`);
 });
 
 module.exports = { app };

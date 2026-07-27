@@ -724,6 +724,7 @@ function startStory() {
   story = {
     id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     serverId: null,
+    startToken: crypto.randomUUID(),
     createdAt: Date.now(),
     updatedAt: Date.now(),
     scenario: draft.scenario,
@@ -814,6 +815,7 @@ async function requestChapter() {
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         storyId: story.serverId || null,
+        startToken: story.serverId ? null : (story.startToken ||= crypto.randomUUID()),
         sessionId: productSessionId(),
         worldId: story.scenario.id,
         scenario: {
@@ -1417,7 +1419,10 @@ function setUser(u) {
 
   // Show the "Buy stories" button once signed in on a payments-enabled site.
   const buyBtn = $("buy-btn");
-  if (buyBtn) buyBtn.classList.toggle("hidden", !(u && appConfig.payments));
+  if (buyBtn) {
+    buyBtn.textContent = appConfig.payments?.testMode ? "Test novella packs" : "Add novellas";
+    buyBtn.classList.toggle("hidden", !(u && appConfig.payments));
+  }
   if (!u) {
     currentUserAdmin = false;
     $("admin-btn").classList.add("hidden");
@@ -1444,7 +1449,7 @@ function setCredits(n, account = creditAccount) {
   creditAccount = account && typeof account === "object" ? account : creditAccount;
   const pill = $("credits-pill");
   if (!pill) return;
-  if (n === null || !appConfig.creditsEnforced) {
+  if (n === null || (!appConfig.creditsEnforced && !appConfig.payments?.testMode)) {
     pill.classList.add("hidden");
     return;
   }
@@ -1471,7 +1476,7 @@ function setCredits(n, account = creditAccount) {
 }
 
 async function refreshCredits() {
-  if (!appConfig.creditsEnforced || !user) {
+  if ((!appConfig.creditsEnforced && !appConfig.payments?.testMode) || !user) {
     setCredits(null);
     return;
   }
@@ -1721,6 +1726,12 @@ function openBuyModal() {
     return;
   }
   if (!user) { pendingStart = false; openAuthModal(); return; }
+  const testMode = !!appConfig.payments.testMode;
+  $("buy-title").textContent = testMode ? "Test novella packs" : "Novella packs";
+  $("buy-mode-note").classList.toggle("hidden", !testMode);
+  $("buy-fineprint").textContent = testMode
+    ? "Stripe sandbox checkout. Test cards only; no real charge will be made."
+    : "Secure checkout by Stripe. Your novellas never expire.";
   renderPacks();
   $("buy-message").classList.add("hidden");
   modal.classList.remove("hidden");
@@ -1787,7 +1798,9 @@ function handleCheckoutReturn() {
   // Clean the URL so a refresh doesn't re-trigger this.
   history.replaceState({}, "", location.pathname);
   if (status === "success") {
-    toast("Payment received — your novellas are being added.");
+    toast(appConfig.payments?.testMode
+      ? "Sandbox payment received — your test novellas are being added."
+      : "Payment received — your novellas are being added.");
     let tries = 0;
     const poll = setInterval(async () => {
       await refreshCredits();

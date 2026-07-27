@@ -1158,3 +1158,17 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   .ledger-columns { grid-template-columns: 1fr; }
   .funnel-row { grid-template-columns: minmax(7.5rem, 1fr) minmax(5rem, 1.5fr) 2.5rem; }
 }
+
+.buy-mode-note {
+  width: fit-content;
+  margin: 0.35rem auto 1rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(215, 166, 65, 0.55);
+  border-radius: 999px;
+  background: rgba(215, 166, 65, 0.12);
+  color: var(--gold);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
