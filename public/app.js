@@ -71,9 +71,52 @@ const SCENARIOS = [
     accent: "#CC6058", // claret
     tone: "Golden-age murder mystery: sharp dialogue, red herrings, a ticking clock until dawn.",
     stories: [
+      // Story 1 uses the world's country-house cast below.
       { title: "The Glass House Murders", premise: "A reclusive tycoon is found dead in his famous glass mansion the night of a storm, seven guests trapped inside with the body — and every one of them, including you, has something to hide." },
-      { title: "The Last Curtain", premise: "On a sold-out opening night, the leading man dies mid-soliloquy in front of two thousand witnesses. The one person who provably couldn't have reached him is you — his understudy, who wanted the role more than anyone alive." },
-      { title: "Table for Seven", premise: "At a three-star restaurant's most exclusive dinner, the feared critic dies between the fish and the meat course. Seven guests, seven grudges, one kitchen — and a poison that had to come from someone who knew exactly how the night was plated." },
+      // Story 2 — the theatre, with its own company cast.
+      {
+        title: "The Last Curtain",
+        premise: "On a sold-out opening night, the leading man dies mid-soliloquy in front of two thousand witnesses. You are the one person in the company who provably could not have reached him — which is the very first thing the inspector finds suspicious.",
+        question: "Who was in the wings tonight?",
+        namePlaceholder: "e.g. Sylvia Marchmont",
+        names: [
+          "Sylvia Marchmont", "Anthony Fairweather", "Dame Lucille Grey", "Rupert Slade",
+          "Nadia Kaminska", "Desmond Peake", "Clara Ives", "Maximilian Rook",
+          "Peggy Dunnock", "Laurence Voss", "Greta Brandt", "Cecil Lyle",
+          "Marguerite Delacroix", "Hugo Winterbourne", "Bunny Trelawney", "Iris Kettering",
+        ],
+        archetypes: [
+          { title: "The Understudy", ornament: "☆", blurb: "You knew every line he ever spoke. Tonight you say them." },
+          { title: "The Leading Lady", ornament: "♛", blurb: "Twenty years a star. He was going to replace you." },
+          { title: "The Stage Manager", ornament: "❖", blurb: "You call every cue. Nothing happens here you didn't time." },
+          { title: "The Critic", ornament: "✎", blurb: "You'd already written the review. It wasn't kind." },
+          { title: "The Angel", ornament: "♦", blurb: "You funded the run. His contract was worth more dead." },
+          { title: "The Playwright", ornament: "✒", blurb: "You wrote his last words. He changed them." },
+        ],
+        traits: ["Ambitious", "Poised", "Bitter", "Beloved", "Rehearsed", "Reckless"],
+      },
+      // Story 3 — the restaurant, with its own kitchen-and-dining-room cast.
+      {
+        title: "Table for Seven",
+        premise: "At a three-star restaurant's most exclusive dinner, the feared critic dies between the fish and the meat course. Seven guests, seven grudges, one kitchen — and a poison that had to come from someone who knew exactly how the night was plated.",
+        question: "Who sat down at that table?",
+        namePlaceholder: "e.g. Camille Duhamel",
+        names: [
+          "Camille Duhamel", "Henrik Sorensen", "Beatriz Salgado", "Oliver Quill",
+          "Yusuf Demir", "Margaux Renard", "Dominic Thale", "Priya Sethi",
+          "Gustav Lindqvist", "Elena Moretti", "Bo Yamada", "Solange Auber",
+          "Rafael Ortiz", "Anneke Visser", "Marcus Pell", "Colette Roux",
+        ],
+        archetypes: [
+          { title: "The Chef-Patron", ornament: "❖", blurb: "Three stars, thirty years. Tonight he came to take one." },
+          { title: "The Sommelier", ornament: "⚗", blurb: "You poured every glass at that table. Including his." },
+          { title: "The Head Waiter", ornament: "♛", blurb: "You seat, you soothe, you see. Tonight you saw too much." },
+          { title: "The Sous-Chef", ornament: "✎", blurb: "You plated every course. One of them killed him." },
+          { title: "The Rival Restaurateur", ornament: "♦", blurb: "His last review closed your dining room. You came anyway." },
+          { title: "The Ghostwriter", ornament: "✒", blurb: "You wrote his columns for a decade. He never credited you once." },
+        ],
+        traits: ["Precise", "Proud", "Envious", "Unflappable", "Vindictive", "Devoted"],
+      },
     ],
     question: "Who were you, before tonight?",
     namePlaceholder: "e.g. Vivian Ashcombe",
