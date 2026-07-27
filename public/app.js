@@ -13,9 +13,52 @@ const SCENARIOS = [
     accent: "#5FB08A", // emerald
     tone: "Epic fantasy: sweeping, perilous, wondrous. Moral choices with real costs.",
     stories: [
+      // Story 1 uses the world's crown-quest cast below.
       { title: "The Shattered Crown", premise: "The old king is dead, his crown broken into five shards scattered across a fractured realm. Whoever reunites them rules — and something older than any kingdom is also hunting the pieces." },
-      { title: "The Witchglass Road", premise: "A plague of forgetting is erasing the kingdom — name by name, face by face. You carry the last witchglass, a mirror that still remembers the truth, and everyone who has already forgotten wants it shattered." },
-      { title: "The Drowned God's Bargain", premise: "Generations ago your village sold its firstborn names to the sea for a century of full nets. The century ends at tonight's high tide, and the water has come to collect what it is owed — beginning with you." },
+      // Story 2 — the plague of forgetting, with its own cast.
+      {
+        title: "The Witchglass Road",
+        premise: "A plague of forgetting is erasing the kingdom — name by name, face by face. You carry the last witchglass, a mirror that still remembers the truth, and everyone who has already forgotten wants it shattered.",
+        question: "Who still remembers?",
+        namePlaceholder: "e.g. Ilsabet Morrow",
+        names: [
+          "Ilsabet Morrow", "Caedmon Ryse", "Neve of Ashlyn", "Torvald Skarn",
+          "Yrsa Pellin", "Alder Crowe", "Mirenna Vosk", "Emrys Vaunt",
+          "Saphine Dell", "Bran Otterly", "Lysandra of the Quiet Fen", "Corwin Ledd",
+          "Sorrel Brightwater", "Jorem Tallis", "Wilhelmina Sedge", "Osgar of Hollowmere",
+        ],
+        archetypes: [
+          { title: "The Last Witness", ornament: "☍", blurb: "Everyone you love has forgotten you. You remember all of them." },
+          { title: "The Name-Keeper", ornament: "✒", blurb: "You wrote down every name you could. The list is shorter each dawn." },
+          { title: "The Cartographer", ornament: "✎", blurb: "Your maps show roads no one else recalls building." },
+          { title: "The Glassmaker", ornament: "❖", blurb: "You made the witchglass. You know what it costs to look." },
+          { title: "The Forgetter", ornament: "✕", blurb: "You chose to forget once. It was mercy, and you would again." },
+          { title: "The Plague-Touched", ornament: "☾", blurb: "It has started with you. Perhaps a month of yourself remains." },
+        ],
+        traits: ["Tenacious", "Grieving", "Clear-eyed", "Doubting", "Merciless", "Fading"],
+      },
+      // Story 3 — the sea's century-old debt, with its own cast.
+      {
+        title: "The Drowned God's Bargain",
+        premise: "Generations ago your village sold its firstborn names to the sea for a century of full nets. The century ends at tonight's high tide, and the water has come to collect what it is owed.",
+        question: "Whose name was sold?",
+        namePlaceholder: "e.g. Maren Tidewell",
+        names: [
+          "Maren Tidewell", "Corrick Havel", "Islaen Droe", "Bavor Quell",
+          "Sennen of the Shoals", "Bryn Colm", "Talwyn Mere", "Odessa Brack",
+          "Hew Lanyon", "Sorcha Drimm", "Padrig Vole", "Nessa Wray",
+          "Garrick Fell", "Ysolt Carrow", "Denzil Hake", "Peran of Gullswater",
+        ],
+        archetypes: [
+          { title: "The Firstborn", ornament: "☾", blurb: "Your name was sold before you were born. Tonight it comes due." },
+          { title: "The Priest of the Drowned God", ornament: "†", blurb: "You kept the bargain a hundred years. You never read the terms." },
+          { title: "The Net-Mender", ornament: "⚓", blurb: "A century of full nets fed your family. You know what paid for them." },
+          { title: "The Tithe-Keeper", ornament: "⚖", blurb: "Someone had to choose which children were promised. It was you." },
+          { title: "The Returned", ornament: "☍", blurb: "The sea took you once and sent you back. You remember the bottom." },
+          { title: "The Outlander", ornament: "✎", blurb: "You married in last spring. Your name is not on their ledger." },
+        ],
+        traits: ["Doomed", "Defiant", "Pious", "Shrewd", "Selfless", "Unrepentant"],
+      },
     ],
     question: "Who answers the call?",
     namePlaceholder: "e.g. Maeryn of the Vale",
