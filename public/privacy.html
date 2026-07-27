@@ -13,23 +13,80 @@
     <p class="tagline">privacy</p>
   </header>
   <main class="policy-page">
-    <h2>Privacy at Plotwick</h2>
-    <p><strong>Last updated: July 26, 2026.</strong></p>
-    <p>Plotwick stores the account information needed to sign you in, your novella balance and transaction history, and the stories you save to your cloud library. Stories saved only on your device remain in that browser until you import them into an account.</p>
+    <h2>Privacy Policy</h2>
+    <p class="policy-updated"><strong>Last updated: July 27, 2026.</strong></p>
+
+    <div class="legal-note">
+      <p><strong>Draft for legal review.</strong> This policy describes how Plotwick actually handles data today, in plain language. It is written to be a faithful, thorough starting point — not a substitute for legal advice. Before Plotwick is operated commercially, qualified counsel should review it and complete every <span class="placeholder">[bracketed placeholder]</span>, including the operator’s legal identity, contact and jurisdiction, retention periods, and any region-specific disclosures (e.g. GDPR/UK GDPR, CCPA/CPRA).</p>
+    </div>
+
+    <p>This Privacy Policy explains what information Plotwick (“<strong>Plotwick</strong>,” “we,” “us”) collects, why, how it is shared, and the choices you have. It applies to <a href="https://plotwick.com">plotwick.com</a> and the Plotwick service (the “Service”). The Service is operated by <span class="placeholder">[OPERATOR LEGAL NAME]</span>, <span class="placeholder">[REGISTERED ADDRESS]</span>.</p>
+
+    <h3>Who this applies to</h3>
+    <p>Plotwick is intended for adults. You must be at least <span class="placeholder">[MINIMUM AGE — e.g. 18, or 13 with the disclosures your jurisdiction requires]</span> to create an account. We do not knowingly collect personal information from children below that age; if you believe a child has provided us information, contact us and we will delete it.</p>
+
+    <h3>Information we collect</h3>
+    <ul>
+      <li><strong>Account information.</strong> Your email address and authentication credentials, handled through our authentication and database provider (Supabase). Passwords are stored by that provider using industry-standard hashing; we never see your plaintext password.</li>
+      <li><strong>Content you create.</strong> The worlds, characters, prompts, choices, free-text actions, and resulting stories you generate and choose to save to your cloud library. Stories you keep only on your device are stored in that browser’s local storage and are not sent to us until you sign in and import them.</li>
+      <li><strong>Payment information.</strong> When you buy novellas, payment is processed by Stripe. We do <strong>not</strong> receive or store your full card number. We store purchase identifiers, amounts, currency, product purchased, payment status, and the resulting novella grants — for fulfillment, reconciliation, refunds, and support.</li>
+      <li><strong>Usage and product events.</strong> Limited events such as selecting a world, beginning or completing a story, and opening or completing checkout. These are keyed to your account when signed in, or to a salted session hash otherwise, and do <strong>not</strong> contain your story text.</li>
+      <li><strong>Technical and log data.</strong> Information needed to operate and protect the Service, such as IP address, approximate request metadata, and rate-limit counters. Where we retain identifiers tied to abuse reports, we store a salted hash of the reporter’s IP address rather than the raw address.</li>
+      <li><strong>Model-usage records.</strong> For each generation we record metadata (request, account, story, model, endpoint, status, and token counts) to protect the Service, investigate failures, and understand generation costs. These records do not include your story text.</li>
+    </ul>
+
+    <h3>How we use information</h3>
+    <ul>
+      <li>To provide the Service: sign you in, generate and stream your stories, save your library, and sync it across your devices.</li>
+      <li>To process payments, grant and reconcile novellas, and provide support.</li>
+      <li>To secure the Service: enforce rate limits, detect and prevent abuse, fraud, and misuse, and investigate incidents.</li>
+      <li>To understand aggregate product usage and generation costs so we can operate and improve Plotwick.</li>
+      <li>To comply with legal obligations and enforce our <a href="/terms.html">Terms</a>.</li>
+    </ul>
+    <p><span class="placeholder">[Counsel to confirm the legal bases for processing where required (e.g. GDPR Art. 6: contract, legitimate interests, consent, legal obligation).]</span></p>
+
     <h3>AI generation</h3>
-    <p>Your scenario, character, choices, and story history are sent to Plotwick’s AI provider to generate the next chapter. Do not include sensitive personal information in a story prompt.</p>
-    <h3>Payments</h3>
-    <p>Payments are processed by Stripe. Plotwick does not receive or store your full card number. It stores purchase identifiers, amounts, currency, and novella grants for fulfillment, reconciliation, and support.</p>
-    <h3>Product analytics</h3>
-    <p>Plotwick records limited events such as selecting a world, beginning or completing a story, and opening or completing checkout. These records use an account identifier when signed in or a salted browser-session hash otherwise. They do not contain your story text.</p>
-    <h3>Sharing</h3>
-    <p>A story is private unless you publish it. Published stories can be read by anyone with the link until you unpublish them.</p>
-    <h3>Your controls</h3>
-    <p>From the account menu you can export your Plotwick data or permanently delete your account. Account deletion removes cloud stories and published shares through database deletion rules.</p>
-    <h3>Retention and security</h3>
-    <p>Operational usage records are retained to protect the service, investigate failures, and understand generation costs. Plotwick uses access controls, row-level database security, and encrypted connections, but no online service can promise absolute security.</p>
-    <p>This policy should be reviewed by qualified counsel before a commercial launch and updated with the operator’s legal name, contact address, retention periods, subprocessors, and jurisdiction-specific disclosures.</p>
+    <p>Plotwick creates stories with a third-party AI provider (currently Anthropic, PBC). To generate each chapter, your scenario, character details, prior story history, and your choices or typed actions are sent to that provider’s API. Please do not include sensitive personal information (for example, government IDs, health, financial, or precise-location details) in a prompt or action. Your use of AI-generated output is also governed by our <a href="/terms.html">Terms</a>. <span class="placeholder">[Counsel to confirm the AI provider’s data-handling commitments (e.g. whether inputs/outputs are used for training and applicable retention) and reflect them here.]</span></p>
+
+    <h3>Service providers and third parties</h3>
+    <p>We share information only with providers that help us run the Service, under their terms, and only as needed:</p>
+    <ul>
+      <li><strong>Supabase</strong> — authentication, database, and storage of accounts, libraries, ledger, and rate-limit data.</li>
+      <li><strong>Stripe</strong> — payment processing. Stripe handles your card details directly under <a href="https://stripe.com/privacy">its own privacy policy</a>.</li>
+      <li><strong>Anthropic</strong> — AI generation of story text and optional cover art.</li>
+      <li><strong>Hosting/infrastructure</strong> — the platform that runs the Service (currently Railway).</li>
+    </ul>
+    <p>We do not sell your personal information, and we do not use third-party advertising trackers. We may disclose information if required by law, to enforce our Terms, or to protect the rights, safety, and security of Plotwick, our users, or the public. <span class="placeholder">[Counsel to add a complete, current subprocessor list and any Data Processing Addendum obligations.]</span></p>
+
+    <h3>Cookies and local storage</h3>
+    <p>Plotwick uses browser storage that is strictly necessary to run the Service: an authentication session so you stay signed in, and local storage for your on-device library and preferences. The optional “Read aloud” feature uses your browser’s built-in speech and does not send text to us. We do not use advertising or cross-site tracking cookies. <span class="placeholder">[Counsel to confirm whether a cookie/consent banner is required in your target regions.]</span></p>
+
+    <h3>Sharing and published stories</h3>
+    <p>A story is private to your account unless you choose to publish it. When you publish, anyone with the link can read that story and its cover until you unpublish it. Search engines or others may cache a public link while it is live. Published stories may be reported by readers and removed if they violate our Terms or create safety, legal, or operational risk.</p>
+
+    <h3>Your choices and rights</h3>
+    <p>From the account menu you can <strong>export</strong> your Plotwick data or <strong>permanently delete</strong> your account. Deletion removes your cloud stories and published shares through the database’s deletion rules. Depending on where you live, you may also have rights to access, correct, port, restrict, or object to certain processing, and to lodge a complaint with a supervisory authority. To exercise a right, use the in-app controls or contact us at <span class="placeholder">[PRIVACY CONTACT EMAIL]</span>. <span class="placeholder">[Counsel to add jurisdiction-specific rights and response timelines (e.g. GDPR/UK GDPR, CCPA/CPRA), and any authorized-agent process.]</span></p>
+
+    <h3>Data retention</h3>
+    <p>We keep account and library data for as long as your account is active. Payment and ledger records are kept as needed for fulfillment, reconciliation, tax, and legal compliance. Operational and security records (logs, rate-limit data, usage events, abuse reports) are kept only as long as needed for their purpose and then deleted or aggregated. <span class="placeholder">[Counsel/operator to set specific retention periods for each category; a scheduled cleanup job for expired rate-limit buckets and abandoned sessions is planned.]</span></p>
+
+    <h3>International transfers</h3>
+    <p>Our providers may process data in countries other than yours. Where required, transfers are made under appropriate safeguards. <span class="placeholder">[Counsel to specify transfer mechanisms (e.g. Standard Contractual Clauses) and hosting regions.]</span></p>
+
+    <h3>Security</h3>
+    <p>We use access controls, row-level database security, encrypted connections, server-held secrets, and server-owned story sessions to protect your data. No online service can guarantee absolute security, and you use the Service at your own risk. If we become aware of a breach affecting your information, we will notify you and regulators as required by law.</p>
+
+    <h3>Changes to this policy</h3>
+    <p>We may update this policy as the Service evolves. We will change the “Last updated” date above and, for material changes, provide a more prominent notice. Continued use after an update means you accept the revised policy.</p>
+
+    <h3>Contact</h3>
+    <p>Questions about privacy? Contact <span class="placeholder">[PRIVACY CONTACT EMAIL]</span> or <span class="placeholder">[OPERATOR LEGAL NAME AND MAILING ADDRESS]</span>. <span class="placeholder">[Counsel to add an EU/UK representative or Data Protection Officer if required.]</span></p>
   </main>
-  <footer class="site-footer"><a href="/">Return to Plotwick</a></footer>
+  <footer class="site-footer">
+    <nav class="footer-links" aria-label="Policies">
+      <a href="/">Return to Plotwick</a>
+      <a href="/terms.html">Terms</a>
+    </nav>
+  </footer>
 </body>
 </html>
