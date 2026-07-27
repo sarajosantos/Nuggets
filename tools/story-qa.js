@@ -3,7 +3,7 @@
 // continuity, and choice quality. These are the checks a machine can make
 // honestly; the taste questions live in docs/STORY_QA.md.
 //
-//   node test/story-qa.js path/to/transcript.json
+//   node tools/story-qa.js path/to/transcript.json
 //
 // Transcript format:
 // {

@@ -6,7 +6,7 @@ checks a machine can make honestly, and the ones only a reader can.
 ## 1. The automated pass
 
 ```bash
-node test/story-qa.js path/to/transcript.json
+node tools/story-qa.js path/to/transcript.json
 ```
 
 Exits non-zero if anything **blocking** is found. It reports three levels:
