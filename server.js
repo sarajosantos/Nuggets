@@ -527,7 +527,8 @@ app.get("/api/credits", async (req, res) => {
   if (!supabaseAdmin) return res.json({ credits: null, enforced: false });
   const user = await userFromReq(req);
   if (!user) return res.status(401).json({ error: "not signed in" });
-  if (isAdmin(user)) {
+  const admin = isAdmin(user);
+  if (admin && !SANDBOX_CHECKOUT_ENABLED) {
     return res.json({
       credits: "unlimited",
       enforced: CREDITS_ENFORCED,
@@ -578,7 +579,9 @@ app.get("/api/credits", async (req, res) => {
   res.json({
     credits: balance,
     enforced: CREDITS_ENFORCED,
-    admin: false,
+    // Staff still bypass story charges, but sandbox QA needs the real ledger
+    // balance visible so a successful test purchase can be verified.
+    admin,
     ledgerStatus: "verified",
     firstNovellaIncluded:
       (storyCount || 0) === 0 && (libraryStoryCount || 0) === 0 && balance > 0,
