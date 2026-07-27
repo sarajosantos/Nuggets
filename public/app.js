@@ -215,9 +215,52 @@ const SCENARIOS = [
     accent: "#CE8149", // copper / rust
     tone: "Revisionist western: dusty, morally gray, tense standoffs and hard-won loyalty.",
     stories: [
+      // Story 1 uses the world's ride-into-town cast below.
       { title: "Red Dust Reckoning", premise: "You ride into the copper town of Providencia with a debt to settle and a name you no longer use. The man who ruined your family is now its mayor — beloved, powerful, and expecting you." },
-      { title: "The Hanging Tree", premise: "You cut a hanged man down for a decent burial and he coughs. Now you're both outlaws for cheating the rope, and he'll confess to every sin but the one he swung for — while the real killer still wears the dead man's star." },
-      { title: "The Silver Widow", premise: "Your husband's claim struck the richest silver vein in the territory the same week the mine took his life. The company's men call it an accident and offer to buy you out by Friday. You mean to find what's really at the bottom of that shaft first." },
+      // Story 2 — the road and the gallows, with its own cast.
+      {
+        title: "The Hanging Tree",
+        premise: "You cut a hanged man down for a decent burial and he coughs. Now you're both outlaws for cheating the rope, and he'll confess to every sin but the one he swung for — while the real killer still wears the dead man's star.",
+        question: "Who cuts him down?",
+        namePlaceholder: "e.g. Tobias Creed",
+        names: [
+          "Tobias Creed", "Annie Lomax", "Ezekiel Stroud", "Consuelo Ibarra",
+          "Judd Halloran", "Mercy Kettleman", "Cyrus Tate", "Bonnie Rafferty",
+          "Emmett Quaid", "Perlita Sandoval", "Ned Barlow", "Docia Grieve",
+          "Isaiah Pruitt", "Winifred Sharp", "Santiago Bravo", "Hollis Teague",
+        ],
+        archetypes: [
+          { title: "The Undertaker", ornament: "❖", blurb: "You came for the body. The body had other plans." },
+          { title: "The Hangman", ornament: "✕", blurb: "You tied the knot yourself. You tied it wrong on purpose." },
+          { title: "The Deputy Who Doubted", ornament: "✪", blurb: "You stood in the crowd and said nothing. That's your sin." },
+          { title: "The Doctor", ornament: "✚", blurb: "You've pronounced a hundred men dead. You were wrong once." },
+          { title: "The Bounty Hunter", ornament: "♦", blurb: "Two men worth money now. One of them just spoke to you." },
+          { title: "The Condemned's Sister", ornament: "❧", blurb: "You came to bury your brother, not to save him." },
+        ],
+        traits: ["Merciful", "Wary", "Guilt-ridden", "Stubborn", "Practical", "Wanted"],
+      },
+      // Story 3 — the silver camp, with its own cast.
+      {
+        title: "The Silver Widow",
+        premise: "The claim they call the Silver Widow struck the richest vein in the territory the same week it killed the man who filed it — and left everything to you. The company's men call it an accident and offer to buy you out by Friday. You mean to find what's really at the bottom of that shaft first.",
+        question: "Who won't sell by Friday?",
+        namePlaceholder: "e.g. Verity Trescott",
+        names: [
+          "Verity Trescott", "Diego Sarmiento", "Jack Penrose", "Ada Mulvaney",
+          "Ruben Escalante", "Clementine Voyle", "Owen Trelease", "Paloma Nieto",
+          "Abel Hocking", "Rosalie Fairbank", "Nikola Petrich", "Effie Larkin",
+          "Manuel Cordero", "Bridget Slaney", "Wyatt Coburn", "Ines Zamora",
+        ],
+        archetypes: [
+          { title: "The Widow", ornament: "☾", blurb: "They expect you to sell and grieve quietly. You'll do one." },
+          { title: "The Assayer", ornament: "⚗", blurb: "You know exactly what that ore is worth. So does the company." },
+          { title: "The Shift Boss", ornament: "⚒", blurb: "You sent his crew down that morning. You chose the timbering." },
+          { title: "The Company Man", ornament: "♦", blurb: "You have a cheque, a deadline, and orders you didn't write." },
+          { title: "The Union Organizer", ornament: "⚑", blurb: "Six men died here before him. You counted every one." },
+          { title: "The Surveyor", ornament: "✎", blurb: "Your map says the vein runs under land that isn't theirs." },
+        ],
+        traits: ["Grieving", "Shrewd", "Fearless", "Dogged", "Compromised", "Proud"],
+      },
     ],
     question: "Who rides in out of the dust?",
     namePlaceholder: "e.g. Ellis Marner",
