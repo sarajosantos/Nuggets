@@ -55,7 +55,11 @@ P0 item is deployed and tested in the production environment.
 - [x] Add account data export and permanent account deletion.
 - [x] Add share revocation and reader reporting.
 - [x] Add initial privacy, terms, AI-content, and public-sharing disclosures.
-- [ ] Have qualified counsel replace/review the starter privacy policy and terms.
+- [ ] Have qualified counsel replace/review the privacy policy and terms.
+      (Drafts expanded to describe the real stack and data flows, with
+      bracketed placeholders for operator identity, jurisdiction, age,
+      retention, refund/consumer rights, and liability cap — awaiting an
+      attorney to finalize.)
 - [ ] Set measured retention periods for usage events, reports, rate-limit
       buckets, abandoned story sessions, and Stripe reconciliation records.
 - [ ] Add a scheduled cleanup job for expired rate-limit buckets and abandoned
