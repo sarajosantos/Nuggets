@@ -143,9 +143,52 @@ const SCENARIOS = [
     accent: "#A17FD4", // spectral violet
     tone: "Gothic horror: slow-burn dread, family secrets, the uncanny bleeding into the everyday.",
     stories: [
+      // Story 1 uses the world's inherited-house cast below.
       { title: "The Hollow Below", premise: "Your grandmother's will left you the house on Merrow Lane — and a letter begging you to brick up the cellar without ever opening the door at the bottom of the stairs. The door is already open." },
-      { title: "The Well-Behaved", premise: "You take the governess post at a manor where the last three governesses fled in the night. The two children are courteous, punctual, and never once misbehave — and by the second week you understand their perfect obedience is the warning, not the comfort." },
-      { title: "Saltmarsh", premise: "In your fog-bound fishing town the drowned have always walked home by morning; no one has stayed buried in forty years. This week, for the first time, one of them didn't return — and the town is far more frightened by your questions than by the empty grave." },
+      // Story 2 — the manor household, with its own cast.
+      {
+        title: "The Well-Behaved",
+        premise: "You arrive at Wraxall Hall to take up a post the last three people to hold it fled in the night. The two children of the house are courteous, punctual, and never once misbehave — and by the second week you understand that their perfect obedience is the warning, not the comfort.",
+        question: "Who answers the advertisement?",
+        namePlaceholder: "e.g. Agnes Thrupp",
+        names: [
+          "Agnes Thrupp", "Edmund Carrick", "Charlotte Sedgwick", "Mr. Everett Teale",
+          "Miss Prudence Slight", "Nurse Bridget Kearney", "Thomas Wicke", "Alice Dunmore",
+          "Reverend Josiah Crale", "Harriet Vaughn", "Dr. Oliver Renshaw", "Susannah Meech",
+          "Mr. Crispin Lowe", "Eliza Trant", "Godfrey Nunn", "Clemency Ward",
+        ],
+        archetypes: [
+          { title: "The Governess", ornament: "✎", blurb: "You have taught difficult children. These two are not difficult." },
+          { title: "The Tutor", ornament: "✒", blurb: "You came to teach them Latin. They are teaching you something." },
+          { title: "The Nurse", ornament: "✚", blurb: "You've sat with sick children all your life. These never fall ill." },
+          { title: "The Housekeeper", ornament: "❖", blurb: "You keep this house's keys. Three of them open nothing." },
+          { title: "The Chaplain", ornament: "†", blurb: "You came to bless this house. The children already know the prayers." },
+          { title: "The Physician", ornament: "⚗", blurb: "You were sent to examine them. They examined you back." },
+        ],
+        traits: ["Watchful", "Kind", "Rigid", "Fanciful", "Unnerved", "Patient"],
+      },
+      // Story 3 — the drowned fishing town, with its own cast.
+      {
+        title: "Saltmarsh",
+        premise: "In your fog-bound fishing town the drowned have always walked home by morning; no one has stayed buried in forty years. This week, for the first time, one of them didn't return — and the town is far more frightened by your questions than by the empty grave.",
+        question: "Who starts asking questions?",
+        namePlaceholder: "e.g. Morwenna Treave",
+        names: [
+          "Morwenna Treave", "Ephraim Cobb", "Tamsin Roke", "Jonah Kittow",
+          "Bethan Ivey", "Enoch Dredge", "Nance Pellow", "Gideon Trewin",
+          "Kerra Bligh", "Absalom Yeo", "Hepzibah Crocker", "Reuben Tressider",
+          "Loveday Penhale", "Martha Skene", "Elias Quick", "Ruth Vellacott",
+        ],
+        archetypes: [
+          { title: "The Harbourmaster", ornament: "⚓", blurb: "You log every boat that leaves. Some come back heavier." },
+          { title: "The Gravedigger", ornament: "⚒", blurb: "Forty years of shallow graves. You never asked why shallow." },
+          { title: "The Lighthouse Keeper", ornament: "✦", blurb: "You watch the water all night. The water watches back." },
+          { title: "The Parson", ornament: "†", blurb: "You bury them and bury them. You have stopped saying amen." },
+          { title: "The Fisherman's Widow", ornament: "☾", blurb: "The sea took him and gave him back. He was never the same." },
+          { title: "The Outsider", ornament: "☍", blurb: "You married into this town. No one told you the terms." },
+        ],
+        traits: ["Hardened", "Curious", "Loyal", "Fearful", "Unflinching", "Superstitious"],
+      },
     ],
     question: "Who stays when they should run?",
     namePlaceholder: "e.g. Wren Halloway",
