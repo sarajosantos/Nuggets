@@ -19,6 +19,7 @@ const {
   hashValue,
   normalizePublicOrigin,
   sanitizeSvg,
+  stripeRefund,
   summarizeMonetization,
   validateHistory,
 } = require("./lib/core");
@@ -1027,6 +1028,9 @@ app.post("/api/checkout", async (req, res) => {
       client_reference_id: user.id,
       customer_email: user.email || undefined,
       metadata: { user_id: user.id, pack_id: packId },
+      payment_intent_data: {
+        metadata: { user_id: user.id, pack_id: packId },
+      },
       line_items: [
         {
           quantity: 1,
@@ -1079,6 +1083,32 @@ async function handleStripeWebhook(req, res) {
       eventId: event.id,
       sessionId: event.data.object && event.data.object.id,
     });
+  } else if (event.type === "charge.refunded") {
+    const refund = stripeRefund(event);
+    if (refund) {
+      try {
+        const { data: balance, error } = await supabaseAdmin.rpc("refund_stripe_credits", {
+          p_event_id: event.id,
+          p_payment_intent: refund.paymentIntent,
+          p_amount_refunded: refund.amountRefunded,
+          p_currency: refund.currency,
+        });
+        if (error) throw new Error(error.message);
+        logEvent("info", "stripe_credits_refunded", {
+          eventId: event.id,
+          paymentIntent: refund.paymentIntent,
+          amountRefunded: refund.amountRefunded,
+          balance,
+        });
+      } catch (err) {
+        logEvent("error", "stripe_credit_refund_failed", {
+          eventId: event.id,
+          paymentIntent: refund.paymentIntent,
+          error: err.message,
+        });
+        return res.status(500).send("credit refund failed");
+      }
+    }
   } else {
     const grant = checkoutGrant(event, CREDIT_PACKS, CURRENCY);
     if (grant) {
@@ -1090,6 +1120,7 @@ async function handleStripeWebhook(req, res) {
           p_credits: grant.credits,
           p_session_id: grant.sessionId,
           p_pack_id: grant.packId,
+          p_payment_intent: grant.paymentIntent,
           p_amount_total: grant.amountTotal,
           p_currency: grant.currency,
         });

@@ -41,8 +41,10 @@ P0 item is deployed and tested in the production environment.
       Signed delivery is verified for completed, delayed-success, and
       delayed-failure events; webhook replay also returns `200`. Concurrent
       first chapters now share a stable start token, while continuation and
-      account ownership remain atomically guarded. Successful/declined cards,
-      refund handling, and a forced outage/retry remain for live sandbox QA.
+      account ownership remain atomically guarded. A successful Reader-pack
+      Checkout and full refund now reconcile against the ledger, and replaying
+      the same refund is idempotent. A declined Checkout and forced
+      webhook-outage/retry remain for live sandbox QA.
 - [ ] Enable `STORY_CREDITS_ENABLED=1` only after the payment matrix passes.
 
 ## P1 — operations and trust

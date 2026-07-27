@@ -8,6 +8,7 @@ const {
   hashValue,
   normalizePublicOrigin,
   sanitizeSvg,
+  stripeRefund,
   summarizeMonetization,
   validateHistory,
 } = require("../lib/core");
@@ -59,6 +60,7 @@ test("Stripe grants only exact, paid, server-defined packs", () => {
         payment_status: "paid",
         amount_total: 800,
         currency: "usd",
+        payment_intent: "pi_test_1",
         client_reference_id: "user-1",
         metadata: { user_id: "user-1", pack_id: "starter" },
       },
@@ -69,6 +71,7 @@ test("Stripe grants only exact, paid, server-defined packs", () => {
     credits: 5,
     packId: "starter",
     sessionId: "cs_test_1",
+    paymentIntent: "pi_test_1",
     amountTotal: 800,
     currency: "usd",
   });
@@ -80,6 +83,30 @@ test("Stripe grants only exact, paid, server-defined packs", () => {
     ...paid,
     data: { object: { ...paid.data.object, payment_status: "unpaid" } },
   }, packs, "usd"), null);
+});
+
+test("Stripe refunds only fully refunded charges tied to a payment intent", () => {
+  const event = {
+    type: "charge.refunded",
+    data: {
+      object: {
+        refunded: true,
+        payment_intent: "pi_test_1",
+        amount_refunded: 800,
+        currency: "USD",
+      },
+    },
+  };
+  assert.deepEqual(stripeRefund(event), {
+    paymentIntent: "pi_test_1",
+    amountRefunded: 800,
+    currency: "usd",
+  });
+  assert.equal(stripeRefund({
+    ...event,
+    data: { object: { ...event.data.object, refunded: false } },
+  }), null);
+  assert.equal(stripeRefund({ ...event, type: "refund.created" }), null);
 });
 
 test("public origin rejects credentials and insecure remote HTTP", () => {
