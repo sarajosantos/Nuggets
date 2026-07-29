@@ -1032,6 +1032,7 @@ function openStory(id) {
 
 function openStoryScreen() {
   $("story-title").textContent = story.title || `${story.scenario.title} · ${story.character.name}`;
+  detachFromBook(); // never let a clear take the choices' listeners with it
   $("story-text").innerHTML = "";
   $("choices-area").classList.add("hidden");
   $("ending-area").classList.add("hidden");
@@ -1264,6 +1265,9 @@ function showChoices(choices) {
     btns.appendChild(b);
   }
   $("choices-area").classList.remove("hidden");
+  // In page view the choices become the chapter's final page — the reader turns
+  // to them when they're ready, so they can't be read ahead of the prose.
+  if (paged) { attachToBook($("choices-area")); requestAnimationFrame(countPages); }
   offerJump();
 }
 
@@ -1283,6 +1287,7 @@ function finishStory() {
   $("ending-area").classList.remove("hidden");
   renderEndingRitual();
   updateShareControls();
+  if (paged) { attachToBook($("ending-area")); requestAnimationFrame(countPages); }
   offerJump();
 }
 
@@ -1424,10 +1429,21 @@ function stopSpeaking() {
 }
 
 // ----- rendering -----
+// The narrator occasionally reaches for markdown emphasis — a ship's name in
+// *italics*. Rendered raw those asterisks land on the page as punctuation, so
+// convert the simple cases after escaping (never before: escaping first is what
+// keeps this safe).
+function inlineEmphasis(escaped) {
+  return escaped
+    .replace(/\*\*(?!\s)([^*\n]+?)(?<!\s)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(["'])\*(?!\s)([^*\n]+?)(?<!\s)\*(?=$|[\s.,;:!?)\]"'])/g, "$1<em>$2</em>")
+    .replace(/(^|[\s(["'])_(?!\s)([^_\n]+?)(?<!\s)_(?=$|[\s.,;:!?)\]"'])/g, "$1<em>$2</em>");
+}
+
 function renderProse(el, text) {
   el.innerHTML = text
     .split(/\n{2,}/)
-    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
+    .map((p) => `<p>${inlineEmphasis(escapeHtml(p)).replace(/\n/g, "<br>")}</p>`)
     .join("");
 }
 
@@ -1439,6 +1455,7 @@ function appendPlayerAction(action) {
 
 function renderAllChapters() {
   const container = $("story-text");
+  detachFromBook();
   container.innerHTML = "";
   for (const ch of story.chapters) {
     if (ch.action) {
@@ -1490,7 +1507,25 @@ const smooth = () => (REDUCED_MOTION ? "auto" : "smooth");
 // arriving simply extends the book to the right — it never moves the reader.
 
 const PAGE_MAX_WIDTH = 620; // keep the measure readable on wide screens
-const CHOICES_RESERVE = 200; // held back so choices appearing never re-paginate
+
+// In page view the choices are not a panel under the page — they are the last
+// page of the chapter, the way a gamebook puts them at the foot of the section.
+// So they cannot spoil what you are still reading, and the prose gets the screen.
+function furnitureHome() { return screens.story; }
+
+function attachToBook(el) {
+  if (!paged || !el || el.parentElement === $("story-text")) return;
+  $("story-text").appendChild(el);
+}
+
+// Take the choices/ending back out of the paginated track. Must happen before
+// anything clears the track, or their listeners go with it.
+function detachFromBook() {
+  const s = furnitureHome();
+  const choices = $("choices-area"), ending = $("ending-area"), err = $("error-area");
+  if (ending.parentElement !== s) s.insertBefore(ending, err);
+  if (choices.parentElement !== s) s.insertBefore(choices, ending);
+}
 
 function pageGeometry() {
   const text = $("story-text");
@@ -1521,8 +1556,10 @@ function layoutPages(keepEl) {
   const reader = $("reader");
   reader.style.removeProperty("--page-h");
   const top = reader.getBoundingClientRect().top;
-  const below = ($("pager").offsetHeight || 40) + CHOICES_RESERVE + 28;
-  const h = Math.max(260, Math.floor(window.innerHeight - top - below));
+  // visualViewport tracks the space a mobile browser's chrome actually leaves.
+  const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  const below = ($("pager").offsetHeight || 40) + 20;
+  const h = Math.max(260, Math.floor(vh - top - below));
   // measure the space from the parent: the frame itself is pinned to one page
   const avail = (reader.parentElement || reader).clientWidth;
   const w = Math.floor(Math.min(avail, PAGE_MAX_WIDTH));
@@ -1573,8 +1610,12 @@ function setView(on, persist = true) {
     $("story-text").classList.remove("reserving");
     $("story-text").style.paddingBottom = "";
     window.scrollTo({ top: 0 });
+    // whatever is currently waiting becomes the last page
+    if (!$("choices-area").classList.contains("hidden")) attachToBook($("choices-area"));
+    if (!$("ending-area").classList.contains("hidden")) attachToBook($("ending-area"));
     layoutPages(here);
   } else {
+    detachFromBook();
     $("reader").style.removeProperty("--page-h");
     $("reader").style.removeProperty("--page-w");
     if (here) here.scrollIntoView({ block: "start" });

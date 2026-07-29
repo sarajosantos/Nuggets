@@ -735,6 +735,14 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 .reader.paged .chapter { break-before: column; }
 .reader.paged .chapter:first-child { break-before: auto; }
 .reader.paged .player-action, .reader.paged .asterism { break-inside: avoid; }
+/* the choices are the chapter's last page, not a panel under it */
+.reader.paged #choices-area,
+.reader.paged #ending-area {
+  break-before: column;
+  margin-top: 0;
+  max-width: none;
+  padding-top: 0.5rem;
+}
 
 .pager {
   display: flex;
