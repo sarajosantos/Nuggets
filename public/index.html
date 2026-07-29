@@ -143,7 +143,7 @@
       <label class="field-label" for="char-name">Your name</label>
       <div class="name-row">
         <input type="text" id="char-name" maxlength="40" placeholder="e.g. Rowan Ashford" autocomplete="off">
-        <button type="button" id="roll-name" class="roll-btn" title="Roll a random name" aria-label="Roll a random name">⚄ Surprise me</button>
+        <button type="button" id="roll-name" class="roll-btn" title="Roll a random name" aria-label="Roll a random name">↻ Surprise me</button>
       </div>
 
       <label class="field-label">Your archetype</label>
@@ -167,12 +167,6 @@
       <div class="story-toolbar">
         <button id="journal-toggle" class="tool-btn" aria-pressed="false">Journal</button>
         <button id="tts-toggle" class="tool-btn" aria-pressed="false">Read aloud</button>
-        <button id="autoscroll-toggle" class="tool-btn" aria-pressed="false" title="Scroll the story automatically at a readable pace">Auto-scroll</button>
-        <div id="autoscroll-pace" class="pace-control hidden" role="group" aria-label="Auto-scroll speed">
-          <button class="pace-btn" data-pace="0" type="button">Slow</button>
-          <button class="pace-btn" data-pace="1" type="button">Med</button>
-          <button class="pace-btn" data-pace="2" type="button">Fast</button>
-        </div>
       </div>
 
       <aside id="journal" class="journal hidden" aria-label="Story journal">
@@ -184,7 +178,9 @@
       <article id="story-text" class="story-text"></article>
       <div id="typing-indicator" class="typing hidden">The storyteller is writing<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
 
-      <button id="follow-latest" class="follow-latest hidden" type="button">Continue reading ↓</button>
+      <!-- Appears only when a chapter has finished writing below the fold. It
+           never moves the reader; it waits to be clicked. -->
+      <button id="jump-to-choices" class="jump-pill hidden" type="button">Chapter ready ↓</button>
 
       <div id="choices-area" class="choices hidden">
         <p class="choices-label">What do you do?</p>

@@ -487,17 +487,9 @@ let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 let libraryFilter = "all";
 const cloudSaveChains = new Map(); // serialize saves per story to prevent stale writes
 
-// Reading-scroll controller state (behaviour defined lower down, in the
-// "reading scroll" section). Declared here so it exists before wireEvents runs.
+// Reading state. The governing rule: while a chapter streams, the page does
+// not move. See the "reading scroll" section lower down.
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const AUTO_PACE = [18, 34, 60]; // px/sec: slow · medium · fast
-const reader = {
-  follow: true, // glue to the newest text while a chapter streams
-  auto: false, // hands-free auto-scroll reading mode
-  pace: 1, // index into AUTO_PACE
-  raf: null,
-  lastT: 0,
-};
 
 // ----- helpers -----
 const $ = (id) => document.getElementById(id);
@@ -545,7 +537,7 @@ async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
 function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
   window.scrollTo({ top: 0 });
-  if (name !== "story") { stopSpeaking(); setAuto(false); }
+  if (name !== "story") { stopSpeaking(); hideJump(); }
 }
 
 function userLibraryKey(userId) {
@@ -910,31 +902,9 @@ function wireEvents() {
     else if (story && story.chapters.length) speak(story.chapters[story.chapters.length - 1].prose);
   });
 
-  $("autoscroll-toggle").addEventListener("click", () => setAuto(!reader.auto));
-  $("autoscroll-pace").addEventListener("click", (e) => {
-    const b = e.target.closest(".pace-btn");
-    if (b) setPace(Number(b.dataset.pace));
-  });
-  $("follow-latest").addEventListener("click", followLatest);
-  // Detect the reader taking manual control (wheel / touch-drag / keys) so our
-  // own programmatic scrolling never trips it. A plain scroll listener only
-  // re-engages follow when they return to the live edge.
-  window.addEventListener("wheel", (e) => userTookControl(e.deltaY < 0), { passive: true });
-  let touchY = null;
-  window.addEventListener("touchstart", (e) => { touchY = e.touches[0] ? e.touches[0].clientY : null; }, { passive: true });
-  window.addEventListener("touchmove", (e) => {
-    if (touchY == null || !e.touches[0]) return;
-    const y = e.touches[0].clientY;
-    userTookControl(y > touchY); // finger sliding down = view scrolls up
-    touchY = y;
-  }, { passive: true });
-  window.addEventListener("keydown", (e) => {
-    if (/^(input|textarea)$/i.test(e.target.tagName)) return;
-    const up = ["ArrowUp", "PageUp", "Home"].includes(e.key) || (e.key === " " && e.shiftKey);
-    const down = ["ArrowDown", "PageDown", "End"].includes(e.key) || (e.key === " " && !e.shiftKey);
-    if (up || down) userTookControl(up);
-  });
-  window.addEventListener("scroll", onScrollReengage, { passive: true });
+  $("jump-to-choices").addEventListener("click", jumpToReady);
+  window.addEventListener("scroll", onReadScroll, { passive: true });
+  window.addEventListener("resize", onReadScroll, { passive: true });
 
   $("share-btn").addEventListener("click", shareStory);
   $("copy-link-btn").addEventListener("click", async () => {
@@ -1058,7 +1028,7 @@ async function requestChapter() {
   const proseEl = document.createElement("div");
   proseEl.className = "chapter";
   $("story-text").appendChild(proseEl);
-  beginFollow(); // gently follow the new chapter as it streams
+  anchorToChapter(proseEl); // one deliberate move, then the page holds still
 
   let fullText = "";
   let failed = null;
@@ -1148,7 +1118,8 @@ async function requestChapter() {
 
   generating = false;
   $("typing-indicator").classList.add("hidden");
-  updateFollowPill(); // streaming stopped — retire the catch-up pill
+  releaseReserve(); // the chapter is written; hand the reserved height back
+  hideJump(); // showChoices/finishStory will re-offer it if anything waits below
 
   if (failed || !fullText.trim()) {
     proseEl.remove();
@@ -1247,7 +1218,7 @@ function showChoices(choices) {
     btns.appendChild(b);
   }
   $("choices-area").classList.remove("hidden");
-  nudgeToLatest();
+  offerJump();
 }
 
 function hideChoices() {
@@ -1266,7 +1237,7 @@ function finishStory() {
   $("ending-area").classList.remove("hidden");
   renderEndingRitual();
   updateShareControls();
-  nudgeToLatest();
+  offerJump();
 }
 
 function renderEndingRitual() {
@@ -1434,9 +1405,12 @@ function renderAllChapters() {
     renderProse(el, ch.prose);
     container.appendChild(el);
   }
-  // Resume at the live edge of an in-progress tale; start at the top of a finished one.
-  window.scrollTo({ top: story.done ? 0 : maxScroll() });
-  reader.follow = true;
+  // Reopen a finished story at its first page; reopen one in progress at the
+  // top of its latest chapter, which is where the reader left off.
+  const chapters = container.querySelectorAll(".chapter");
+  const last = chapters[chapters.length - 1];
+  if (story.done || !last) window.scrollTo({ top: 0 });
+  else window.scrollTo({ top: Math.max(0, last.getBoundingClientRect().top + window.scrollY - 96) });
 }
 
 function updateChapterCount() {
@@ -1444,108 +1418,77 @@ function updateChapterCount() {
   $("chapter-count").textContent = n ? `Chapter ${n}` : "";
 }
 
-// ----- reading scroll: gentle follow while streaming + hands-free auto-scroll -----
-// The window/body is the scroll container. A single rAF loop drives both
-// behaviours and idles itself when neither is active, so it's free at rest.
-// (REDUCED_MOTION, AUTO_PACE and the `reader` state live in the state block up
-// top so they exist before wireEvents runs.)
+// ----- reading scroll: the page holds still -----
+// One rule: text arriving must never move the reader. The page scrolls exactly
+// twice, and both times because the reader just acted —
+//   1. they pick a choice, so we bring the new chapter's first line into view;
+//   2. they click the "Chapter ready" pill, so we take them to the choices.
+// Nothing else scrolls. No rAF loop, no follow, no auto-scroll.
+
 function maxScroll() {
   return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
 }
-function atBottom(slack = 8) {
-  return window.scrollY >= maxScroll() - slack;
+
+const smooth = () => (REDUCED_MOTION ? "auto" : "smooth");
+
+const HEADROOM = 96; // breathing room under the running head
+
+// A new chapter is about to stream. Put its opening line where the eye starts,
+// just below the running head — then leave the page alone until the reader acts.
+// The page can only scroll that far if there is room beneath, and a chapter that
+// hasn't been written yet has none, so we reserve a screen's worth first.
+function anchorToChapter(el) {
+  hideJump();
+  const text = $("story-text");
+  text.style.paddingBottom = "";
+  text.classList.add("reserving");
+  requestAnimationFrame(() => {
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top: Math.max(0, Math.min(top - HEADROOM, maxScroll())), behavior: smooth() });
+  });
 }
 
-function scrollTick(t) {
-  reader.raf = null;
-  const dt = reader.lastT ? Math.min(0.05, (t - reader.lastT) / 1000) : 0;
-  reader.lastT = t;
-
-  let target = null;
-  if (reader.auto) {
-    target = Math.min(window.scrollY + AUTO_PACE[reader.pace] * dt, maxScroll());
-  } else if (generating && reader.follow) {
-    const bottom = maxScroll();
-    // ease toward the live edge so streaming text stays just in view
-    target = REDUCED_MOTION ? bottom : window.scrollY + (bottom - window.scrollY) * 0.18;
-  }
-
-  if (target !== null && Math.abs(target - window.scrollY) > 0.5) {
-    window.scrollTo(0, target);
-  }
-
-  if (reader.auto || (generating && reader.follow)) {
-    reader.raf = requestAnimationFrame(scrollTick);
-  } else {
-    reader.lastT = 0;
-  }
+// The chapter is written, so the reserve can go — but giving the height back
+// must not tug the reader upward. Keep exactly as much as their position needs.
+function releaseReserve() {
+  const text = $("story-text");
+  if (!text.classList.contains("reserving")) return;
+  const keep = window.scrollY;
+  text.classList.remove("reserving");
+  text.style.paddingBottom = "";
+  const overflow = keep - maxScroll();
+  if (overflow > 0) text.style.paddingBottom = `${Math.ceil(overflow)}px`;
+  window.scrollTo(0, keep);
 }
 
-function ensureScrollEngine() {
-  if (!reader.raf) reader.raf = requestAnimationFrame(scrollTick);
+// The chapter has finished writing. If what's now ready sits below the fold,
+// say so — quietly, in a corner — and wait to be clicked. Never scroll for them.
+function offerJump() {
+  const target = $("ending-area").classList.contains("hidden") ? $("choices-area") : $("ending-area");
+  if (!target || target.classList.contains("hidden")) return hideJump();
+  const rect = target.getBoundingClientRect();
+  const below = rect.top > window.innerHeight - 40;
+  const pill = $("jump-to-choices");
+  if (!pill) return;
+  pill.textContent = story && story.done ? "The End ↓" : "Chapter ready ↓";
+  pill.classList.toggle("hidden", !below);
 }
 
-// The reader physically scrolled (wheel / touch-drag / keyboard). We detect the
-// *input*, not the resulting scroll position, so our own programmatic scrolling
-// never trips it. Any manual input pauses auto-scroll; scrolling up also releases
-// the streaming follow (a "Continue reading ↓" pill lets them re-catch it).
-function userTookControl(goingUp) {
-  if (reader.auto) setAuto(false);
-  if (generating && goingUp && reader.follow) {
-    reader.follow = false;
-    updateFollowPill();
-  }
+function hideJump() {
+  const pill = $("jump-to-choices");
+  if (pill) pill.classList.add("hidden");
 }
 
-// A cheap scroll listener whose only job is to re-engage follow when the reader
-// returns to the live edge on their own. (Harmless if it fires on our scrolls.)
-function onScrollReengage() {
-  if (generating && !reader.follow && atBottom(40)) {
-    reader.follow = true;
-    updateFollowPill();
-    ensureScrollEngine();
-  }
+// Reader-initiated: take them to whatever is waiting.
+function jumpToReady() {
+  const target = $("ending-area").classList.contains("hidden") ? $("choices-area") : $("ending-area");
+  if (target) target.scrollIntoView({ behavior: smooth(), block: "center" });
+  hideJump();
 }
 
-function updateFollowPill() {
-  const pill = $("follow-latest");
-  if (pill) pill.classList.toggle("hidden", !(generating && !reader.follow && !reader.auto));
-}
-
-function setAuto(on) {
-  reader.auto = on;
-  $("autoscroll-toggle").setAttribute("aria-pressed", String(on));
-  $("autoscroll-pace").classList.toggle("hidden", !on);
-  updateFollowPill();
-  if (on) { setPace(reader.pace); ensureScrollEngine(); }
-}
-
-function setPace(i) {
-  reader.pace = Math.max(0, Math.min(AUTO_PACE.length - 1, i));
-  document.querySelectorAll(".pace-btn").forEach((b) =>
-    b.setAttribute("aria-pressed", String(Number(b.dataset.pace) === reader.pace)));
-}
-
-// A chapter is about to stream: follow the new text from the reader's position.
-function beginFollow() {
-  reader.follow = true;
-  updateFollowPill();
-  ensureScrollEngine();
-}
-
-// Snap to the live edge and resume following (the "Continue reading ↓" pill).
-function followLatest() {
-  reader.follow = true;
-  window.scrollTo({ top: maxScroll(), behavior: REDUCED_MOTION ? "auto" : "smooth" });
-  updateFollowPill();
-  ensureScrollEngine();
-}
-
-// After a chapter settles: bring choices/ending into view, but only if the
-// reader was already at the live edge — never yank someone reading up-thread.
-function nudgeToLatest() {
-  if (reader.auto || !reader.follow) return;
-  window.scrollTo({ top: maxScroll(), behavior: REDUCED_MOTION ? "auto" : "smooth" });
+// As they read down, the pill retires itself once the waiting content is in view.
+function onReadScroll() {
+  if ($("jump-to-choices") && !$("jump-to-choices").classList.contains("hidden")) offerJump();
 }
 
 // ----- accounts & cloud library (Supabase) -----
