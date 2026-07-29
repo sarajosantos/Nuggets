@@ -735,7 +735,6 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 .reader.paged .chapter { break-before: column; }
 .reader.paged .chapter:first-child { break-before: auto; }
 .reader.paged .player-action, .reader.paged .asterism { break-inside: avoid; }
-.reader.paged .frontispiece { break-after: column; }
 
 .pager {
   display: flex;
