@@ -694,6 +694,80 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
    first line can sit at the top of the view. Released once the chapter lands. */
 .story-text.reserving { padding-bottom: 78vh; }
 
+/* ---------- page view: the story as turning pages ---------- */
+/* Reading a book, the room goes quiet: the masthead steps aside so the page
+   itself gets the screen. The running head still names the story. */
+body.paged-reading .site-header,
+body.paged-reading .demo-banner { display: none; }
+body.paged-reading main { padding-top: 1rem; }
+body.paged-reading .site-footer { display: none; }
+body.paged-reading .story-toolbar { margin: 0.5rem 0 0.8rem; }
+body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
+
+/* The reader is a fixed-height window; the article inside is laid out as
+   screen-wide columns and slid sideways one page at a time. The browser does
+   the line-breaking, so a page always fits the screen it is being read on. */
+.reader.paged {
+  /* exactly one page wide, so the next column is clipped at the page edge
+     instead of peeking past it */
+  width: var(--page-w, 100%);
+  margin-inline: auto;
+  height: var(--page-h, 60vh);
+  overflow: hidden;
+  position: relative;
+  touch-action: pan-y;
+}
+.reader.paged .story-text {
+  max-width: none;
+  width: var(--page-w, 100%);
+  height: 100%;
+  margin: 0 auto;
+  column-width: var(--page-w, 100%);
+  column-gap: var(--page-gap, 3rem);
+  column-fill: auto;
+  transform: translateX(calc(-1 * var(--page-i, 0) * (var(--page-w, 0px) + var(--page-gap, 3rem))));
+  transition: transform 0.38s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader.paged .story-text { transition: none; }
+}
+/* every chapter opens a fresh page, the way a book does */
+.reader.paged .chapter { break-before: column; }
+.reader.paged .chapter:first-child { break-before: auto; }
+.reader.paged .player-action, .reader.paged .asterism { break-inside: avoid; }
+.reader.paged .frontispiece { break-after: column; }
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  margin: 0.9rem auto 0;
+  max-width: 62ch;
+}
+.pager.hidden { display: none; }
+.page-arrow {
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.3rem 0.85rem;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.page-arrow:hover:not(:disabled) { color: var(--story-accent, var(--gold)); border-color: var(--gold-line); }
+.page-arrow:disabled { opacity: 0.28; cursor: default; }
+.page-count {
+  color: var(--muted);
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  min-width: 6ch;
+  text-align: center;
+}
+
 /* drop cap on each chapter's first paragraph */
 .chapter > p:first-of-type::first-letter {
   font-family: var(--display);

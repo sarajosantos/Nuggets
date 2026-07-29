@@ -167,6 +167,7 @@
       <div class="story-toolbar">
         <button id="journal-toggle" class="tool-btn" aria-pressed="false">Journal</button>
         <button id="tts-toggle" class="tool-btn" aria-pressed="false">Read aloud</button>
+        <button id="view-toggle" class="tool-btn" aria-pressed="false" title="Read as turning pages sized to your screen">Page view</button>
       </div>
 
       <aside id="journal" class="journal hidden" aria-label="Story journal">
@@ -175,7 +176,19 @@
         <div class="journal-col"><h4>Companions</h4><ul id="j-companions"><li>—</li></ul></div>
       </aside>
 
-      <article id="story-text" class="story-text"></article>
+      <!-- In scroll view this is a plain column. In page view it becomes a
+           fixed-height frame and the article inside is laid out as columns,
+           one screen-sized page at a time. -->
+      <div id="reader" class="reader">
+        <article id="story-text" class="story-text"></article>
+      </div>
+
+      <nav id="pager" class="pager hidden" aria-label="Pages">
+        <button id="page-prev" class="page-arrow" aria-label="Previous page">‹</button>
+        <span id="page-count" class="page-count" role="status" aria-live="polite">1 / 1</span>
+        <button id="page-next" class="page-arrow" aria-label="Next page">›</button>
+      </nav>
+
       <div id="typing-indicator" class="typing hidden">The storyteller is writing<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
 
       <!-- Appears only when a chapter has finished writing below the fold. It

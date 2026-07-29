@@ -490,6 +490,10 @@ const cloudSaveChains = new Map(); // serialize saves per story to prevent stale
 // Reading state. The governing rule: while a chapter streams, the page does
 // not move. See the "reading scroll" section lower down.
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const VIEW_KEY = "plotwick-reading-view";
+let paged = false; // page view vs scroll view
+let pageIndex = 0;
+let pageTotal = 1;
 
 // ----- helpers -----
 const $ = (id) => document.getElementById(id);
@@ -538,6 +542,7 @@ function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
   window.scrollTo({ top: 0 });
   if (name !== "story") { stopSpeaking(); hideJump(); }
+  document.body.classList.toggle("paged-reading", paged && name === "story");
 }
 
 function userLibraryKey(userId) {
@@ -904,7 +909,43 @@ function wireEvents() {
 
   $("jump-to-choices").addEventListener("click", jumpToReady);
   window.addEventListener("scroll", onReadScroll, { passive: true });
-  window.addEventListener("resize", onReadScroll, { passive: true });
+
+  // ----- page view -----
+  $("view-toggle").addEventListener("click", () => setView(!paged));
+  $("page-next").addEventListener("click", nextPage);
+  $("page-prev").addEventListener("click", prevPage);
+
+  document.addEventListener("keydown", (e) => {
+    if (!paged || screens.story.classList.contains("hidden")) return;
+    if (/^(input|textarea)$/i.test(e.target.tagName)) return;
+    if (["ArrowRight", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey)) { e.preventDefault(); nextPage(); }
+    else if (["ArrowLeft", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey)) { e.preventDefault(); prevPage(); }
+  });
+
+  // swipe to turn
+  let swipeX = null, swipeY = null;
+  const readerEl = $("reader");
+  readerEl.addEventListener("touchstart", (e) => {
+    if (!paged || !e.touches[0]) return;
+    swipeX = e.touches[0].clientX; swipeY = e.touches[0].clientY;
+  }, { passive: true });
+  readerEl.addEventListener("touchend", (e) => {
+    if (!paged || swipeX == null || !e.changedTouches[0]) return;
+    const dx = e.changedTouches[0].clientX - swipeX;
+    const dy = e.changedTouches[0].clientY - swipeY;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? nextPage : prevPage)();
+    swipeX = swipeY = null;
+  }, { passive: true });
+
+  // A resized or rotated screen re-paginates, holding the reader's chapter.
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    onReadScroll();
+    if (!paged) return;
+    clearTimeout(resizeTimer);
+    const keep = lastChapterEl();
+    resizeTimer = setTimeout(() => layoutPages(keep), 140);
+  }, { passive: true });
 
   $("share-btn").addEventListener("click", shareStory);
   $("copy-link-btn").addEventListener("click", async () => {
@@ -1004,6 +1045,10 @@ function openStoryScreen() {
   else el.style.removeProperty("--story-accent");
   updateChapterCount();
   showScreen("story");
+  // Restore the reader's preferred view, then size the page to this screen.
+  let saved = null;
+  try { saved = localStorage.getItem(VIEW_KEY); } catch { /* ignore */ }
+  setView(saved === "paged", false);
 }
 
 function chooseAction(action, isCustom) {
@@ -1098,6 +1143,7 @@ async function requestChapter() {
         if (evt.type === "text") {
           fullText += evt.text;
           renderProse(proseEl, visiblePart(fullText));
+          noteTextGrew(); // page view: the book gets longer, the reader stays put
         } else if (evt.type === "credits") {
           setCredits(evt.credits);
         } else if (evt.type === "story") {
@@ -1409,8 +1455,14 @@ function renderAllChapters() {
   // top of its latest chapter, which is where the reader left off.
   const chapters = container.querySelectorAll(".chapter");
   const last = chapters[chapters.length - 1];
+  if (paged) {
+    window.scrollTo({ top: 0 });
+    layoutPages(story.done ? null : last);
+    if (story.done) goToPage(0, true);
+    return;
+  }
   if (story.done || !last) window.scrollTo({ top: 0 });
-  else window.scrollTo({ top: Math.max(0, last.getBoundingClientRect().top + window.scrollY - 96) });
+  else window.scrollTo({ top: Math.max(0, last.getBoundingClientRect().top + window.scrollY - HEADROOM) });
 }
 
 function updateChapterCount() {
@@ -1431,6 +1483,117 @@ function maxScroll() {
 
 const smooth = () => (REDUCED_MOTION ? "auto" : "smooth");
 
+// ---------- page view ----------
+// The reader is a fixed-height window and the prose is laid out as columns the
+// width of that window, slid sideways one page at a time. The browser does the
+// line breaking, so a page always fits the screen it is being read on, and text
+// arriving simply extends the book to the right — it never moves the reader.
+
+const PAGE_MAX_WIDTH = 620; // keep the measure readable on wide screens
+const CHOICES_RESERVE = 200; // held back so choices appearing never re-paginate
+
+function pageGeometry() {
+  const text = $("story-text");
+  const cs = getComputedStyle(text);
+  const w = parseFloat(cs.width) || 1;
+  const gap = parseFloat(cs.columnGap) || 0;
+  return { w, gap, stride: w + gap };
+}
+
+function countPages() {
+  const text = $("story-text");
+  const { stride, gap } = pageGeometry();
+  pageTotal = Math.max(1, Math.round((text.scrollWidth + gap) / stride));
+  if (pageIndex > pageTotal - 1) pageIndex = pageTotal - 1;
+  renderPager();
+}
+
+function renderPager() {
+  if (!paged) return;
+  $("page-count").textContent = `${pageIndex + 1} / ${pageTotal}`;
+  $("page-prev").disabled = pageIndex <= 0;
+  $("page-next").disabled = pageIndex >= pageTotal - 1;
+  $("reader").style.setProperty("--page-i", String(pageIndex));
+}
+
+function layoutPages(keepEl) {
+  if (!paged) return;
+  const reader = $("reader");
+  reader.style.removeProperty("--page-h");
+  const top = reader.getBoundingClientRect().top;
+  const below = ($("pager").offsetHeight || 40) + CHOICES_RESERVE + 28;
+  const h = Math.max(260, Math.floor(window.innerHeight - top - below));
+  // measure the space from the parent: the frame itself is pinned to one page
+  const avail = (reader.parentElement || reader).clientWidth;
+  const w = Math.floor(Math.min(avail, PAGE_MAX_WIDTH));
+  reader.style.setProperty("--page-h", `${h}px`);
+  reader.style.setProperty("--page-w", `${w}px`);
+  // let the new geometry settle before measuring columns
+  requestAnimationFrame(() => {
+    countPages();
+    if (keepEl) goToPage(pageOfElement(keepEl), true);
+    else renderPager();
+  });
+}
+
+// Which page does this element begin on? Both rects carry the same transform,
+// so the difference between them is a position in untransformed track space.
+function pageOfElement(el) {
+  if (!el) return 0;
+  const { stride } = pageGeometry();
+  const x = el.getBoundingClientRect().left - $("story-text").getBoundingClientRect().left;
+  return Math.max(0, Math.min(pageTotal - 1, Math.round(x / stride)));
+}
+
+function goToPage(i, instant) {
+  const text = $("story-text");
+  if (instant && !REDUCED_MOTION) {
+    text.style.transition = "none";
+    requestAnimationFrame(() => { text.style.transition = ""; });
+  }
+  pageIndex = Math.max(0, Math.min(i, pageTotal - 1));
+  renderPager();
+}
+
+const nextPage = () => goToPage(pageIndex + 1);
+const prevPage = () => goToPage(pageIndex - 1);
+
+function setView(on, persist = true) {
+  paged = !!on;
+  const here = lastChapterEl();
+  $("view-toggle").setAttribute("aria-pressed", String(paged));
+  $("view-toggle").textContent = paged ? "Scroll view" : "Page view";
+  $("reader").classList.toggle("paged", paged);
+  $("pager").classList.toggle("hidden", !paged);
+  // In page view the masthead steps aside so the page gets the screen.
+  document.body.classList.toggle("paged-reading", paged && !screens.story.classList.contains("hidden"));
+  if (persist) { try { localStorage.setItem(VIEW_KEY, paged ? "paged" : "scroll"); } catch { /* ignore */ } }
+  if (paged) {
+    hideJump();
+    $("story-text").classList.remove("reserving");
+    $("story-text").style.paddingBottom = "";
+    window.scrollTo({ top: 0 });
+    layoutPages(here);
+  } else {
+    $("reader").style.removeProperty("--page-h");
+    $("reader").style.removeProperty("--page-w");
+    if (here) here.scrollIntoView({ block: "start" });
+  }
+}
+
+const lastChapterEl = () => {
+  const all = $("story-text").querySelectorAll(".chapter");
+  return all[all.length - 1] || null;
+};
+
+// While a chapter streams, the book grows to the right. Recount, but never move.
+let recountQueued = false;
+function noteTextGrew() {
+  if (!paged || recountQueued) return;
+  recountQueued = true;
+  requestAnimationFrame(() => { recountQueued = false; countPages(); });
+}
+
 const HEADROOM = 96; // breathing room under the running head
 
 // A new chapter is about to stream. Put its opening line where the eye starts,
@@ -1439,6 +1602,11 @@ const HEADROOM = 96; // breathing room under the running head
 // hasn't been written yet has none, so we reserve a screen's worth first.
 function anchorToChapter(el) {
   hideJump();
+  if (paged) {
+    // A book turns to the chapter's first page.
+    requestAnimationFrame(() => { countPages(); goToPage(pageOfElement(el)); });
+    return;
+  }
   const text = $("story-text");
   text.style.paddingBottom = "";
   text.classList.add("reserving");
@@ -1452,7 +1620,7 @@ function anchorToChapter(el) {
 // must not tug the reader upward. Keep exactly as much as their position needs.
 function releaseReserve() {
   const text = $("story-text");
-  if (!text.classList.contains("reserving")) return;
+  if (paged || !text.classList.contains("reserving")) return;
   const keep = window.scrollY;
   text.classList.remove("reserving");
   text.style.paddingBottom = "";
@@ -1464,6 +1632,7 @@ function releaseReserve() {
 // The chapter has finished writing. If what's now ready sits below the fold,
 // say so — quietly, in a corner — and wait to be clicked. Never scroll for them.
 function offerJump() {
+  if (paged) return hideJump(); // in page view nothing is ever below the fold
   const target = $("ending-area").classList.contains("hidden") ? $("choices-area") : $("ending-area");
   if (!target || target.classList.contains("hidden")) return hideJump();
   const rect = target.getBoundingClientRect();
