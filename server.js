@@ -81,7 +81,7 @@ if (SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
 // story costs us roughly ~$1 in API calls, so a credit is priced above that
 // for margin. Tune the numbers, then keep them in sync with what you tell users.
 const CREDIT_PACKS = {
-  single:  { credits: 1, price: 399, label: "Single novella" },
+  single:  { credits: 1, price: 399, label: "Single Wick" },
   reader:  { credits: 5, price: 1500, label: "Reader pack" },
   library: { credits: 15, price: 3600, label: "Library pack" },
 };
@@ -561,7 +561,7 @@ app.get("/api/credits", async (req, res) => {
       .eq("user_id", user.id),
   ]);
   if (profileError || ledgerError || storyCountError || libraryStoryCountError) {
-    return res.status(500).json({ error: "couldn't verify novella balance" });
+    return res.status(500).json({ error: "couldn't verify Wick balance" });
   }
   const balance = profile ? profile.credits : 0;
   const ledgerBalance = ledgerRows && ledgerRows.length ? ledgerRows[0].balance_after : 0;
@@ -573,7 +573,7 @@ app.get("/api/credits", async (req, res) => {
       ledgerBalance,
     });
     return res.status(503).json({
-      error: "Your novella balance needs review. No credits were changed.",
+      error: "Your Wick balance needs review. No credits were changed.",
       ledgerStatus: "mismatch",
     });
   }
@@ -745,7 +745,7 @@ app.post("/api/story", async (req, res) => {
         });
       }
       return res.status(402).json({
-        error: "You have no novellas left.",
+        error: "You have no Wicks left.",
         needCredits: true,
         needNovellas: true,
         credits: 0,
@@ -917,9 +917,9 @@ app.post("/api/cover", async (req, res) => {
           role: "user",
           content: `Design a book cover as a single self-contained SVG, exactly 300 wide by 450 tall (viewBox="0 0 300 450").
 
-The book: "${title}" — an interactive novella. Setting: ${scenario.title}. ${scenario.premise} Protagonist: ${character?.name || "unknown"}, ${character?.archetype || ""}.
+The book: "${title}" — an interactive story. Setting: ${scenario.title}. ${scenario.premise} Protagonist: ${character?.name || "unknown"}, ${character?.archetype || ""}.
 
-Style: minimalist literary cover. Dark, atmospheric background. ${palette} One striking central symbolic motif built from simple geometric shapes or paths (no attempt at realism); the title set in an elegant generic serif font near the top or bottom; a small line reading "an interactive novella". Subtle texture via gradients or opacity is welcome.
+Style: minimalist literary cover. Dark, atmospheric background. ${palette} One striking central symbolic motif built from simple geometric shapes or paths (no attempt at realism); the title set in an elegant generic serif font near the top or bottom; a small line reading "an interactive story". Subtle texture via gradients or opacity is welcome.
 
 Rules: return ONLY the SVG markup, nothing else. Self-contained — no scripts, no external images or fonts (generic font families only).`,
         },
@@ -994,7 +994,7 @@ function fallbackCover(title, subtitle, accentHex) {
   <path d="M150 96 L162 138 L204 150 L162 162 L150 204 L138 162 L96 150 L138 138 Z" fill="hsl(${hue2} 60% 70%)" opacity="0.9"/>
   <rect x="40" y="262" width="220" height="1" fill="hsl(${hue} 30% 50%)" opacity="0.6"/>
   ${titleText}
-  <text x="150" y="425" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="12" fill="hsl(${hue} 25% 60%)">an interactive novella · ${esc(subtitle)}</text>
+  <text x="150" y="425" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="12" fill="hsl(${hue} 25% 60%)">an interactive story · ${esc(subtitle)}</text>
 </svg>`;
 }
 
@@ -1038,7 +1038,7 @@ app.post("/api/checkout", async (req, res) => {
             currency: CURRENCY,
             unit_amount: pack.price,
             product_data: {
-              name: `Plotwick — ${pack.label} (${pack.credits} ${pack.credits === 1 ? "novella" : "novellas"})`,
+              name: `Plotwick — ${pack.label} (${pack.credits} ${pack.credits === 1 ? "Wick" : "Wicks"})`,
             },
           },
         },

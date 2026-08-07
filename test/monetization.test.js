@@ -11,7 +11,7 @@ const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
 
-test("new accounts receive exactly one ledger-backed welcome novella", () => {
+test("new accounts receive exactly one ledger-backed welcome Wick", () => {
   assert.match(schema, /credits integer not null default 1/);
   assert.match(schema, /create table if not exists public\.credit_ledger/);
   assert.match(schema, /idempotency_key text not null unique/);
@@ -37,7 +37,7 @@ test("concurrent first chapters share an idempotent start token", () => {
   assert.match(app, /startToken: crypto\.randomUUID\(\)/);
 });
 
-test("novella packs are server-owned and keep purchase reconciliation metadata", () => {
+test("Wick packs are server-owned and keep purchase reconciliation metadata", () => {
   assert.match(server, /single:\s*\{ credits: 1, price: 399/);
   assert.match(server, /reader:\s*\{ credits: 5, price: 1500/);
   assert.match(server, /library:\s*\{ credits: 15, price: 3600/);

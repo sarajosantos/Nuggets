@@ -52,9 +52,14 @@ create policy "anyone can read shares" on public.shared_stories
 -- ---------------------------------------------------------------------------
 -- Profiles & story credits
 -- ---------------------------------------------------------------------------
--- One row per user, holding the cached novella-credit balance. The immutable
+-- One row per user, holding the cached Wick-credit balance. The immutable
 -- credit_ledger below is the audit trail; this number is the fast read model.
--- A new signup receives exactly one complete novella.
+-- A new signup receives exactly one complete Wick.
+--
+-- NOTE: the ledger reason 'welcome_novella' keeps its original spelling on
+-- purpose. It is a stored enum value present in existing rows, so renaming it
+-- would orphan history and break reconciliation. The reader-facing term is
+-- "Wick"; this identifier is data, not copy.
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -122,7 +127,7 @@ where p.credits > 0
   )
 on conflict (idempotency_key) do nothing;
 
--- Auto-create a profile and its single welcome novella atomically.
+-- Auto-create a profile and its single welcome Wick atomically.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

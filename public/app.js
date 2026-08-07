@@ -974,7 +974,7 @@ function startStory() {
   if (appConfig.authRequired || appConfig.creditsEnforced) {
     if (!user) {
       pendingStart = true;
-      authMessage("Sign in or create a free account to begin — your first complete novella is included.", true);
+      authMessage("Sign in or create a free account to begin — your first Wick is on the house.", true);
       openAuthModal();
       return;
     }
@@ -1928,7 +1928,7 @@ function setUser(u) {
   // Show the "Buy stories" button once signed in on a payments-enabled site.
   const buyBtn = $("buy-btn");
   if (buyBtn) {
-    buyBtn.textContent = appConfig.payments?.testMode ? "Test novella packs" : "Add novellas";
+    buyBtn.textContent = appConfig.payments?.testMode ? "Test Wick packs" : "Add Wicks";
     buyBtn.classList.toggle("hidden", !(u && appConfig.payments));
   }
   if (!u) {
@@ -1965,12 +1965,12 @@ function setCredits(n, account = creditAccount) {
   if (n === "unlimited") {
     pill.innerHTML =
       '<span class="balance-number">∞</span>' +
-      '<span class="balance-copy"><strong>Novellas</strong><small>staff access</small></span>';
-    pill.setAttribute("aria-label", "Unlimited novellas. Open story packs.");
+      '<span class="balance-copy"><strong>Wicks</strong><small>staff access</small></span>';
+    pill.setAttribute("aria-label", "Unlimited Wicks. Open story packs.");
     pill.classList.remove("empty");
     return;
   }
-  const word = n === 1 ? "novella left" : "novellas left";
+  const word = n === 1 ? "Wick left" : "Wicks left";
   const note = creditAccount && creditAccount.firstNovellaIncluded
     ? "first one included"
     : creditAccount && creditAccount.ledgerStatus === "verified"
@@ -1979,7 +1979,7 @@ function setCredits(n, account = creditAccount) {
   pill.innerHTML =
     `<span class="balance-number">${n}</span>` +
     `<span class="balance-copy"><strong>${word}</strong><small>${note}</small></span>`;
-  pill.setAttribute("aria-label", `${n} ${word}. Open novella packs.`);
+  pill.setAttribute("aria-label", `${n} ${word}. Open Wick packs.`);
   pill.classList.toggle("empty", n <= 0);
 }
 
@@ -2055,7 +2055,7 @@ function renderAdminDashboard(data) {
     ["Model cost", data.costRatesConfigured ? dashboardCost(overview.estimatedCostMicros, currency) : "Not set", data.costRatesConfigured ? "token estimate" : "configure model rates"],
     ["Before-fee contribution", data.costRatesConfigured ? dashboardCost(overview.contributionBeforeFeesMicros, currency) : "Not set", "revenue less model cost"],
     ["Reader accounts", String(overview.accounts || 0), `${overview.storySessions || 0} stories opened`],
-    ["Outstanding novellas", String(overview.outstandingCredits || 0), "future generation obligation"],
+    ["Outstanding Wicks", String(overview.outstandingCredits || 0), "future generation obligation"],
     ["Finished readers", String(completed), started ? `${Math.round(completed / started * 100)}% of starters` : "no starts yet"],
   ];
   $("admin-overview").innerHTML = kpis.map(([label, value, note]) =>
@@ -2067,7 +2067,7 @@ function renderAdminDashboard(data) {
     world_selected: "Selected a world",
     setup_completed: "Completed character setup",
     story_started: "Opened the first chapter",
-    story_completed: "Finished a novella",
+    story_completed: "Finished a Wick",
     checkout_opened: "Opened checkout",
     purchase_completed: "Completed a purchase",
   };
@@ -2092,9 +2092,9 @@ function renderAdminDashboard(data) {
   $("admin-worlds").innerHTML = worldRows || '<p class="ledger-empty">No world choices in this period.</p>';
 
   const creditLabels = {
-    welcome_novella: "Welcome novellas granted",
-    stripe_purchase: "Paid novellas granted",
-    story_start: "Novellas begun",
+    welcome_novella: "Welcome Wicks granted",
+    stripe_purchase: "Paid Wicks granted",
+    story_start: "Wicks begun",
     story_refund: "Failed starts refunded",
     admin_adjustment: "Staff adjustments",
   };
@@ -2230,16 +2230,16 @@ function openBuyModal() {
   if (!modal) return;
   if (!appConfig.payments) {
     // Payments not configured on this server — nothing to sell.
-    alert("Novella packs aren't set up on this site yet.");
+    alert("Wick packs aren't set up on this site yet.");
     return;
   }
   if (!user) { pendingStart = false; openAuthModal(); return; }
   const testMode = !!appConfig.payments.testMode;
-  $("buy-title").textContent = testMode ? "Test novella packs" : "Novella packs";
+  $("buy-title").textContent = testMode ? "Test Wick packs" : "Wick packs";
   $("buy-mode-note").classList.toggle("hidden", !testMode);
   $("buy-fineprint").textContent = testMode
     ? "Stripe sandbox checkout. Test cards only; no real charge will be made."
-    : "Secure checkout by Stripe. Your novellas never expire.";
+    : "Secure checkout by Stripe. Your Wicks never expire.";
   renderPacks();
   $("buy-message").classList.add("hidden");
   modal.classList.remove("hidden");
@@ -2307,8 +2307,8 @@ function handleCheckoutReturn() {
   history.replaceState({}, "", location.pathname);
   if (status === "success") {
     toast(appConfig.payments?.testMode
-      ? "Sandbox payment received — your test novellas are being added."
-      : "Payment received — your novellas are being added.");
+      ? "Sandbox payment received — your test Wicks are being added."
+      : "Payment received — your Wicks are being added.");
     let tries = 0;
     const poll = setInterval(async () => {
       await refreshCredits();
