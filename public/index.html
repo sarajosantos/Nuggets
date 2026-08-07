@@ -202,6 +202,14 @@
           <input type="text" id="custom-action" maxlength="200" placeholder="…or write your own action" autocomplete="off">
           <button type="submit" class="btn btn-primary">Do it</button>
         </form>
+        <!-- Shown instead of the action form while a teaser is unclaimed. The
+             choices above stay visible but disabled: seeing what you can't yet
+             choose is the whole point of walling here rather than earlier. -->
+        <div id="teaser-wall" class="teaser-wall hidden">
+          <p class="teaser-wall-lede">Three ways forward.</p>
+          <p class="teaser-wall-sub">Sign in to choose — your first Wick is on the house, and your story picks up exactly here.</p>
+          <button id="teaser-wall-btn" class="btn btn-primary">Sign in and continue →</button>
+        </div>
       </div>
 
       <div id="ending-area" class="ending hidden">

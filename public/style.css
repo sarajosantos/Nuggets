@@ -847,6 +847,42 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 .custom-action { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
 .custom-action input { flex: 1; }
 
+/* The unclaimed teaser: choices stay legible but inert, so the reader can see
+   exactly what they're being asked to sign in for. Muted rather than greyed —
+   they should still read as real options, not as broken buttons. */
+.choice-btn:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+.choice-btn:disabled:hover {
+  border-color: var(--hairline);
+  background: var(--page);
+  padding-left: 1.15rem;
+}
+
+.teaser-wall {
+  margin-top: 1.4rem;
+  padding: 1.3rem 1.2rem 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--story-accent) 32%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--story-accent) 7%, var(--page));
+  text-align: center;
+}
+.teaser-wall-lede {
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 1.3rem;
+  color: var(--story-accent);
+  margin-bottom: 0.4rem;
+}
+.teaser-wall-sub {
+  font-family: var(--prose);
+  font-size: 0.98rem;
+  color: var(--muted);
+  margin: 0 auto 1rem;
+  max-width: 44ch;
+}
+
 /* ---------- ending & sharing ---------- */
 
 .ending { text-align: center; margin-top: 3rem; }

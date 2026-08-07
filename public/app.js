@@ -875,6 +875,7 @@ function wireEvents() {
   $("logo").addEventListener("click", () => { if (!generating) goHome(); });
 
   $("begin-btn").addEventListener("click", startStory);
+  $("teaser-wall-btn").addEventListener("click", continueFromWall);
   $("new-story-btn").addEventListener("click", goHome);
   $("next-world-btn").addEventListener("click", openAnotherInWorld);
   $("abandon-btn").addEventListener("click", () => {
@@ -963,6 +964,19 @@ function goHome() {
   showScreen("scenario");
 }
 
+// A signed-out visitor may read one live first chapter of a built-in story
+// before the wall, so they can see our actual prose with their own character in
+// it. The server decides for real (and owns the rate limits); this only avoids
+// starting a story we already know will be refused. Custom premises are
+// excluded here for the same reason the server excludes them: an anonymous
+// visitor must not get to put an arbitrary premise in front of the model.
+function teaserEligible() {
+  return !!appConfig.teaserEnabled &&
+    !user &&
+    !!draft.scenario &&
+    draft.scenario.id !== "custom";
+}
+
 // ----- story lifecycle -----
 function startStory() {
   updateBeginButton();
@@ -972,7 +986,7 @@ function startStory() {
   // least one credit. Guide the player to sign in / top up before we build the
   // story object, and remember their intent so we can resume automatically.
   if (appConfig.authRequired || appConfig.creditsEnforced) {
-    if (!user) {
+    if (!user && !teaserEligible()) {
       pendingStart = true;
       authMessage("Sign in or create a free account to begin — your first Wick is on the house.", true);
       openAuthModal();
@@ -989,6 +1003,11 @@ function startStory() {
     id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     serverId: null,
     startToken: crypto.randomUUID(),
+    // Set while this is an unclaimed teaser: chapter one is readable but the
+    // choices stay locked until the reader signs in and the story is adopted.
+    // Cleared by adoptTeaser(); the token is what proves the chapter is ours.
+    teaserPending: !user,
+    teaserToken: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     scenario: draft.scenario,
@@ -1150,6 +1169,14 @@ async function requestChapter() {
         } else if (evt.type === "story") {
           story.serverId = evt.storyId;
           persistStory(story);
+        } else if (evt.type === "teaser") {
+          // A free, unowned chapter. The throwaway id the server sent with it
+          // is not a real session, so drop it — keeping it would make the next
+          // request look like a continuation and 409.
+          story.serverId = null;
+          story.teaserPending = true;
+          story.teaserToken = evt.token;
+          persistStory(story);
         } else if (evt.type === "story-reset") {
           story.serverId = null;
           persistStory(story);
@@ -1254,6 +1281,7 @@ function showChoices(choices) {
     finishStory();
     return;
   }
+  const walled = isTeaserWalled();
   const btns = $("choice-buttons");
   btns.innerHTML = "";
   // If the model flubbed the format, offer a neutral continue.
@@ -1261,9 +1289,18 @@ function showChoices(choices) {
     const b = document.createElement("button");
     b.className = "choice-btn";
     b.textContent = choice;
-    b.addEventListener("click", () => chooseAction(choice, false));
+    if (walled) {
+      // Readable, not clickable. The tension of a choice you can see but can't
+      // make yet is doing the work here.
+      b.disabled = true;
+      b.setAttribute("aria-describedby", "teaser-wall");
+    } else {
+      b.addEventListener("click", () => chooseAction(choice, false));
+    }
     btns.appendChild(b);
   }
+  $("teaser-wall").classList.toggle("hidden", !walled);
+  $("custom-action-form").classList.toggle("hidden", walled);
   $("choices-area").classList.remove("hidden");
   // In page view the choices become the chapter's final page — the reader turns
   // to them when they're ready, so they can't be read ahead of the prose.
@@ -1273,6 +1310,99 @@ function showChoices(choices) {
 
 function hideChoices() {
   $("choices-area").classList.add("hidden");
+  $("teaser-wall").classList.add("hidden");
+  $("custom-action-form").classList.remove("hidden");
+}
+
+// True while the reader is looking at a free chapter they haven't claimed yet.
+// A signed-in reader is never walled — if they somehow arrive here with a stale
+// teaser flag, adoption resolves it rather than trapping them.
+function isTeaserWalled() {
+  return !!(story && story.teaserPending && !user);
+}
+
+// Turn the free chapter into a real story. This is the moment the Wick is
+// spent: the reader is buying the story they are already inside, not a credit.
+// On success the story is ordinary, and every later chapter goes through the
+// normal path.
+async function adoptTeaser() {
+  if (!story || !story.teaserPending || !user) return true;
+  const opening = story.history[0] && story.history[0].content;
+  const chapter = story.history[1] && story.history[1].content;
+  if (!opening || !chapter || !story.teaserToken) {
+    // Nothing redeemable — fall back to beginning the story properly.
+    story.teaserPending = false;
+    story.teaserToken = null;
+    return true;
+  }
+  const res = await fetch("/api/story/adopt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({
+      scenario: {
+        title: story.scenario.title,
+        premise: story.scenario.premise,
+        tone: story.scenario.tone,
+      },
+      character: story.character,
+      opening,
+      chapter,
+      teaserToken: story.teaserToken,
+      startToken: story.startToken,
+      sessionId: productSessionId(),
+      worldId: story.scenario.id,
+    }),
+  });
+  if (res.status === 402) {
+    openBuyModal();
+    return false;
+  }
+  if (res.status === 409) {
+    const body = await res.json().catch(() => ({}));
+    if (body.teaserInvalid) {
+      // The signature no longer verifies — expired, or the saved chapter was
+      // edited. Drop the preview and let them start the story for real.
+      story.history = story.history.slice(0, 1);
+      story.chapters = [];
+      story.teaserPending = false;
+      story.teaserToken = null;
+      persistStory(story);
+      return true;
+    }
+    return false;
+  }
+  if (!res.ok) return false;
+  const body = await res.json();
+  story.serverId = body.storyId;
+  story.teaserPending = false;
+  story.teaserToken = null;
+  setCredits(body.credits);
+  persistStory(story);
+  return true;
+}
+
+// Re-render the last chapter's choices now that they're unlocked, leaving the
+// prose exactly where it is. The reader picks up on the same decision they were
+// looking at when they signed in.
+function resumeAfterAuth() {
+  if (!story) return;
+  const last = [...story.history].reverse().find((m) => m.role === "assistant");
+  if (!last) {
+    requestChapter();
+    return;
+  }
+  showChoices(parseChoices(last.content));
+}
+
+// The wall's only button: sign in, then continue where they stopped reading.
+async function continueFromWall() {
+  if (user) {
+    if (await adoptTeaser()) resumeAfterAuth();
+    return;
+  }
+  pendingStart = true;
+  authMessage("Create a free account to keep going — your first Wick is on the house.", true);
+  openAuthModal();
 }
 
 function finishStory() {
@@ -1938,7 +2068,15 @@ function setUser(u) {
 
   // Credits follow the signed-in user.
   if (u) {
-    refreshCredits().then(() => {
+    refreshCredits().then(async () => {
+      // A reader who signed in from the teaser wall already has a story open and
+      // a chapter read. Claim it rather than starting over — losing the chapter
+      // they just read to a fresh generation would waste the moment entirely.
+      if (story && story.teaserPending) {
+        pendingStart = false;
+        if (await adoptTeaser()) resumeAfterAuth();
+        return;
+      }
       // If they clicked "Begin" before signing in, pick up where they left off.
       if (pendingStart) {
         pendingStart = false;

@@ -19,16 +19,35 @@ const {
   hashValue,
   normalizePublicOrigin,
   sanitizeSvg,
+  signTeaser: signTeaserWith,
   stripeRefund,
   summarizeMonetization,
   validateHistory,
+  verifyTeaser: verifyTeaserWith,
 } = require("./lib/core");
+const { isBuiltinScenario } = require("./lib/worlds");
 
 const PORT = process.env.PORT || 3000;
 const MODEL = process.env.STORY_MODEL || "claude-opus-4-8";
 const TARGET_CHAPTERS = Number(process.env.TARGET_CHAPTERS) || 10;
 const HARD_CAP_CHAPTERS = TARGET_CHAPTERS + 4;
 const RATE_LIMIT_PER_HOUR = Number(process.env.RATE_LIMIT_PER_HOUR) || 40;
+// Anonymous teaser: one live first chapter before the sign-up wall, so a
+// visitor can read our actual prose — with their character in it — before being
+// asked for an account. Off unless explicitly enabled, because it spends real
+// API budget on unauthenticated requests.
+const TEASER_ENABLED = process.env.TEASER_ENABLED === "1";
+// Per visitor per day. The visitor id is client-supplied and therefore
+// clearable; TEASER_PER_IP_PER_DAY is the backstop that bounds that.
+const TEASER_PER_VISITOR_PER_DAY = Number(process.env.TEASER_PER_VISITOR_PER_DAY) || 1;
+// Deliberately looser than the per-visitor limit. Offices, universities and
+// mobile carrier NAT put thousands of people behind one address, so a strict
+// per-IP cap would let one stranger's teaser block a whole network.
+const TEASER_PER_IP_PER_DAY = Number(process.env.TEASER_PER_IP_PER_DAY) || 5;
+// Hard ceiling on total teasers per day. Caps worst-case spend; when it is hit
+// the app falls back to the ordinary auth wall.
+const TEASER_DAILY_LIMIT = Number(process.env.TEASER_DAILY_LIMIT) || 200;
+const DAY_SECONDS = 86_400;
 const PUBLIC_APP_URL = normalizePublicOrigin(process.env.PUBLIC_APP_URL);
 const AI_COVERS = process.env.AI_COVERS === "1";
 const MODEL_INPUT_USD_PER_MILLION =
@@ -87,6 +106,12 @@ const CREDIT_PACKS = {
 };
 const CURRENCY = (process.env.STRIPE_CURRENCY || "usd").toLowerCase();
 const REPORT_HASH_SALT = process.env.REPORT_HASH_SALT || crypto.randomBytes(32).toString("hex");
+// Signs anonymous teaser chapters so they can be redeemed later without letting
+// a client pass off text we never wrote as chapter one. Falling back to a random
+// per-boot secret is safe but invalidates outstanding teasers on restart, so set
+// it explicitly wherever teasers are enabled.
+const TEASER_SECRET = process.env.TEASER_SECRET || crypto.randomBytes(32).toString("hex");
+const TEASER_TTL_SECONDS = Number(process.env.TEASER_TTL_SECONDS) || 7 * DAY_SECONDS;
 
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY && supabaseAdmin) {
@@ -372,6 +397,11 @@ const PRODUCT_EVENT_NAMES = new Set([
   "story_completed",
   "checkout_opened",
   "purchase_completed",
+  // The teaser funnel: a free chapter served, and that chapter later redeemed
+  // for a real story. The ratio between them against the cost of a teaser is
+  // what decides whether this acquisition channel stays switched on.
+  "teaser_started",
+  "teaser_adopted",
 ]);
 
 function boundedId(value, max = 120) {
@@ -464,9 +494,28 @@ function rateKey(req, user, scope) {
   return `${scope}:ip:${ipHash}`;
 }
 
-async function enforceRateLimit(req, res, { user, scope, limit, windowSeconds }) {
-  const key = rateKey(req, user, scope);
-  let limited;
+// ----------------------------------------------------------------------
+// Anonymous teaser: signing and redemption
+// ----------------------------------------------------------------------
+
+// Signing and verification live in lib/core.js so they can be unit-tested
+// directly; these bind them to this server's secret and TTL.
+const signTeaser = (fields) => signTeaserWith(TEASER_SECRET, fields);
+const verifyTeaser = (fields) => verifyTeaserWith(TEASER_SECRET, TEASER_TTL_SECONDS, fields);
+
+// Anonymous visitors are identified by a client-supplied session id. It is
+// trivially clearable, which is exactly why the per-IP ceiling exists alongside
+// it — the pair gives per-person strictness without punishing shared networks.
+function teaserVisitorKey(sessionId) {
+  const id = typeof sessionId === "string" && sessionId ? sessionId : "anonymous";
+  return crypto.createHash("sha256").update(`${REPORT_HASH_SALT}:teaser:${id}`).digest("hex").slice(0, 24);
+}
+
+// Consumes one unit against a limit key and reports whether it was refused.
+// Returns the raw decision so callers can choose their own failure mode: the
+// story endpoint answers 429, while the teaser path quietly falls back to the
+// ordinary sign-in wall.
+async function consumeLimit(req, { key, limit, windowSeconds, scope }) {
   if (supabaseAdmin) {
     const { data, error } = await supabaseAdmin.rpc("consume_rate_limit", {
       p_key: key,
@@ -479,17 +528,61 @@ async function enforceRateLimit(req, res, { user, scope, limit, windowSeconds })
         scope,
         error: error.message,
       });
-      limited = memoryRateLimited(key, limit, windowSeconds);
-    } else {
-      const row = Array.isArray(data) ? data[0] : data;
-      limited = !row || !row.allowed;
+      return memoryRateLimited(key, limit, windowSeconds);
     }
-  } else {
-    limited = memoryRateLimited(key, limit, windowSeconds);
+    const row = Array.isArray(data) ? data[0] : data;
+    return !row || !row.allowed;
   }
+  return memoryRateLimited(key, limit, windowSeconds);
+}
+
+async function enforceRateLimit(req, res, { user, scope, limit, windowSeconds }) {
+  const key = rateKey(req, user, scope);
+  const limited = await consumeLimit(req, { key, limit, windowSeconds, scope });
   if (!limited) return false;
   res.setHeader("Retry-After", String(windowSeconds));
   res.status(429).json({ error: "Too many requests. Please try again later." });
+  return true;
+}
+
+// Decides whether this anonymous request may have a free first chapter.
+// Every check must pass; any refusal falls back to the normal auth wall rather
+// than an error, so a spent budget looks like the product simply requires an
+// account — which it does.
+async function teaserAllowed(req, { user, storyId, history, worldId, scenarioHash, sessionId }) {
+  if (!TEASER_ENABLED || DEMO_MODE) return false;
+  // Acquisition only. A signed-in reader who is out of Wicks gets the buy modal;
+  // an account must never become a renewable source of free chapters.
+  if (user) return false;
+  if (storyId) return false;
+  if (!Array.isArray(history) || history.length !== 1) return false;
+  // The world id alone is client-supplied and says nothing about the premise
+  // travelling with it, so the scenario itself has to be one of ours.
+  if (!isBuiltinScenario(worldId, scenarioHash)) return false;
+
+  // Global ceiling first: when the day's budget is gone, don't consume a
+  // visitor's single allowance on a teaser they cannot have.
+  if (await consumeLimit(req, {
+    key: "teaser:global",
+    limit: TEASER_DAILY_LIMIT,
+    windowSeconds: DAY_SECONDS,
+    scope: "teaser-global",
+  })) return false;
+
+  if (await consumeLimit(req, {
+    key: `teaser:visitor:${teaserVisitorKey(sessionId)}`,
+    limit: TEASER_PER_VISITOR_PER_DAY,
+    windowSeconds: DAY_SECONDS,
+    scope: "teaser-visitor",
+  })) return false;
+
+  if (await consumeLimit(req, {
+    key: rateKey(req, null, "teaser-ip"),
+    limit: TEASER_PER_IP_PER_DAY,
+    windowSeconds: DAY_SECONDS,
+    scope: "teaser-ip",
+  })) return false;
+
   return true;
 }
 
@@ -508,6 +601,9 @@ app.get("/api/config", (_req, res) => {
     creditsEnforced: CREDITS_ENFORCED,
     creditSystem: STORY_SESSIONS_ENABLED,
     authRequired: REQUIRE_AUTH_FOR_LIVE,
+    // When set, the client lets an anonymous visitor start a built-in story and
+    // walls at the first choice instead of before the first word.
+    teaserEnabled: TEASER_ENABLED && STORY_SESSIONS_ENABLED && !DEMO_MODE,
     aiCovers: AI_COVERS,
     // Sandbox checkout is a separate, explicit launch-readiness mode. The
     // server refuses to enable it with live credentials or credit enforcement.
@@ -708,11 +804,24 @@ app.post("/api/story", async (req, res) => {
   const { scenario, character } = cleaned;
   // Rate limit per account when signed in, per IP otherwise.
   const user = await userFromReq(req);
-  if (REQUIRE_AUTH_FOR_LIVE && !user) {
+  // An eligible anonymous visitor gets one live first chapter before the wall,
+  // so they can read our prose — with their own character in it — before being
+  // asked for an account. It runs with no session and no charge; the Wick is
+  // taken later, at /api/story/adopt, when they choose to continue.
+  const teaser = await teaserAllowed(req, {
+    user,
+    storyId: requestedStoryId,
+    history,
+    worldId: req.body && req.body.worldId,
+    scenarioHash: hashValue(scenario),
+    sessionId: req.body && req.body.sessionId,
+  });
+  if (REQUIRE_AUTH_FOR_LIVE && !user && !teaser) {
     return res.status(401).json({ error: "Please sign in to begin or continue a story.", needAuth: true });
   }
   if (
     !DEMO_MODE &&
+    !teaser &&
     await enforceRateLimit(req, res, {
       user,
       scope: "story",
@@ -727,16 +836,21 @@ app.post("/api/story", async (req, res) => {
   const requestId = crypto.randomUUID();
   let session;
   try {
-    session = await beginOrClaimStory({
-      user,
-      storyId: requestedStoryId,
-      startToken: req.body && req.body.startToken,
-      requestId,
-      scenario,
-      character,
-      history,
-      admin,
-    });
+    // A teaser has no owner, so there is no session to open and nothing to
+    // charge. It gets a throwaway story id purely so the SSE envelope and the
+    // usage record keep their existing shape.
+    session = teaser
+      ? { ok: true, storyId: crypto.randomUUID(), credits: null, firstChapter: true }
+      : await beginOrClaimStory({
+        user,
+        storyId: requestedStoryId,
+        startToken: req.body && req.body.startToken,
+        requestId,
+        scenario,
+        character,
+        history,
+        admin,
+      });
     if (!session.ok) {
       if (session.invalid) return res.status(400).json({ error: "invalid story id" });
       if (session.conflict) {
@@ -762,7 +876,7 @@ app.post("/api/story", async (req, res) => {
 
   if (session.firstChapter) {
     await recordProductEvent({
-      event: "story_started",
+      event: teaser ? "teaser_started" : "story_started",
       user,
       anonymousSessionId: req.body && req.body.sessionId,
       worldId: req.body && req.body.worldId,
@@ -826,7 +940,21 @@ app.post("/api/story", async (req, res) => {
           error: "The chapter ran too long and was cut off. Try again.",
         });
       } else {
-        if (STORY_SESSIONS_ENABLED) {
+        if (teaser) {
+          // Nothing to complete — there is no session. Sign the chapter so the
+          // visitor can redeem this exact text at /api/story/adopt after signing
+          // in, and keep the story going from where they stopped reading.
+          sseSend(res, {
+            type: "teaser",
+            token: signTeaser({
+              scenarioHash: hashValue(scenario),
+              characterHash: hashValue(character),
+              opening: history[0].content,
+              chapter: streamedText,
+              issuedAt: Math.floor(Date.now() / 1000),
+            }),
+          });
+        } else if (STORY_SESSIONS_ENABLED) {
           const completedHistoryHash = hashValue([
             ...history,
             { role: "assistant", content: streamedText },
@@ -850,7 +978,9 @@ app.post("/api/story", async (req, res) => {
     await recordUsage({
       req,
       user,
-      kind: "chapter",
+      // Teaser spend is acquisition cost, not cost of goods sold. Keeping it on
+      // its own line lets the publisher's ledger judge the channel on its own.
+      kind: teaser ? "teaser" : "chapter",
       storyId: session.storyId,
       usage: finalUsage,
       status: completed ? "ok" : "failed",
@@ -877,6 +1007,106 @@ app.post("/api/story", async (req, res) => {
   }
   completed = true;
   res.end();
+});
+
+// Redeem an anonymous teaser chapter for a real story.
+//
+// This is where the Wick is actually charged. The visitor read chapter one for
+// free; continuing past its first choice is what costs them, which means their
+// welcome Wick buys the story they are already inside rather than an abstract
+// credit. Afterwards the story is indistinguishable from any other: chapter two
+// onward flows through /api/story and claim_story_chapter unchanged.
+app.post("/api/story/adopt", async (req, res) => {
+  const { opening, chapter, teaserToken, startToken } = req.body || {};
+  const cleaned = cleanStoryInputs(req.body && req.body.scenario, req.body && req.body.character);
+  if (
+    !cleaned ||
+    typeof opening !== "string" || !opening.trim() || opening.length > 20_000 ||
+    typeof chapter !== "string" || !chapter.trim() || chapter.length > 20_000
+  ) {
+    return res.status(400).json({ error: "invalid teaser" });
+  }
+  const { scenario, character } = cleaned;
+
+  const user = await userFromReq(req);
+  if (!user) {
+    return res.status(401).json({ error: "Please sign in to continue your story.", needAuth: true });
+  }
+  if (!STORY_SESSIONS_ENABLED) {
+    return res.status(503).json({ error: "Stories can't be saved right now. Please try again later." });
+  }
+  if (await enforceRateLimit(req, res, {
+    user,
+    scope: "story-adopt",
+    limit: 20,
+    windowSeconds: 3600,
+  })) return;
+
+  const scenarioHash = hashValue(scenario);
+  const characterHash = hashValue(character);
+  // Without this the chapter is just text the client claims we wrote, and a
+  // reader could adopt a story whose opening they authored themselves — steering
+  // every chapter that follows.
+  if (!verifyTeaser({ token: teaserToken, scenarioHash, characterHash, opening, chapter })) {
+    return res.status(409).json({
+      error: "That preview has expired. Starting a fresh story instead.",
+      teaserInvalid: true,
+    });
+  }
+  if (
+    startToken &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(startToken)
+  ) {
+    return res.status(400).json({ error: "invalid start token" });
+  }
+
+  const storyId = crypto.randomUUID();
+  // Must match what complete_story_chapter would have stored after a normal
+  // chapter one, or the chapter-two claim will not match this session.
+  const historyHash = hashValue([
+    { role: "user", content: opening },
+    { role: "assistant", content: chapter },
+  ]);
+  try {
+    const { data, error } = await supabaseAdmin.rpc("adopt_teaser_session", {
+      p_user_id: user.id,
+      p_story_id: storyId,
+      p_scenario_hash: scenarioHash,
+      p_character_hash: characterHash,
+      p_history_hash: historyHash,
+      p_start_token: startToken || crypto.randomUUID(),
+      p_charge: CREDITS_ENFORCED && !isAdmin(user),
+    });
+    if (error) throw new Error(`adopt_teaser_session: ${error.message}`);
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || !row.ok) {
+      if (row && row.conflict) {
+        return res.status(409).json({
+          error: "This story was already saved. Reload your library to pick it up.",
+        });
+      }
+      return res.status(402).json({
+        error: "You have no Wicks left.",
+        needCredits: true,
+        credits: 0,
+      });
+    }
+    await recordProductEvent({
+      event: "teaser_adopted",
+      user,
+      anonymousSessionId: req.body && req.body.sessionId,
+      worldId: req.body && req.body.worldId,
+      storyId,
+    });
+    return res.json({ storyId, credits: row.credits });
+  } catch (error) {
+    logEvent("error", "teaser_adopt_failed", {
+      requestId: req.requestId,
+      userId: user.id,
+      error: error.message,
+    });
+    return res.status(500).json({ error: "Couldn't save this story. Please try again." });
+  }
 });
 
 // Cover art: Claude designs a minimalist SVG book cover for the story.
