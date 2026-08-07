@@ -25,9 +25,9 @@ P0 item is deployed and tested in the production environment.
 - [x] Add security headers, a strict Content Security Policy, and a strict SVG
       allowlist.
 - [x] Add automated tests, dependency auditing, and GitHub Actions CI.
-- [x] Add an immutable novella-credit ledger with idempotent grants, charges,
+- [x] Add an immutable Wick-credit ledger with idempotent grants, charges,
       refunds, and balance reconciliation.
-- [x] Grant exactly one welcome novella to new accounts and expose a verified
+- [x] Grant exactly one welcome Wick to new accounts and expose a verified
       reader-facing balance counter.
 - [x] Run the updated `supabase/schema.sql` in the production Supabase project.
 - [x] Deploy with `PUBLIC_APP_URL=https://plotwick.com`,
@@ -51,7 +51,7 @@ P0 item is deployed and tested in the production environment.
 
 - [x] Record model usage by request, user, story, model, endpoint, and status.
 - [x] Add a publisher dashboard for activation, completion, purchases,
-      outstanding novellas, revenue, model cost, and ledger reconciliation.
+      outstanding Wicks, revenue, model cost, and ledger reconciliation.
 - [x] Add account data export and permanent account deletion.
 - [x] Add share revocation and reader reporting.
 - [x] Add initial privacy, terms, AI-content, and public-sharing disclosures.

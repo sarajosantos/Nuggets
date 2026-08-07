@@ -19,13 +19,15 @@ closed when the cached profile balance and immutable ledger diverge.
 5. Leave `STORY_CREDITS_ENABLED=false` during verification.
 
 Existing readers keep their current balance. New readers receive exactly one
-welcome novella, recorded in the ledger with a unique idempotency key.
+welcome Wick, recorded in the ledger with a unique idempotency key. (The
+ledger reason is stored as `welcome_novella` — an identifier kept for data
+continuity; the reader-facing term is "Wick".)
 
 ## Stripe verification
 
 Use Stripe test mode and verify every pack:
 
-- Single novella: 1 for $3.99
+- Single Wick: 1 for $3.99
 - Reader pack: 5 for $15
 - Library pack: 15 for $36
 
@@ -44,7 +46,7 @@ decrease once, be refunded once after failure, and never become negative.
 ## Controlled launch
 
 1. Deploy the application while credits remain disabled.
-2. Sign in as a new reader and confirm the counter says `1 novella left` and
+2. Sign in as a new reader and confirm the counter says `1 Wick left` and
    `first one included`.
 3. Sign in as an existing reader and confirm their preserved balance.
 4. Open the admin Publisher's Ledger and confirm:
