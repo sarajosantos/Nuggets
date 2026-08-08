@@ -19,6 +19,7 @@
     <div id="account-bar" class="account-bar hidden">
       <button id="credits-pill" class="credits-pill hidden"></button>
       <button id="buy-btn" class="tool-btn hidden">Add Wicks</button>
+      <button id="pilot-feedback-btn" class="tool-btn hidden">Pilot feedback</button>
       <button id="admin-btn" class="tool-btn hidden">Publisher’s ledger</button>
       <span id="account-email" class="account-email hidden"></span>
       <button id="account-btn" class="tool-btn">Sign in</button>
@@ -94,6 +95,10 @@
       <section class="ledger-section" aria-labelledby="admin-funnel-title">
         <h3 id="admin-funnel-title" class="ledger-section-title">From first glance to finished Wick</h3>
         <div id="admin-funnel" class="ledger-funnel"></div>
+      </section>
+      <section class="ledger-section" aria-labelledby="admin-pilots-title">
+        <h3 id="admin-pilots-title" class="ledger-section-title">Reader pilots</h3>
+        <div id="admin-pilots" class="ledger-rows"></div>
       </section>
       <div class="ledger-columns">
         <section class="ledger-section" aria-labelledby="admin-worlds-title">
@@ -292,6 +297,47 @@
       <div id="pack-grid" class="pack-grid"></div>
       <p id="buy-message" class="auth-message hidden"></p>
       <p id="buy-fineprint" class="buy-fineprint">Secure checkout by Stripe. Your Wicks never expire.</p>
+    </div>
+  </div>
+
+  <!-- Reader-pilot feedback; visible only from a tagged invitation link. -->
+  <div id="pilot-feedback-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pilot-feedback-title">
+    <div class="modal-card">
+      <button id="pilot-feedback-close" class="modal-close" aria-label="Close">×</button>
+      <p class="section-kicker">Founding reader pilot</p>
+      <h3 id="pilot-feedback-title" class="modal-title">Tell us where the story held you</h3>
+      <p class="modal-sub">A short, candid note is more useful than politeness. Your story text is never attached.</p>
+
+      <label class="field-label" for="pilot-completion">How far did you get?</label>
+      <select id="pilot-completion">
+        <option value="first_chapter">I read the first chapter</option>
+        <option value="in_progress">I kept reading</option>
+        <option value="finished">I finished the Wick</option>
+        <option value="abandoned">I stopped reading</option>
+      </select>
+
+      <label class="field-label" for="pilot-rating">Overall experience</label>
+      <select id="pilot-rating">
+        <option value="5">5 — I loved it</option>
+        <option value="4">4 — Strong</option>
+        <option value="3">3 — Mixed</option>
+        <option value="2">2 — Weak</option>
+        <option value="1">1 — Not for me</option>
+      </select>
+
+      <label class="field-label" for="pilot-would-pay">Would you pay $3.99 for another complete Wick?</label>
+      <select id="pilot-would-pay">
+        <option value="">Not sure</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+
+      <label class="field-label" for="pilot-feedback-text">What delighted or frustrated you?</label>
+      <textarea id="pilot-feedback-text" maxlength="2000" rows="4" placeholder="The moment I wanted to keep going… / The moment I got lost…"></textarea>
+      <p id="pilot-feedback-message" class="auth-message hidden"></p>
+      <div class="modal-actions">
+        <button id="pilot-feedback-submit" class="btn btn-primary">Send feedback</button>
+      </div>
     </div>
   </div>
 

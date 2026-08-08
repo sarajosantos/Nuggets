@@ -506,6 +506,21 @@ const screens = {
 };
 
 const PRODUCT_SESSION_KEY = "plotwick-product-session-v1";
+const PILOT_COHORT_KEY = "plotwick-pilot-cohort-v1";
+
+function pilotCohort() {
+  try {
+    const requested = new URLSearchParams(window.location.search).get("pilot");
+    if (requested && /^[a-zA-Z0-9:_-]{1,80}$/.test(requested)) {
+      sessionStorage.setItem(PILOT_COHORT_KEY, requested);
+      return requested;
+    }
+    const saved = sessionStorage.getItem(PILOT_COHORT_KEY);
+    return saved && /^[a-zA-Z0-9:_-]{1,80}$/.test(saved) ? saved : null;
+  } catch {
+    return null;
+  }
+}
 
 function productSessionId() {
   try {
@@ -522,6 +537,7 @@ function productSessionId() {
 
 async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
   try {
+    const cohort = pilotCohort();
     await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
@@ -531,7 +547,7 @@ async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
         sessionId: productSessionId(),
         worldId: worldId || null,
         storyId: storyId || null,
-        metadata: metadata || {},
+        metadata: { ...(metadata || {}), ...(cohort ? { pilotCohort: cohort } : {}) },
       }),
       keepalive: true,
     });
@@ -590,6 +606,7 @@ async function init() {
   renderLibrary();
   wireEvents();
   wirePayments();
+  wirePilotFeedback();
   initSupabase(appConfig); // async; UI works without it
   handleCheckoutReturn(); // show a message if we just came back from Stripe
 }
@@ -2188,10 +2205,14 @@ function renderAdminDashboard(data) {
   const currency = data.currency || "usd";
   const started = funnel.story_started ? funnel.story_started.readers : 0;
   const completed = funnel.story_completed ? funnel.story_completed.readers : 0;
+  const feesReady = overview.financialsComplete !== false;
   const kpis = [
-    ["Gross revenue", dashboardMoney(overview.revenueCents, currency), `${overview.purchases || 0} paid checkouts`],
+    ["Gross sales", dashboardMoney(overview.grossRevenueCents ?? overview.revenueCents, currency), `${overview.purchases || 0} paid checkouts`],
+    ["Refunds", dashboardMoney(overview.refundsCents, currency), `${overview.refunds || 0} completed refunds`],
+    ["Stripe fees", feesReady ? dashboardMoney(overview.stripeFeesCents, currency) : "Pending", feesReady ? "captured from balance transactions" : "replay pending financial metadata"],
+    ["Net receipts", dashboardMoney(overview.netRevenueCents, currency), "gross sales less refunds"],
     ["Model cost", data.costRatesConfigured ? dashboardCost(overview.estimatedCostMicros, currency) : "Not set", data.costRatesConfigured ? "token estimate" : "configure model rates"],
-    ["Before-fee contribution", data.costRatesConfigured ? dashboardCost(overview.contributionBeforeFeesMicros, currency) : "Not set", "revenue less model cost"],
+    ["Contribution after fees", data.costRatesConfigured && feesReady ? dashboardCost(overview.contributionAfterFeesMicros, currency) : "Pending", data.costRatesConfigured ? "net receipts less fees and model cost" : "configure model rates"],
     ["Reader accounts", String(overview.accounts || 0), `${overview.storySessions || 0} stories opened`],
     ["Outstanding Wicks", String(overview.outstandingCredits || 0), "future generation obligation"],
     ["Finished readers", String(completed), started ? `${Math.round(completed / started * 100)}% of starters` : "no starts yet"],
@@ -2220,6 +2241,21 @@ function renderAdminDashboard(data) {
       `<span class="funnel-track"><span class="funnel-fill" style="--funnel-width:${width}%"></span></span>` +
       `<span class="funnel-value">${readers}</span></div>`;
   }).join("");
+
+  const pilotRows = (data.pilots || []).map((pilot) => {
+    const pilotFunnel = pilot.funnel || {};
+    const selected = Number(pilotFunnel.world_selected) || 0;
+    const started = Number(pilotFunnel.story_started) || 0;
+    const finished = Number(pilotFunnel.story_completed) || 0;
+    const feedback = pilot.feedback || {};
+    const rating = feedback.averageRating == null ? "no ratings" : `${Number(feedback.averageRating).toFixed(1)}/5`;
+    const paySignal = feedback.wouldPayAnswers
+      ? `${feedback.wouldPay}/${feedback.wouldPayAnswers} would pay`
+      : "no price answers";
+    return `<div class="ledger-row"><strong>${escapeHtml(pilot.cohort)}</strong>` +
+      `<span>${pilot.readers || 0} readers · ${selected} selected · ${started} started · ${finished} finished · ${feedback.responses || 0} notes · ${rating} · ${paySignal}</span></div>`;
+  }).join("");
+  $("admin-pilots").innerHTML = pilotRows || '<p class="ledger-empty">No tagged pilot readers in this period.</p>';
 
   const worldRows = (data.worlds || []).map((world) => {
     const known = SCENARIOS.find((candidate) => candidate.id === world.worldId);
@@ -2361,6 +2397,77 @@ function wirePayments() {
   const modal = $("buy-modal");
   if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) closeBuyModal(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeBuyModal(); });
+}
+
+function wirePilotFeedback() {
+  const cohort = pilotCohort();
+  const button = $("pilot-feedback-btn");
+  if (!button) return;
+  button.classList.toggle("hidden", !cohort);
+  if (cohort) $("account-bar").classList.remove("hidden");
+  button.addEventListener("click", () => {
+    if (!cohort) return;
+    const completion = $("pilot-completion");
+    completion.value = story && story.done
+      ? "finished"
+      : story && story.chapters && story.chapters.length > 1
+        ? "in_progress"
+        : "first_chapter";
+    $("pilot-feedback-message").classList.add("hidden");
+    $("pilot-feedback-modal").classList.remove("hidden");
+  });
+  $("pilot-feedback-close").addEventListener("click", closePilotFeedback);
+  $("pilot-feedback-modal").addEventListener("click", (event) => {
+    if (event.target === $("pilot-feedback-modal")) closePilotFeedback();
+  });
+  $("pilot-feedback-submit").addEventListener("click", submitPilotFeedback);
+}
+
+function closePilotFeedback() {
+  $("pilot-feedback-modal")?.classList.add("hidden");
+}
+
+async function submitPilotFeedback() {
+  const cohort = pilotCohort();
+  const feedback = $("pilot-feedback-text").value.trim();
+  const message = $("pilot-feedback-message");
+  if (!cohort || !feedback) {
+    message.textContent = "Please add a short candid note.";
+    message.classList.remove("hidden", "gentle");
+    return;
+  }
+  const button = $("pilot-feedback-submit");
+  button.disabled = true;
+  message.textContent = "Sending…";
+  message.classList.add("gentle");
+  message.classList.remove("hidden");
+  const payAnswer = $("pilot-would-pay").value;
+  try {
+    const response = await fetch("/api/pilot/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({
+        id: crypto.randomUUID(),
+        cohort,
+        sessionId: productSessionId(),
+        storyId: story && story.id || null,
+        completionState: $("pilot-completion").value,
+        rating: Number($("pilot-rating").value),
+        wouldPay: payAnswer === "" ? null : payAnswer === "yes",
+        feedback,
+      }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "feedback failed");
+    $("pilot-feedback-text").value = "";
+    closePilotFeedback();
+    toast("Thank you — your pilot note was saved.");
+  } catch (error) {
+    message.textContent = error.message || "Couldn't save that feedback.";
+    message.classList.remove("gentle");
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function openBuyModal() {

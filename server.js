@@ -116,7 +116,7 @@ const TEASER_TTL_SECONDS = Number(process.env.TEASER_TTL_SECONDS) || 7 * DAY_SEC
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY && supabaseAdmin) {
   stripe = require("stripe")(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2026-06-24.dahlia",
+    apiVersion: "2026-07-29.dahlia",
   });
 }
 
@@ -125,6 +125,10 @@ const CREDITS_ENFORCED =
   process.env.STORY_CREDITS_ENABLED === "1" && !!supabaseAdmin && !DEMO_MODE;
 const SANDBOX_CHECKOUT_REQUESTED = process.env.STRIPE_SANDBOX_TESTING === "1";
 const STRIPE_TEST_KEY = /^(?:rk|sk)_test_/.test(process.env.STRIPE_SECRET_KEY || "");
+// Exact-event failpoint for proving Stripe retry recovery in sandbox. It runs
+// only after signature verification, affects one named event, and is off when
+// unset. Never use a wildcard or event type here.
+const STRIPE_WEBHOOK_FAIL_EVENT_ID = process.env.STRIPE_WEBHOOK_FAIL_EVENT_ID || "";
 if (SANDBOX_CHECKOUT_REQUESTED && !STRIPE_TEST_KEY) {
   throw new Error(
     "STRIPE_SANDBOX_TESTING=1 requires a Stripe test-mode key. " +
@@ -452,6 +456,9 @@ async function recordProductEvent({
       safeMetadata.amountTotal = metadata.amountTotal;
     }
     if (boundedId(metadata.currency, 8)) safeMetadata.currency = boundedId(metadata.currency, 8).toLowerCase();
+    if (boundedId(metadata.pilotCohort, 80)) {
+      safeMetadata.pilotCohort = boundedId(metadata.pilotCohort, 80);
+    }
   }
   const { error } = await supabaseAdmin.from("product_events").insert({
     id,
@@ -708,6 +715,52 @@ app.post("/api/events", async (req, res) => {
     metadata: req.body.metadata,
   });
   res.status(202).json({ recorded });
+});
+
+app.post("/api/pilot/feedback", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Pilot feedback isn't configured." });
+  const user = await userFromReq(req);
+  if (await enforceRateLimit(req, res, {
+    user,
+    scope: "pilot-feedback",
+    limit: 10,
+    windowSeconds: 86_400,
+  })) return;
+  const body = req.body || {};
+  const cohort = boundedId(body.cohort, 80);
+  const storyId = boundedId(body.storyId, 120);
+  const completionState = boundedId(body.completionState, 30);
+  const rating = Number(body.rating);
+  const feedback = typeof body.feedback === "string" ? body.feedback.trim() : "";
+  const wouldPay = typeof body.wouldPay === "boolean" ? body.wouldPay : null;
+  const actorKey = productActorKey(user, body.sessionId);
+  if (
+    !cohort || !actorKey ||
+    !["first_chapter", "in_progress", "finished", "abandoned"].includes(completionState) ||
+    !Number.isInteger(rating) || rating < 1 || rating > 5 ||
+    feedback.length < 1 || feedback.length > 2_000
+  ) {
+    return res.status(400).json({ error: "Please complete each pilot feedback field." });
+  }
+  const id = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.id || "")
+    ? body.id
+    : crypto.randomUUID();
+  const { error } = await supabaseAdmin.from("pilot_feedback").insert({
+    id,
+    cohort,
+    actor_key: actorKey,
+    user_id: user ? user.id : null,
+    story_id: storyId,
+    completion_state: completionState,
+    rating,
+    would_pay: wouldPay,
+    feedback,
+  });
+  if (error && error.code !== "23505") {
+    logEvent("warn", "pilot_feedback_insert_failed", { cohort, error: error.message });
+    return res.status(500).json({ error: "Couldn't save that feedback." });
+  }
+  res.status(202).json({ recorded: true });
 });
 
 async function failStorySession({ user, storyId, requestId }) {
@@ -1308,6 +1361,11 @@ async function handleStripeWebhook(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  if (STRIPE_WEBHOOK_FAIL_EVENT_ID && event.id === STRIPE_WEBHOOK_FAIL_EVENT_ID) {
+    logEvent("warn", "stripe_webhook_test_outage", { eventId: event.id });
+    return res.status(503).send("sandbox webhook outage test");
+  }
+
   if (event.type === "checkout.session.async_payment_failed") {
     logEvent("warn", "stripe_async_payment_failed", {
       eventId: event.id,
@@ -1330,6 +1388,7 @@ async function handleStripeWebhook(req, res) {
           amountRefunded: refund.amountRefunded,
           balance,
         });
+        await captureStripeRefundFinancials(event.id, refund.chargeId);
       } catch (err) {
         logEvent("error", "stripe_credit_refund_failed", {
           eventId: event.id,
@@ -1372,6 +1431,7 @@ async function handleStripeWebhook(req, res) {
         userId: grant.userId,
         credits: grant.credits,
       });
+      await captureStripePurchaseFinancials(event.id, grant.paymentIntent);
       await recordProductEvent({
         eventId: uuidFromKey(`plotwick:purchase:${event.id}`),
         event: "purchase_completed",
@@ -1386,6 +1446,61 @@ async function handleStripeWebhook(req, res) {
   }
 
   res.json({ received: true });
+}
+
+async function captureStripePurchaseFinancials(eventId, paymentIntentId) {
+  if (!stripe || !supabaseAdmin || !paymentIntentId) return;
+  try {
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge.balance_transaction"],
+    });
+    const charge = intent && typeof intent.latest_charge === "object"
+      ? intent.latest_charge
+      : null;
+    const transaction = charge && typeof charge.balance_transaction === "object"
+      ? charge.balance_transaction
+      : null;
+    if (!transaction) throw new Error("Stripe balance transaction is not available yet");
+    const { error } = await supabaseAdmin
+      .from("stripe_events")
+      .update({ stripe_fee: transaction.fee, stripe_net: transaction.net })
+      .eq("id", eventId);
+    if (error) throw new Error(error.message);
+  } catch (err) {
+    // Financial reporting must never block fulfillment. A webhook replay can
+    // safely backfill these nullable fields after Stripe finishes settlement.
+    logEvent("warn", "stripe_purchase_financials_pending", {
+      eventId,
+      paymentIntent: paymentIntentId,
+      error: err.message,
+    });
+  }
+}
+
+async function captureStripeRefundFinancials(eventId, chargeId) {
+  if (!stripe || !supabaseAdmin || !chargeId) return;
+  try {
+    const charge = await stripe.charges.retrieve(chargeId, {
+      expand: ["refunds.data.balance_transaction"],
+    });
+    const transactions = (charge.refunds && charge.refunds.data || [])
+      .map((refund) => refund.balance_transaction)
+      .filter((transaction) => transaction && typeof transaction === "object");
+    if (!transactions.length) throw new Error("Stripe refund balance transaction is not available yet");
+    const stripeFee = transactions.reduce((sum, transaction) => sum + (Number(transaction.fee) || 0), 0);
+    const stripeNet = transactions.reduce((sum, transaction) => sum + (Number(transaction.net) || 0), 0);
+    const { error } = await supabaseAdmin
+      .from("stripe_refunds")
+      .update({ stripe_fee: stripeFee, stripe_net: stripeNet })
+      .eq("id", eventId);
+    if (error) throw new Error(error.message);
+  } catch (err) {
+    logEvent("warn", "stripe_refund_financials_pending", {
+      eventId,
+      chargeId,
+      error: err.message,
+    });
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -1593,7 +1708,16 @@ async function adminMonetizationMetrics(req, res) {
   const requestedDays = Number(req.query.days) || 30;
   const days = Math.min(Math.max(requestedDays, 1), 90);
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const [reconciliationResult, ledgerResult, eventsResult, usageResult, purchasesResult, sessionsResult] =
+  const [
+    reconciliationResult,
+    ledgerResult,
+    eventsResult,
+    usageResult,
+    purchasesResult,
+    refundsResult,
+    feedbackResult,
+    sessionsResult,
+  ] =
     await Promise.all([
       supabaseAdmin.rpc("credit_ledger_reconciliation"),
       supabaseAdmin
@@ -1613,7 +1737,17 @@ async function adminMonetizationMetrics(req, res) {
         .limit(50_000),
       supabaseAdmin
         .from("stripe_events")
-        .select("credits_granted, amount_total, currency, created_at")
+        .select("credits_granted, amount_total, currency, stripe_fee, stripe_net, created_at")
+        .gte("created_at", since)
+        .limit(20_000),
+      supabaseAdmin
+        .from("stripe_refunds")
+        .select("amount_refunded, currency, stripe_fee, stripe_net, created_at")
+        .gte("created_at", since)
+        .limit(20_000),
+      supabaseAdmin
+        .from("pilot_feedback")
+        .select("cohort, rating, would_pay, completion_state, created_at")
         .gte("created_at", since)
         .limit(20_000),
       supabaseAdmin
@@ -1628,6 +1762,8 @@ async function adminMonetizationMetrics(req, res) {
     eventsResult,
     usageResult,
     purchasesResult,
+    refundsResult,
+    feedbackResult,
     sessionsResult,
   ].find((result) => result.error);
   if (failed) {
@@ -1642,6 +1778,8 @@ async function adminMonetizationMetrics(req, res) {
     events: eventsResult.data || [],
     usage: usageResult.data || [],
     purchases: purchasesResult.data || [],
+    refunds: refundsResult.data || [],
+    feedback: feedbackResult.data || [],
     sessions: sessionsResult.data || [],
     since,
     currency: CURRENCY,

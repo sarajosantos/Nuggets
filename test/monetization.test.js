@@ -57,6 +57,11 @@ test("sandbox checkout is explicit, visibly labeled, and cannot use live credent
   assert.match(server, /admin && !SANDBOX_CHECKOUT_ENABLED/);
   assert.match(html, /Sandbox test · no real charges/);
   assert.match(app, /Stripe sandbox checkout\. Test cards only; no real charge will be made\./);
+  assert.match(server, /STRIPE_WEBHOOK_FAIL_EVENT_ID && event\.id === STRIPE_WEBHOOK_FAIL_EVENT_ID/);
+  assert.ok(
+    server.indexOf("stripe.webhooks.constructEvent") < server.indexOf("stripe_webhook_test_outage"),
+    "the outage failpoint must run only after signature verification",
+  );
 });
 
 test("the reader counter and staff ledger are wired into the product", () => {
@@ -66,6 +71,17 @@ test("the reader counter and staff ledger are wired into the product", () => {
   assert.match(app, /class="balance-number"/);
   assert.match(app, /ledgerStatus === "verified"/);
   assert.match(app, /\/api\/admin\/monetization/);
+  assert.match(schema, /stripe_events add column if not exists stripe_fee integer/);
+  assert.match(schema, /stripe_refunds add column if not exists stripe_fee integer/);
+  assert.match(server, /captureStripePurchaseFinancials/);
+  assert.match(server, /captureStripeRefundFinancials/);
+  assert.match(app, /Net receipts/);
+  assert.match(html, /id="admin-pilots"/);
+  assert.match(app, /PILOT_COHORT_KEY/);
+  assert.match(server, /safeMetadata\.pilotCohort/);
+  assert.match(schema, /create table if not exists public\.pilot_feedback/);
+  assert.match(server, /app\.post\("\/api\/pilot\/feedback"/);
+  assert.match(html, /id="pilot-feedback-modal"/);
 });
 
 test("funnel analytics store bounded identifiers rather than story text", () => {

@@ -58,6 +58,18 @@ decrease once, be refunded once after failure, and never become negative.
 6. Complete one real low-value purchase and one story start.
 7. Re-run `credit_ledger_reconciliation()` and require zero mismatches.
 
+### Forced webhook outage / retry
+
+1. Choose one existing sandbox event id whose replay is idempotent.
+2. Set `STRIPE_WEBHOOK_FAIL_EVENT_ID` to that exact `evt_...` id and redeploy.
+3. Resend the signed event from Stripe. Require HTTP `503` and a
+   `stripe_webhook_test_outage` log containing only that event id.
+4. Remove the variable and redeploy.
+5. Resend the same event. Require HTTP `200`, no duplicated credit movement,
+   and zero ledger mismatches.
+6. Confirm the variable is absent. It must never be configured as a wildcard
+   or left enabled after the sandbox exercise.
+
 ## Monitoring and incident response
 
 - Check the Publisher's Ledger daily during the first week and weekly

@@ -43,8 +43,9 @@ P0 item is deployed and tested in the production environment.
       first chapters now share a stable start token, while continuation and
       account ownership remain atomically guarded. A successful Reader-pack
       Checkout and full refund now reconcile against the ledger, and replaying
-      the same refund is idempotent. A declined Checkout and forced
-      webhook-outage/retry remain for live sandbox QA.
+      the same refund is idempotent. A declined Checkout was verified against
+      Stripe-hosted sandbox Checkout on 2026-08-07. Forced webhook
+      outage/retry remains for live sandbox QA.
 - [ ] Enable `STORY_CREDITS_ENABLED=1` only after the payment matrix passes.
 
 ## P1 — operations and trust
