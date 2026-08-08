@@ -58,6 +58,13 @@ test("the reading toolbar exposes only complete reader controls", () => {
   assert.match(html, /id="view-toggle"/);
 });
 
+test("page view holds the reader's page while a chapter streams", () => {
+  assert.match(app, /if \(paged\) detachFromBook\(\);/);
+  assert.match(app, /el !== book\.lastElementChild\) book\.appendChild\(el\)/);
+  assert.match(app, /pageTotal = generating \? Math\.max\(measuredTotal, pageIndex \+ 1\) : measuredTotal/);
+  assert.match(app, /if \(!generating && pageIndex > pageTotal - 1\)/);
+});
+
 test("the world shelf stays stable and has generous page-turn controls", () => {
   assert.match(css, /\.world-card\s*\{[^}]*height:\s*23rem/s);
   assert.match(css, /\.world-choose\s*\{[^}]*height:\s*100%/s);

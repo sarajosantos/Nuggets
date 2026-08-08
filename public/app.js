@@ -1320,6 +1320,11 @@ function hideChoices() {
   $("choices-area").classList.add("hidden");
   $("teaser-wall").classList.add("hidden");
   $("custom-action-form").classList.remove("hidden");
+  // In page view the choices were the final page of the chapter that just
+  // ended. Take that page out of the book before appending the player's action
+  // and the next chapter. Otherwise revealing the same element later inserts
+  // the new choices before the chapter and reflows the page under the reader.
+  if (paged) detachFromBook();
 }
 
 // True while the reader is looking at a free chapter they haven't claimed yet.
@@ -1639,8 +1644,11 @@ const PAGE_MAX_WIDTH = 620; // keep the measure readable on wide screens
 function furnitureHome() { return screens.story; }
 
 function attachToBook(el) {
-  if (!paged || !el || el.parentElement === $("story-text")) return;
-  $("story-text").appendChild(el);
+  if (!paged || !el) return;
+  const book = $("story-text");
+  // appendChild also moves an existing child. That is intentional: furniture
+  // such as the reusable choices panel must always follow all current prose.
+  if (el.parentElement !== book || el !== book.lastElementChild) book.appendChild(el);
 }
 
 // Take the choices/ending back out of the paginated track. Must happen before
@@ -1663,8 +1671,13 @@ function pageGeometry() {
 function countPages() {
   const text = $("story-text");
   const { stride, gap } = pageGeometry();
-  pageTotal = Math.max(1, Math.round((text.scrollWidth + gap) / stride));
-  if (pageIndex > pageTotal - 1) pageIndex = pageTotal - 1;
+  const measuredTotal = Math.max(1, Math.round((text.scrollWidth + gap) / stride));
+  // renderProse replaces the streaming chapter's markup on every text event.
+  // A measurement can briefly report fewer columns while the browser reflows.
+  // Never respond by pulling the reader backward; the current page remains a
+  // valid part of the book until generation has settled.
+  pageTotal = generating ? Math.max(measuredTotal, pageIndex + 1) : measuredTotal;
+  if (!generating && pageIndex > pageTotal - 1) pageIndex = pageTotal - 1;
   renderPager();
 }
 
