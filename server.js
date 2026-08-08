@@ -258,6 +258,7 @@ Defining trait: ${character.trait}
 HOW TO WRITE EACH CHAPTER
 - Write in second person ("you"), present tense, addressing the protagonist.
 - Each chapter is 400–700 words of vivid, novella-quality prose (the finale may run to 900): concrete sensory detail, real dialogue, momentum. No headers, no meta-commentary, no recaps of previous chapters, no moralizing summaries.
+- Vary sentence and paragraph rhythm. Use standalone fragments, italicized punch words, repeated clauses, and dramatic silence beats sparingly; avoid relying on the same reveal cadence in consecutive chapters.
 - Weave the protagonist's archetype and trait into how events unfold and how other characters react.
 - Every chapter must change the situation irreversibly — something is gained, lost, revealed, or broken. Never write a chapter where the status quo survives.
 - End every chapter at a genuine decision point where what happens next is truly uncertain.
@@ -299,6 +300,9 @@ function pacingNote(chapterNum) {
   }
   if (chapterNum >= t) {
     return `Pacing note (private): Chapter ${chapterNum} of a story targeted at ~${t} chapters. Act III. The climax should happen now or in the next chapter at the latest. Close remaining threads; steer all three choices toward the final confrontation. If this chapter completes the climax, write the resolution and end with <choices>[]</choices>.`;
+  }
+  if (chapterNum === t - 1) {
+    return `Pacing note (private): Chapter ${chapterNum} of ~${t}. Act III is underway. Begin closing gently: converge existing threads, make earlier choices come due, and shape this chapter toward the story's final decisive turn. Open no new threads. If the resolution arrives naturally, take it and end with <choices>[]</choices>.`;
   }
   if (chapterNum >= t - 2) {
     return `Pacing note (private): Chapter ${chapterNum} of ~${t}. Late Act II / entering Act III. Converge the threads: bring the antagonist or central force into direct contact, make earlier choices come due, and close at least one open thread. Raise the cost of failure to its maximum. No new subplots.`;
