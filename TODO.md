@@ -44,8 +44,9 @@ P0 item is deployed and tested in the production environment.
       account ownership remain atomically guarded. A successful Reader-pack
       Checkout and full refund now reconcile against the ledger, and replaying
       the same refund is idempotent. A declined Checkout was verified against
-      Stripe-hosted sandbox Checkout on 2026-08-07. Forced webhook
-      outage/retry remains for live sandbox QA.
+      Stripe-hosted sandbox Checkout on 2026-08-07. An exact signed Checkout
+      event was forced to `503`, then replayed to `200` after recovery on
+      2026-08-07; the failpoint was removed and no duplicate Wicks were granted.
 - [ ] Enable `STORY_CREDITS_ENABLED=1` only after the payment matrix passes.
 
 ## P1 — operations and trust

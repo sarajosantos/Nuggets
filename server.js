@@ -1454,18 +1454,22 @@ async function captureStripePurchaseFinancials(eventId, paymentIntentId) {
     const intent = await stripe.paymentIntents.retrieve(paymentIntentId, {
       expand: ["latest_charge.balance_transaction"],
     });
-    const charge = intent && typeof intent.latest_charge === "object"
+    let charge = intent && typeof intent.latest_charge === "object"
       ? intent.latest_charge
       : null;
-    const transaction = charge && typeof charge.balance_transaction === "object"
-      ? charge.balance_transaction
-      : null;
+    if (!charge && typeof intent?.latest_charge === "string") {
+      charge = await stripe.charges.retrieve(intent.latest_charge, {
+        expand: ["balance_transaction"],
+      });
+    }
+    const transaction = await resolveStripeBalanceTransaction(charge?.balance_transaction);
     if (!transaction) throw new Error("Stripe balance transaction is not available yet");
     const { error } = await supabaseAdmin
       .from("stripe_events")
       .update({ stripe_fee: transaction.fee, stripe_net: transaction.net })
       .eq("id", eventId);
     if (error) throw new Error(error.message);
+    logEvent("info", "stripe_purchase_financials_captured", { eventId });
   } catch (err) {
     // Financial reporting must never block fulfillment. A webhook replay can
     // safely backfill these nullable fields after Stripe finishes settlement.
@@ -1480,12 +1484,17 @@ async function captureStripePurchaseFinancials(eventId, paymentIntentId) {
 async function captureStripeRefundFinancials(eventId, chargeId) {
   if (!stripe || !supabaseAdmin || !chargeId) return;
   try {
-    const charge = await stripe.charges.retrieve(chargeId, {
-      expand: ["refunds.data.balance_transaction"],
+    // Recent Stripe API versions no longer guarantee an embedded `refunds`
+    // collection on Charge. Query refunds directly, then resolve any balance
+    // transaction IDs that Stripe did not expand in the list response.
+    const refunds = await stripe.refunds.list({
+      charge: chargeId,
+      limit: 100,
+      expand: ["data.balance_transaction"],
     });
-    const transactions = (charge.refunds && charge.refunds.data || [])
-      .map((refund) => refund.balance_transaction)
-      .filter((transaction) => transaction && typeof transaction === "object");
+    const transactions = (await Promise.all((refunds.data || [])
+      .map((refund) => resolveStripeBalanceTransaction(refund.balance_transaction))))
+      .filter(Boolean);
     if (!transactions.length) throw new Error("Stripe refund balance transaction is not available yet");
     const stripeFee = transactions.reduce((sum, transaction) => sum + (Number(transaction.fee) || 0), 0);
     const stripeNet = transactions.reduce((sum, transaction) => sum + (Number(transaction.net) || 0), 0);
@@ -1494,6 +1503,7 @@ async function captureStripeRefundFinancials(eventId, chargeId) {
       .update({ stripe_fee: stripeFee, stripe_net: stripeNet })
       .eq("id", eventId);
     if (error) throw new Error(error.message);
+    logEvent("info", "stripe_refund_financials_captured", { eventId });
   } catch (err) {
     logEvent("warn", "stripe_refund_financials_pending", {
       eventId,
@@ -1501,6 +1511,12 @@ async function captureStripeRefundFinancials(eventId, chargeId) {
       error: err.message,
     });
   }
+}
+
+async function resolveStripeBalanceTransaction(value) {
+  if (value && typeof value === "object") return value;
+  if (typeof value === "string") return stripe.balanceTransactions.retrieve(value);
+  return null;
 }
 
 // ----------------------------------------------------------------------
