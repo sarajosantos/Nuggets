@@ -474,7 +474,6 @@ let story = null; // the active story object (a member of library.stories)
 let draft = { scenario: null, character: { name: "", archetype: null, trait: null } };
 let pendingAction = null; // player action that led to the chapter now streaming
 let generating = false;
-let ttsOn = false;
 let sb = null; // Supabase client (null when accounts aren't configured)
 let user = null; // signed-in Supabase user
 let appConfig = {}; // /api/config result (creditsEnforced, payments, …)
@@ -557,7 +556,7 @@ async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
 function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
   window.scrollTo({ top: 0 });
-  if (name !== "story") { stopSpeaking(); hideJump(); }
+  if (name !== "story") hideJump();
   document.body.classList.toggle("paged-reading", paged && name === "story");
 }
 
@@ -918,13 +917,6 @@ function wireEvents() {
     $("journal-toggle").setAttribute("aria-pressed", String(show));
   });
 
-  $("tts-toggle").addEventListener("click", () => {
-    ttsOn = !ttsOn;
-    $("tts-toggle").setAttribute("aria-pressed", String(ttsOn));
-    if (!ttsOn) stopSpeaking();
-    else if (story && story.chapters.length) speak(story.chapters[story.chapters.length - 1].prose);
-  });
-
   $("jump-to-choices").addEventListener("click", jumpToReady);
   window.addEventListener("scroll", onReadScroll, { passive: true });
 
@@ -1240,7 +1232,6 @@ async function requestChapter() {
   story.updatedAt = Date.now();
   persistStory(story);
   updateChapterCount();
-  speak(prose);
 
   showChoices(parseChoices(fullText));
 }
@@ -1560,19 +1551,6 @@ function updateJournal(ledger) {
   comp.innerHTML = (ledger.companions || []).length
     ? ledger.companions.map((c) => `<li>${escapeHtml(c.name || "")} <span class="standing">${escapeHtml(c.standing || "")}</span></li>`).join("")
     : "<li>—</li>";
-}
-
-// ----- read aloud -----
-function speak(text) {
-  if (!ttsOn || !("speechSynthesis" in window)) return;
-  stopSpeaking();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.98;
-  speechSynthesis.speak(utterance);
-}
-
-function stopSpeaking() {
-  if ("speechSynthesis" in window) speechSynthesis.cancel();
 }
 
 // ----- rendering -----

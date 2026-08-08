@@ -16,7 +16,6 @@ A single story is called a **Wick**: a complete interactive story, written for y
 - **Story library** — every story is saved locally; resume in-progress tales or re-read finished ones.
 - **Share links** — publish a finished story to a read-only link (`/s/:id`) with its cover and full text.
 - **Generated cover art** — deterministic SVG covers by default; optional, authenticated AI covers are strictly sanitized and quota-limited.
-- **Read aloud** — browser text-to-speech narration toggle.
 - **Rate limiting** — distributed per-user/per-IP limits backed by Supabase in production.
 - **Demo mode** — with no API key, the app serves a canned three-chapter preview so the entire UI works out of the box.
 

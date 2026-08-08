@@ -51,6 +51,13 @@ test("reading view keeps generated covers on the bookshelf only", () => {
   assert.doesNotMatch(share, /story\.cover/);
 });
 
+test("the reading toolbar exposes only complete reader controls", () => {
+  assert.doesNotMatch(html, /tts-toggle|Read aloud/i);
+  assert.doesNotMatch(app, /speechSynthesis|SpeechSynthesisUtterance|ttsOn/);
+  assert.match(html, /id="journal-toggle"/);
+  assert.match(html, /id="view-toggle"/);
+});
+
 test("the world shelf stays stable and has generous page-turn controls", () => {
   assert.match(css, /\.world-card\s*\{[^}]*height:\s*23rem/s);
   assert.match(css, /\.world-choose\s*\{[^}]*height:\s*100%/s);
