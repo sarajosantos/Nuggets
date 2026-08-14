@@ -156,6 +156,27 @@ main { width: 100%; max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4r
   line-height: 1.45;
   padding-left: 1.35rem;
 }
+.beta-notice {
+  align-items: baseline;
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  gap: 1rem;
+  margin: -0.45rem 0 1.8rem;
+  padding: 0 0.15rem 0.9rem;
+}
+.beta-notice-title {
+  color: var(--gold);
+  flex: 0 0 auto;
+  font-size: 0.64rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.beta-notice > p:last-child {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
 .worlds-heading { text-align: center; }
 .worlds-heading .screen-title { margin-top: 0.15rem; }
 .worlds-heading .screen-sub { margin-bottom: 0; }
@@ -192,6 +213,7 @@ main { width: 100%; max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4r
 }
 #screen-scenario { display: flex; flex-direction: column; }
 #activation-intro { order: 0; }
+#beta-notice { order: 1; }
 #library-section { order: 1; }
 .worlds-heading { order: 2; }
 #scenario-grid { order: 3; }
@@ -1301,6 +1323,7 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
     margin-top: 0.8rem;
     padding: 0.75rem 0 0;
   }
+  .beta-notice { align-items: center; flex-direction: column; gap: 0.35rem; text-align: center; }
   .shelf-shortcut { align-items: stretch; flex-direction: column; gap: 0.8rem; }
   .shelf-shortcut > div { align-items: stretch; flex-direction: column; }
   .shelf-shortcut .btn { width: 100%; }

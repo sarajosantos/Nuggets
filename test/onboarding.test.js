@@ -17,6 +17,22 @@ test("first-time readers get a concise orientation before the story shelf", () =
   assert.doesNotMatch(html, /reader-ritual/);
 });
 
+test("the home page clearly sets beta expectations", () => {
+  assert.match(html, /id="beta-notice"/);
+  assert.match(html, /Founding reader beta/);
+  assert.match(html, /for readers 18 and older/);
+  assert.match(html, /Purchasing Wicks is optional/);
+  assert.match(html, /complete stories to read now/);
+  assert.match(html, /AI-generated stories can still surprise/);
+  assert.match(html, /don’t include sensitive personal information/);
+  assert.ok(html.indexOf('id="beta-notice"') < html.indexOf('id="scenario-grid"'));
+});
+
+test("account and purchase copy repeats the adult-only requirement", () => {
+  assert.match(html, /confirm that you are at least 18 years old/);
+  assert.match(html, /For readers 18 and older\. Secure checkout by Stripe/);
+});
+
 test("the activation flow offers a wired surprise route after the story shelf", () => {
   assert.match(html, /id="surprise-story"/);
   assert.ok(html.indexOf('id="surprise-story"') > html.indexOf('id="scenario-grid"'));
