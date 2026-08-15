@@ -464,6 +464,13 @@ const DEFAULT_NAMES = [
   "Nadia Frost", "Elian Vasquez", "Sable Quinn", "Tobias Wren",
 ];
 
+// NOTE: every "plotwick-" storage key below is frozen. These name real data
+// sitting in readers' browsers right now — their device library, their reading
+// view, their pilot cohort. A rename does not migrate anything; it just stops
+// finding what is already there, silently emptying the shelf of every existing
+// reader. The keys are invisible to readers, so they do not follow the
+// product's name. If they ever must change, add a hop to the LEGACY_LIB_KEY
+// migration below rather than renaming in place.
 const LEGACY_LIB_KEY = "plotwick-library-v1";
 const ANON_LIB_KEY = "plotwick-library-anonymous-v2";
 const USER_LIB_PREFIX = "plotwick-library-user-v2:";
@@ -489,7 +496,7 @@ const cloudSaveChains = new Map(); // serialize saves per story to prevent stale
 // Reading state. The governing rule: while a chapter streams, the page does
 // not move. See the "reading scroll" section lower down.
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const VIEW_KEY = "plotwick-reading-view";
+const VIEW_KEY = "plotwick-reading-view"; // frozen — see the storage-key note above
 let paged = false; // page view vs scroll view
 let pageIndex = 0;
 let pageTotal = 1;
@@ -504,6 +511,7 @@ const screens = {
   story: $("screen-story"),
 };
 
+// Frozen — see the storage-key note above.
 const PRODUCT_SESSION_KEY = "plotwick-product-session-v1";
 const PILOT_COHORT_KEY = "plotwick-pilot-cohort-v1";
 

@@ -1437,6 +1437,13 @@ async function handleStripeWebhook(req, res) {
       });
       await captureStripePurchaseFinancials(event.id, grant.paymentIntent);
       await recordProductEvent({
+        // NOTE: the "plotwick:" prefix is frozen. It seeds the deterministic
+        // UUID that de-duplicates this analytics row, so the same Stripe event
+        // must hash to the same id forever. Renaming it re-keys every purchase
+        // already recorded, and a replayed webhook would then write a second
+        // row and double-count revenue in the publisher's ledger. Like
+        // 'welcome_novella' in supabase/schema.sql, this identifier is data,
+        // not copy — it does not follow the product's name.
         eventId: uuidFromKey(`plotwick:purchase:${event.id}`),
         event: "purchase_completed",
         user: { id: grant.userId },
