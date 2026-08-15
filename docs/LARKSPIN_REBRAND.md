@@ -13,7 +13,11 @@ canonical copy.
 | Wordmark | Plotwick → Larkspin |
 | Brand strings | 187 occurrences across 26 files |
 | Database migrations | None needed |
-| Blocking decisions | Six (see the last section) |
+| Decisions | All six settled (see the last section) |
+
+> Revised after review. The unit of sale is a **story**, not a branded currency;
+> the mark was rebuilt after failing a favicon test. Both changes are recorded
+> in place below. Phase 0 has landed.
 
 ## The audit — what we are actually changing
 
@@ -88,30 +92,47 @@ reader-facing term is 'Wick'; this identifier is data, not copy."* Larkspin will
 be the **third** name for this thing. The rule that survived the last rename is
 the rule that should govern this one.
 
-> **Recommendation: Yarn**, with **"Spin a Yarn →"** as the primary CTA.
+> **Settled: a story.** No branded currency — *spin* survives as a verb only.
 
-It is the idiom the brand name is built from, so name and unit reinforce each
-other instead of the unit dangling. It keeps the exact meaning "Wick" carried —
-one complete told story, not a token or a chapter. And it finally supplies a
-*verb*: Plotwick never had a good one, which is why the CTA had to strain for
-"Light a Wick."
+This brief originally recommended "Yarn". That was wrong at the edges: "Spin a
+Yarn" is a fine CTA, but *Add Yarns*, *Your Yarns*, and above all *Yarn Packs*
+drift toward knitting supplies. Keeping **spin** as the verb and leaving the noun
+plain gets the brand reinforcement without asking a customer to learn a currency
+before they can buy. We sell complete stories; saying so plainly is a commercial
+advantage, not a lost opportunity.
 
-Alternatives considered:
+This also retires the last argument for a branded unit. "Wick" existed to signal
+*whole stories, not tokens* — but "Story Packs" says that outright, with no
+translation step.
 
-- **Lark** — charming, but it connotes triviality. Wrong noun to hand someone
-  entering gothic horror or a murder mystery.
-- **Spin** — collides with loading states, and "a spin" sounds brief,
-  undercutting the promise of a complete story with a real ending.
-- **No branded unit** ("one story", "story credits") — clearest, and a defensible
-  choice. But the branded unit does real work: it is how the packs, the ledger,
-  and the pricing all communicate *you buy whole stories, not tokens*.
-- **Known risk:** "yarn" is also a JavaScript package manager. Developer-facing
-  only; no reader will collide with it.
+### The lexicon
 
-One string in the set is weak and worth flagging rather than hiding: the header
-button `Add Wicks` becomes `Add Yarns`, the least graceful plural in the rename.
-"More yarns" or routing straight to "Yarn packs" are both better if the button
-can carry a slightly longer label.
+| Role | Larkspin |
+|---|---|
+| Primary CTA | Spin a story → |
+| Product unit | a story |
+| Purchase button | Get more stories |
+| Packages | Story Packs |
+| Library | Your stories |
+| Brand line | interactive stories · spun for one reader |
+
+### Consequence — four strings go circular
+
+Dropping the branded noun is right, but it breaks every sentence that used to
+*define* the unit. "A Wick is a complete interactive story" becomes "a story is a
+complete interactive story." These four need rewriting rather than replacing:
+
+- `index.html:300` — ~~A Wick is a complete interactive story, written for you as
+  you read it. One Wick begins one story and carries it to its ending, choices
+  and all.~~ → **Every story runs from its opening line to a real ending —
+  choices and all, spun for you as you read.**
+- `index.html:38` — ~~A Wick is a story that changes when you do.~~ → **A story
+  that changes when you do.**
+- `index.html:303` — ~~Your Wicks never expire.~~ → **Unused stories never
+  expire.** ("Your stories never expire" reads as a promise about the library,
+  not the balance.)
+- `index.html:219` — ~~your first Wick is on the house~~ → **your first story is
+  on the house**.
 
 ## Direction — "First Light"
 
@@ -129,11 +150,25 @@ continuity, warm enough that the prose still reads like prose.
 **The sunrise ramp** — apricot → rose → larkspur, the sky read left to right.
 Reserved for the wordmark and nothing else, so it stays an event.
 
-**The mark** — one continuous stroke that rises, turns once, and releases. A
-lark's ascent and a length of spun thread are the same gesture, which is the
-whole argument for the name in a single line. Geometric rather than
-illustrative, so it holds at favicon size, and it replaces the 📖 emoji
-data-URI currently doing that job.
+**The mark** — first light cresting a horizon, drawn as one turning stroke. The
+horizon line and the dome give it a stable silhouette; the stroke's left end
+curls under and below the line, so the same shape that reads as a sunrise across
+a room reads as a turn up close. It replaces the 📖 emoji data-URI currently
+serving as the favicon.
+
+> #### Rebuilt — the first mark failed its test
+>
+> The original proposal was a single thin stroke that rose, looped once, and
+> released — a lark's ascent and a spun thread in one gesture. It was tested at
+> 16, 20, 24 and 32 px against a live tab strip and **it failed**: the loop's
+> counter fills in below about 24 px and the release tail disappears, leaving a
+> shape that reads as a script **q** or a **9**.
+>
+> Two further rounds confirmed the real constraint. Thin strokes with closed
+> loops — spirals, curls, the original — all collapse into letterforms at favicon
+> size. Marks that survive (arc clusters, sunrises) were legible but generic. The
+> dome-on-a-horizon is the synthesis: **a legible silhouette with an ownable
+> interior**, which is how a mark is supposed to degrade.
 
 ## The system
 
@@ -224,13 +259,16 @@ Plotwick's voice is *hushed* — reading room, candle, midnight. Larkspin's is
 |---|---|---|
 | wordmark | Plotwick | Larkspin |
 | tagline | interactive stories · every one is yours alone | interactive stories · spun for one reader |
-| activation | A Wick is a story that changes when you do. | A Yarn is a story that changes when you do. |
-| primary CTA | Light a Wick → | Spin a Yarn → |
-| buy button | Add Wicks | Add Yarns |
-| buy modal | A Wick is a complete interactive story, written for you as you read it. | A Yarn is a complete interactive story, spun for you as you read it. |
+| activation | A Wick is a story that changes when you do. | A story that changes when you do. |
+| primary CTA | Light a Wick → | Spin a story → |
+| buy button | Add Wicks | Get more stories |
+| buy modal title | Wick packs | Story Packs |
+| buy modal | A Wick is a complete interactive story, written for you as you read it. | Every story runs from its opening line to a real ending — choices and all, spun for you as you read. |
 | library kicker | Your reading room | What you've spun |
-| library title | Your Wicks | Your Yarns |
-| fine print | Your Wicks never expire. | Your Yarns never expire. |
+| library title | Your Wicks | Your stories |
+| fine print | Your Wicks never expire. | Unused stories never expire. |
+| teaser wall | your first Wick is on the house | your first story is on the house |
+| pilot survey | I finished the Wick | I finished the story |
 | share page | Told with Plotwick — begin your own story | Spun on Larkspin — begin your own story |
 | page title | Plotwick — interactive stories | Larkspin — interactive stories |
 | account modal | Your Plotwick account | Your Larkspin account |
@@ -288,11 +326,11 @@ Safe to change: `integration_identifier: plotwick_<suffix>` on Checkout sessions
 (`server.js:1312`) is a per-session attribution string with no historical lookups
 against it.
 
-### Phase 0 — freeze the identifiers
+### Phase 0 — freeze the identifiers — **done**
 
-Land the two comments above *first*, as their own commit, so no later
-find-and-replace can sweep them up. This is the only step with money and reader
-data behind it.
+Landed as its own commit ahead of everything else, so no later find-and-replace
+can sweep the two identifiers up. Comments only; no behaviour change. Suite green
+at 60/60.
 
 ### Phase 1 — identity: assets and tokens
 
@@ -328,12 +366,11 @@ nothing and protects the trust the pilot is built on.
 
 ## Six decisions
 
-Everything above is executable once these are settled. Only the first is
-genuinely open; the rest are recommendations that need a yes.
+All settled. Everything above is executable.
 
-| # | Decision | Recommendation |
+| # | Decision | Settled |
 |---|---|---|
-| 1 | What replaces "Wick" as the unit of sale? | Yarn |
+| 1 | What replaces "Wick" as the unit of sale? | A story |
 | 2 | Does Larkspin stay dark-only, with no light theme? | Yes |
 | 3 | Does the interface face change alongside the display face? | No |
 | 4 | Do published `/s/:id` share links survive the domain move? | Always |
@@ -348,6 +385,5 @@ end.
 
 ---
 
-This brief is the plan, not the change — no product code has been touched.
-Settle Decision 1 and the rest follows in the order above; Phase 0 lands as its
-own commit before anything else moves.
+Phase 0 — the identifier freeze — has landed as its own commit; no other product
+code has been touched. Phases 1 through 5 follow in the order above.
