@@ -21,7 +21,7 @@ A single story runs from its opening line to a real ending: a complete interacti
 
 ## How it works
 
-- **Frontend** (`public/`) — vanilla HTML/CSS/JS, no build step. A deliberate single dark theme ("the midnight reading room"): Cormorant Garamond display, Crimson Pro book prose, candle-gold accent.
+- **Frontend** (`public/`) — vanilla HTML/CSS/JS, no build step. A deliberate single dark theme ("first light"): Fraunces display, Crimson Pro book prose, and one warm first-light accent on a charcoal-indigo ground.
 - **Backend** (`server.js`) — Express. Keeps provider keys server-side and streams chapters from `claude-opus-4-8` (adaptive thinking). The client sends full history each turn, while Supabase stores compact integrity metadata so the server can reject forged or replayed continuations.
 - **Story protocol** — each model response is `prose + <state>{...}</state> + <choices>[...]</choices>`. An empty choices array signals the ending. Pacing notes ride as mid-conversation system messages on `claude-opus-4-8` (merged into the user turn on other models).
 
