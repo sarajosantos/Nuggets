@@ -1,4 +1,4 @@
-# Plotwick — engineering and product roadmap
+# Larkspin — engineering and product roadmap
 
 Priority order reflects launch risk. Do not enable paid acquisition until every
 P0 item is deployed and tested in the production environment.
@@ -25,12 +25,12 @@ P0 item is deployed and tested in the production environment.
 - [x] Add security headers, a strict Content Security Policy, and a strict SVG
       allowlist.
 - [x] Add automated tests, dependency auditing, and GitHub Actions CI.
-- [x] Add an immutable Wick-credit ledger with idempotent grants, charges,
+- [x] Add an immutable story-credit ledger with idempotent grants, charges,
       refunds, and balance reconciliation.
-- [x] Grant exactly one welcome Wick to new accounts and expose a verified
+- [x] Grant exactly one welcome story to new accounts and expose a verified
       reader-facing balance counter.
 - [x] Run the updated `supabase/schema.sql` in the production Supabase project.
-- [x] Deploy with `PUBLIC_APP_URL=https://plotwick.com`,
+- [x] Deploy with `PUBLIC_APP_URL=https://larkspin.com`,
       `REQUIRE_AUTH_FOR_LIVE=1`, and a unique `REPORT_HASH_SALT`.
 - [x] Configure Stripe with a restricted API key, then subscribe the webhook to
       `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
@@ -46,14 +46,14 @@ P0 item is deployed and tested in the production environment.
       the same refund is idempotent. A declined Checkout was verified against
       Stripe-hosted sandbox Checkout on 2026-08-07. An exact signed Checkout
       event was forced to `503`, then replayed to `200` after recovery on
-      2026-08-07; the failpoint was removed and no duplicate Wicks were granted.
+      2026-08-07; the failpoint was removed and no duplicate stories were granted.
 - [ ] Enable `STORY_CREDITS_ENABLED=1` only after the payment matrix passes.
 
 ## P1 — operations and trust
 
 - [x] Record model usage by request, user, story, model, endpoint, and status.
 - [x] Add a publisher dashboard for activation, completion, purchases,
-      outstanding Wicks, revenue, model cost, and ledger reconciliation.
+      outstanding stories, revenue, model cost, and ledger reconciliation.
 - [x] Add account data export and permanent account deletion.
 - [x] Add share revocation and reader reporting.
 - [x] Add initial privacy, terms, AI-content, and public-sharing disclosures.

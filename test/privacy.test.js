@@ -13,13 +13,13 @@ test("the public privacy policy contains no drafting placeholders", () => {
 });
 
 test("the privacy policy accurately describes story generation and reader controls", () => {
-  assert.match(html, /sent through Plotwick’s server to our AI provider/);
-  assert.match(html, /export your Plotwick data/);
+  assert.match(html, /sent through Larkspin’s server to our AI provider/);
+  assert.match(html, /export your Larkspin data/);
   assert.match(html, /permanently delete your account/);
   assert.match(html, /do not sell your personal information/);
 });
 
-test("the privacy policy limits Plotwick to adults", () => {
+test("the privacy policy limits Larkspin to adults", () => {
   assert.match(html, /only for people who are 18 or older/);
   assert.match(html, /under 18 may not use the Service, create an account, make a purchase/);
 });

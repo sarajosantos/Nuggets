@@ -3,14 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plotwick — interactive stories</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+  <title>Larkspin — interactive stories</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..600,0..100,0..1&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- The Larkspin mark, defined once: one continuous stroke that rises, turns
+       once, and releases. Referenced by the header rule and the footer. -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <symbol id="larkspin-mark" viewBox="0 0 100 100">
+      <!-- Presentation attributes live here, not in the stylesheet: a <use>
+           renders into a shadow tree that outside CSS selectors cannot reach.
+           stroke="currentColor" keeps the colour driven by CSS. -->
+      <path d="M13.39 91C14.26 90.2 16.87 87.79 18.62 86.18C20.36 84.58 22.1 82.97 23.85 81.36C25.59 79.76 27.32 78.15 29.08 76.55C30.84 74.94 30.44 74.87 34.41 71.72C38.38 68.58 48.39 65.76 52.9 57.66C57.4 49.56 63.18 31.25 61.42 23.14C59.66 15.03 46.5 7.68 42.35 9C38.21 10.32 34.18 24.82 36.54 31.06C38.89 37.3 51.63 44.49 56.49 46.45C61.35 48.41 63.29 44.23 65.69 42.82C68.1 41.42 69.18 39.61 70.92 38.01C72.67 36.4 74.41 34.79 76.15 33.19C77.9 31.58 79.64 29.98 81.38 28.37C83.13 26.76 85.74 24.36 86.61 23.55"
+            fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </svg>
+
   <div id="demo-banner" class="demo-banner hidden">
     Demo mode — canned story preview. Set <code>ANTHROPIC_API_KEY</code> on the server for live, fully dynamic stories.
   </div>
@@ -18,15 +30,17 @@
   <header class="site-header">
     <div id="account-bar" class="account-bar hidden">
       <button id="credits-pill" class="credits-pill hidden"></button>
-      <button id="buy-btn" class="tool-btn hidden">Add Wicks</button>
+      <button id="buy-btn" class="tool-btn hidden">Get more stories</button>
       <button id="pilot-feedback-btn" class="tool-btn hidden">Pilot feedback</button>
       <button id="admin-btn" class="tool-btn hidden">Publisher’s ledger</button>
       <span id="account-email" class="account-email hidden"></span>
       <button id="account-btn" class="tool-btn">Sign in</button>
     </div>
-    <p class="header-rule" aria-hidden="true">❦</p>
-    <h1 class="logo" id="logo">Plotwick</h1>
-    <p class="tagline">interactive stories · every one is yours alone</p>
+    <p class="header-rule" aria-hidden="true">
+      <svg class="mark" viewBox="0 0 100 100"><use href="#larkspin-mark"/></svg>
+    </p>
+    <h1 class="logo" id="logo">Larkspin</h1>
+    <p class="tagline">interactive stories · spun for one reader</p>
   </header>
 
   <main>
@@ -35,14 +49,14 @@
       <section id="activation-intro" class="activation-intro" aria-labelledby="activation-title">
         <div class="activation-copy">
           <p class="activation-kicker">Welcome, reader</p>
-          <h2 id="activation-title">A Wick is a story that changes when you do.</h2>
+          <h2 id="activation-title">A story that changes when you do.</h2>
           <p>Choose a world, become its protagonist, and shape what happens chapter by chapter.</p>
         </div>
       </section>
 
       <aside id="beta-notice" class="beta-notice" aria-labelledby="beta-notice-title">
         <p id="beta-notice-title" class="beta-notice-title">Founding reader beta</p>
-        <p>Plotwick is for readers 18 and older. The storytelling experience is ready to enjoy; the product around it is still evolving. Purchasing Wicks is optional, gives you complete stories to read now, and helps us improve Plotwick for every reader. AI-generated stories can still surprise or occasionally stumble, so please don’t include sensitive personal information. Thank you for helping shape what comes next.</p>
+        <p>Larkspin is for readers 18 and older. The storytelling experience is ready to enjoy; the product around it is still evolving. Purchasing stories is optional, gives you complete stories to read now, and helps us improve Larkspin for every reader. AI-generated stories can still surprise or occasionally stumble, so please don’t include sensitive personal information. Thank you for helping shape what comes next.</p>
       </aside>
 
       <div class="worlds-heading">
@@ -62,8 +76,8 @@
       <div id="library-section" class="library hidden">
         <div class="library-header">
           <div>
-            <p class="section-kicker">Your reading room</p>
-            <h2 class="screen-title small">Your Wicks</h2>
+            <p class="section-kicker">What you’ve spun</p>
+            <h2 class="screen-title small">Your stories</h2>
             <p id="library-summary" class="library-summary"></p>
           </div>
           <div id="library-filters" class="library-filters" role="group" aria-label="Filter your library">
@@ -84,7 +98,7 @@
         <div>
           <p class="section-kicker">Private · staff only</p>
           <h2 id="admin-title" class="screen-title">Publisher’s ledger</h2>
-          <p class="screen-sub">Reader momentum, Wick balances, and the true cost of every page.</p>
+          <p class="screen-sub">Reader momentum, story balances, and the true cost of every page.</p>
         </div>
         <div id="admin-range" class="ledger-range" role="group" aria-label="Dashboard period">
           <button type="button" data-days="7">7 days</button>
@@ -98,7 +112,7 @@
         <div id="admin-overview" class="ledger-kpis"></div>
       </section>
       <section class="ledger-section" aria-labelledby="admin-funnel-title">
-        <h3 id="admin-funnel-title" class="ledger-section-title">From first glance to finished Wick</h3>
+        <h3 id="admin-funnel-title" class="ledger-section-title">From first glance to finished story</h3>
         <div id="admin-funnel" class="ledger-funnel"></div>
       </section>
       <section class="ledger-section" aria-labelledby="admin-pilots-title">
@@ -111,7 +125,7 @@
           <div id="admin-worlds" class="ledger-rows"></div>
         </section>
         <section class="ledger-section" aria-labelledby="admin-credits-title">
-          <h3 id="admin-credits-title" class="ledger-section-title">Wick movements</h3>
+          <h3 id="admin-credits-title" class="ledger-section-title">Story movements</h3>
           <div id="admin-credit-activity" class="ledger-rows"></div>
         </section>
       </div>
@@ -163,7 +177,7 @@
       <div id="trait-row" class="chip-row"></div>
 
       <div class="actions actions-end">
-        <button id="begin-btn" class="btn btn-primary" disabled>Light a Wick →</button>
+        <button id="begin-btn" class="btn btn-primary" disabled>Spin a story →</button>
       </div>
     </section>
 
@@ -216,7 +230,7 @@
              choose is the whole point of walling here rather than earlier. -->
         <div id="teaser-wall" class="teaser-wall hidden">
           <p class="teaser-wall-lede">Three ways forward.</p>
-          <p class="teaser-wall-sub">Sign in to choose — your first Wick is on the house, and your story picks up exactly here.</p>
+          <p class="teaser-wall-sub">Sign in to choose — your first story is on the house, and your story picks up exactly here.</p>
           <button id="teaser-wall-btn" class="btn btn-primary">Sign in and continue →</button>
         </div>
       </div>
@@ -245,7 +259,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>❦</p>
+    <p aria-hidden="true"><svg class="mark" viewBox="0 0 100 100"><use href="#larkspin-mark"/></svg></p>
     <p class="trust-note">For readers 18+ · Stories are generated by AI and may take unexpected turns.</p>
     <nav class="footer-links" aria-label="Policies">
       <a href="/privacy.html">Privacy</a>
@@ -279,7 +293,7 @@
   <div id="account-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="account-title">
     <div class="modal-card">
       <button id="account-close" class="modal-close" aria-label="Close">×</button>
-      <h3 id="account-title" class="modal-title">Your Plotwick account</h3>
+      <h3 id="account-title" class="modal-title">Your Larkspin account</h3>
       <p id="account-modal-email" class="modal-sub"></p>
       <div class="account-actions">
         <button id="export-account-btn" class="btn btn-ghost">Export my data</button>
@@ -291,16 +305,16 @@
     </div>
   </div>
 
-  <!-- Buy Wick packs -->
+  <!-- Buy story packs -->
   <div id="buy-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="buy-title">
     <div class="modal-card">
       <button id="buy-close" class="modal-close" aria-label="Close">×</button>
-      <h3 id="buy-title" class="modal-title">Wick packs</h3>
+      <h3 id="buy-title" class="modal-title">Story Packs</h3>
       <p id="buy-mode-note" class="buy-mode-note hidden">Sandbox test · no real charges</p>
-      <p class="modal-sub">A Wick is a complete interactive story, written for you as you read it. One Wick begins one story and carries it to its ending, choices and all.</p>
+      <p class="modal-sub">Every story runs from its opening line to a real ending — choices and all, spun for you as you read.</p>
       <div id="pack-grid" class="pack-grid"></div>
       <p id="buy-message" class="auth-message hidden"></p>
-      <p id="buy-fineprint" class="buy-fineprint">For readers 18 and older. Secure checkout by Stripe. Your Wicks never expire.</p>
+      <p id="buy-fineprint" class="buy-fineprint">For readers 18 and older. Secure checkout by Stripe. Unused stories never expire.</p>
     </div>
   </div>
 
@@ -316,7 +330,7 @@
       <select id="pilot-completion">
         <option value="first_chapter">I read the first chapter</option>
         <option value="in_progress">I kept reading</option>
-        <option value="finished">I finished the Wick</option>
+        <option value="finished">I finished the story</option>
         <option value="abandoned">I stopped reading</option>
       </select>
 
@@ -329,7 +343,7 @@
         <option value="1">1 — Not for me</option>
       </select>
 
-      <label class="field-label" for="pilot-would-pay">Would you pay $3.99 for another complete Wick?</label>
+      <label class="field-label" for="pilot-would-pay">Would you pay $3.99 for another complete story?</label>
       <select id="pilot-would-pay">
         <option value="">Not sure</option>
         <option value="yes">Yes</option>

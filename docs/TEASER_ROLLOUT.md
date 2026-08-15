@@ -67,11 +67,11 @@ This sequence has not been run end to end against a live Supabase. Do it once,
 in staging, with `TEASER_ENABLED=1`, before enabling in production.
 
 1. **Signed out**, pick a built-in world, build a character, click
-   **Light a Wick →**. Chapter one should stream. Confirm in the database that
+   **Light a story →**. Chapter one should stream. Confirm in the database that
    **no** `story_sessions` row and **no** `credit_ledger` row were created.
 2. The three choices render but are not clickable, under the sign-in panel.
 3. Sign in from that panel with a brand new account. The story should continue
-   from the same chapter — not restart — and exactly one Wick should be spent:
+   from the same chapter — not restart — and exactly one story should be spent:
    one `credit_ledger` row, reason `story_start`, key `story:<id>:start`.
 4. Chapter two generates and continues the same character. This is the step that
    proves the seeded `history_hash` matches what `claim_story_chapter` expects.
@@ -88,7 +88,7 @@ Then the negative cases:
 9. **Limit.** Take a second teaser from the same browser the same day. Expect the
    wall. Then clear site data and confirm a fresh visitor is still served.
 10. **Refund.** Point `STORY_MODEL` at a bad value and force chapter two to fail
-    after adoption. The Wick must come back — one `story_refund` ledger row —
+    after adoption. The story must come back — one `story_refund` ledger row —
     and the session must be released. This is the `chapter_count = 0` behavior
     and the single easiest thing in the design to get wrong.
 
@@ -101,7 +101,7 @@ Set `TEASER_ENABLED=1` and redeploy.
 Confirm immediately:
 
 ```bash
-curl -s https://plotwick.com/api/config | jq '.teaserEnabled'   # expect true
+curl -s https://larkspin.com/api/config | jq '.teaserEnabled'   # expect true
 ```
 
 Then run steps 1–4 above once against production with a throwaway account. One

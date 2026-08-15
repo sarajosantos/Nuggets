@@ -14,14 +14,14 @@ test("the public terms contain no drafting placeholders", () => {
 });
 
 test("the terms make the adult-only rule unambiguous", () => {
-  assert.match(html, /must be at least 18 years old to visit or use Plotwick/);
+  assert.match(html, /must be at least 18 years old to visit or use Larkspin/);
   assert.match(html, /People under 18 may not use the Service/);
   assert.match(html, /making a purchase, you confirm that you are 18 or older/);
   assert.match(shareHtml, /For readers 18\+/);
 });
 
 test("the terms explain beta purchases and failed-story restoration", () => {
-  assert.match(html, /one purchased Wick begins one complete story/);
-  assert.match(html, /return the Wick automatically/);
+  assert.match(html, /beginning a story draws one from that balance/);
+  assert.match(html, /return the story to your balance automatically/);
   assert.match(html, /mandatory consumer rights/);
 });

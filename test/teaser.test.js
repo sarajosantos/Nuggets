@@ -69,7 +69,7 @@ test("custom scenarios can never earn a teaser", () => {
 test("teasers are opt-in and never run in demo mode", () => {
   assert.match(server, /const TEASER_ENABLED = process\.env\.TEASER_ENABLED === "1"/);
   assert.match(server, /if \(!TEASER_ENABLED \|\| DEMO_MODE\) return false;/);
-  // Acquisition only: a signed-in reader out of Wicks gets the buy modal.
+  // Acquisition only: a signed-in reader out of stories gets the buy modal.
   assert.match(server, /if \(user\) return false;/);
 });
 
@@ -91,7 +91,7 @@ test("teasers are bounded per visitor, per IP, and globally", () => {
 
 test("the teaser path opens no session and charges nothing", () => {
   // The teaser branch must bypass beginOrClaimStory entirely — that function is
-  // the only thing that can take a Wick at story start.
+  // the only thing that can take a story at story start.
   assert.match(server, /session = teaser\s*\?\s*\{ ok: true, storyId: crypto\.randomUUID\(\), credits: null, firstChapter: true \}/s);
   assert.match(server, /: await beginOrClaimStory\(\{/);
   // And it must not write a session row on completion.
@@ -170,7 +170,7 @@ test("malformed teaser tokens are refused rather than throwing", () => {
   }
 });
 
-test("adoption requires an account and charges exactly one Wick", () => {
+test("adoption requires an account and charges exactly one story", () => {
   assert.match(server, /app\.post\("\/api\/story\/adopt"/);
   assert.match(server, /if \(!user\) \{[\s\S]{0,160}needAuth: true/);
   assert.match(server, /adopt_teaser_session/);
@@ -196,7 +196,7 @@ test("adopt_teaser_session leaves chapter_count at zero so refunds still work", 
 
   // fail_story_chapter only refunds when chapter_count = 0. The teaser chapter
   // was free, so the first *paid* chapter is chapter two; seeding 1 here would
-  // silently swallow the reader's Wick when that chapter fails.
+  // silently swallow the reader's story when that chapter fails.
   assert.match(fn, /0, 'ready', null, p_start_token, p_charge/);
   assert.match(schema, /if v_session\.chapter_count = 0 then/);
 

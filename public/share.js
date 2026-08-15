@@ -33,7 +33,7 @@
 
   reportButton.classList.remove("hidden");
   reportButton.addEventListener("click", async () => {
-    const reason = prompt("What should the Plotwick team review about this story?");
+    const reason = prompt("What should the Larkspin team review about this story?");
     if (!reason || !reason.trim()) return;
     reportButton.disabled = true;
     try {

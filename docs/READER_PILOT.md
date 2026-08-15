@@ -1,10 +1,10 @@
-# Plotwick founding-reader pilot
+# Larkspin founding-reader pilot
 
 ## Cohort and invitation link
 
 - Cohort: `founding-readers-2026-08`
-- Link: `https://plotwick.com/?pilot=founding-readers-2026-08`
-- Size: 8–12 readers who enjoy fiction but did not help build Plotwick
+- Link: `https://larkspin.com/?pilot=founding-readers-2026-08`
+- Size: 8–12 readers who enjoy fiction but did not help build Larkspin
 - Window: seven days
 
 The `pilot` query value is stored only for the browser session. It is attached
@@ -26,14 +26,14 @@ failure to hide.
 
 Subject: Read a story that writes itself around you
 
-> I'm testing Plotwick, an interactive fiction experience where you choose a
+> I'm testing Larkspin, an interactive fiction experience where you choose a
 > world, become its protagonist, and shape a complete story chapter by chapter.
 > Would you try it once this week? Please stop whenever you naturally lose
 > interest—that is useful data—and use the Pilot feedback button before you
-> leave. Your first Wick is included; the payment screen is still a sandbox and
+> leave. Your first story is included; the payment screen is still a sandbox and
 > cannot make a real charge.
 >
-> https://plotwick.com/?pilot=founding-readers-2026-08
+> https://larkspin.com/?pilot=founding-readers-2026-08
 
 ## Decision thresholds
 
@@ -42,9 +42,9 @@ Treat the pilot as directional, not statistically conclusive.
 - At least 8 distinct readers select a world.
 - At least 70% of selectors complete character setup.
 - At least 60% of starters continue beyond chapter one.
-- At least 35% of starters finish a Wick.
+- At least 35% of starters finish a story.
 - Average submitted rating is at least 4.0/5.
-- At least half of respondents answer yes to $3.99 for another Wick.
+- At least half of respondents answer yes to $3.99 for another story.
 - No repeated account, library, checkout, or reader-navigation failure.
 
 If setup conversion misses, fix onboarding before acquisition. If continuation

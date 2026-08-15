@@ -1,4 +1,4 @@
-// Plotwick — frontend. Story state lives here (and in localStorage
+// Larkspin — frontend. Story state lives here (and in localStorage
 // as a multi-story library); the server streams chapters and stores shares.
 
 // Each world carries a genre-appropriate accent used to color its card
@@ -464,6 +464,13 @@ const DEFAULT_NAMES = [
   "Nadia Frost", "Elian Vasquez", "Sable Quinn", "Tobias Wren",
 ];
 
+// NOTE: every "plotwick-" storage key below is frozen. These name real data
+// sitting in readers' browsers right now — their device library, their reading
+// view, their pilot cohort. A rename does not migrate anything; it just stops
+// finding what is already there, silently emptying the shelf of every existing
+// reader. The keys are invisible to readers, so they do not follow the
+// product's name. If they ever must change, add a hop to the LEGACY_LIB_KEY
+// migration below rather than renaming in place.
 const LEGACY_LIB_KEY = "plotwick-library-v1";
 const ANON_LIB_KEY = "plotwick-library-anonymous-v2";
 const USER_LIB_PREFIX = "plotwick-library-user-v2:";
@@ -489,7 +496,7 @@ const cloudSaveChains = new Map(); // serialize saves per story to prevent stale
 // Reading state. The governing rule: while a chapter streams, the page does
 // not move. See the "reading scroll" section lower down.
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const VIEW_KEY = "plotwick-reading-view";
+const VIEW_KEY = "plotwick-reading-view"; // frozen — see the storage-key note above
 let paged = false; // page view vs scroll view
 let pageIndex = 0;
 let pageTotal = 1;
@@ -504,6 +511,7 @@ const screens = {
   story: $("screen-story"),
 };
 
+// Frozen — see the storage-key note above.
 const PRODUCT_SESSION_KEY = "plotwick-product-session-v1";
 const PILOT_COHORT_KEY = "plotwick-pilot-cohort-v1";
 
@@ -997,7 +1005,7 @@ function startStory() {
   if (appConfig.authRequired || appConfig.creditsEnforced) {
     if (!user && !teaserEligible()) {
       pendingStart = true;
-      authMessage("Sign in or create a free account to begin — your first Wick is on the house.", true);
+      authMessage("Sign in or create a free account to begin — your first story is on the house.", true);
       openAuthModal();
       return;
     }
@@ -1334,7 +1342,7 @@ function isTeaserWalled() {
   return !!(story && story.teaserPending && !user);
 }
 
-// Turn the free chapter into a real story. This is the moment the Wick is
+// Turn the free chapter into a real story. This is the moment the story is
 // spent: the reader is buying the story they are already inside, not a credit.
 // On success the story is ordinary, and every later chapter goes through the
 // normal path.
@@ -1414,7 +1422,7 @@ async function continueFromWall() {
     return;
   }
   pendingStart = true;
-  authMessage("Create a free account to keep going — your first Wick is on the house.", true);
+  authMessage("Create a free account to keep going — your first story is on the house.", true);
   openAuthModal();
 }
 
@@ -1959,7 +1967,7 @@ async function exportAccountData() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "plotwick-export.json";
+    link.download = "larkspin-export.json";
     link.click();
     URL.revokeObjectURL(url);
     accountMessage("Your export has been downloaded.", true);
@@ -1989,7 +1997,7 @@ async function deleteAccount() {
     localStorage.removeItem(userLibraryKey(deletedUserId));
     closeAccountModal();
     await sb.auth.signOut();
-    toast("Your Plotwick account and cloud data were deleted.");
+    toast("Your Larkspin account and cloud data were deleted.");
   } catch {
     accountMessage("Couldn't delete the account. Please try again.");
     button.disabled = false;
@@ -2066,7 +2074,7 @@ function setUser(u) {
   // Show the "Buy stories" button once signed in on a payments-enabled site.
   const buyBtn = $("buy-btn");
   if (buyBtn) {
-    buyBtn.textContent = appConfig.payments?.testMode ? "Test Wick packs" : "Add Wicks";
+    buyBtn.textContent = appConfig.payments?.testMode ? "Test story packs" : "Get more stories";
     buyBtn.classList.toggle("hidden", !(u && appConfig.payments));
   }
   if (!u) {
@@ -2111,12 +2119,12 @@ function setCredits(n, account = creditAccount) {
   if (n === "unlimited") {
     pill.innerHTML =
       '<span class="balance-number">∞</span>' +
-      '<span class="balance-copy"><strong>Wicks</strong><small>staff access</small></span>';
-    pill.setAttribute("aria-label", "Unlimited Wicks. Open story packs.");
+      '<span class="balance-copy"><strong>Stories</strong><small>staff access</small></span>';
+    pill.setAttribute("aria-label", "Unlimited stories. Open story packs.");
     pill.classList.remove("empty");
     return;
   }
-  const word = n === 1 ? "Wick left" : "Wicks left";
+  const word = n === 1 ? "story left" : "stories left";
   const note = creditAccount && creditAccount.firstNovellaIncluded
     ? "first one included"
     : creditAccount && creditAccount.ledgerStatus === "verified"
@@ -2125,7 +2133,7 @@ function setCredits(n, account = creditAccount) {
   pill.innerHTML =
     `<span class="balance-number">${n}</span>` +
     `<span class="balance-copy"><strong>${word}</strong><small>${note}</small></span>`;
-  pill.setAttribute("aria-label", `${n} ${word}. Open Wick packs.`);
+  pill.setAttribute("aria-label", `${n} ${word}. Open story packs.`);
   pill.classList.toggle("empty", n <= 0);
 }
 
@@ -2205,7 +2213,7 @@ function renderAdminDashboard(data) {
     ["Model cost", data.costRatesConfigured ? dashboardCost(overview.estimatedCostMicros, currency) : "Not set", data.costRatesConfigured ? "token estimate" : "configure model rates"],
     ["Contribution after fees", data.costRatesConfigured && feesReady ? dashboardCost(overview.contributionAfterFeesMicros, currency) : "Pending", data.costRatesConfigured ? "net receipts less fees and model cost" : "configure model rates"],
     ["Reader accounts", String(overview.accounts || 0), `${overview.storySessions || 0} stories opened`],
-    ["Outstanding Wicks", String(overview.outstandingCredits || 0), "future generation obligation"],
+    ["Outstanding stories", String(overview.outstandingCredits || 0), "future generation obligation"],
     ["Finished readers", String(completed), started ? `${Math.round(completed / started * 100)}% of starters` : "no starts yet"],
   ];
   $("admin-overview").innerHTML = kpis.map(([label, value, note]) =>
@@ -2217,7 +2225,7 @@ function renderAdminDashboard(data) {
     world_selected: "Selected a world",
     setup_completed: "Completed character setup",
     story_started: "Opened the first chapter",
-    story_completed: "Finished a Wick",
+    story_completed: "Finished a story",
     checkout_opened: "Opened checkout",
     purchase_completed: "Completed a purchase",
   };
@@ -2257,9 +2265,9 @@ function renderAdminDashboard(data) {
   $("admin-worlds").innerHTML = worldRows || '<p class="ledger-empty">No world choices in this period.</p>';
 
   const creditLabels = {
-    welcome_novella: "Welcome Wicks granted",
-    stripe_purchase: "Paid Wicks granted",
-    story_start: "Wicks begun",
+    welcome_novella: "Welcome stories granted",
+    stripe_purchase: "Paid stories granted",
+    story_start: "Stories begun",
     story_refund: "Failed starts refunded",
     admin_adjustment: "Staff adjustments",
   };
@@ -2466,16 +2474,16 @@ function openBuyModal() {
   if (!modal) return;
   if (!appConfig.payments) {
     // Payments not configured on this server — nothing to sell.
-    alert("Wick packs aren't set up on this site yet.");
+    alert("Story packs aren't set up on this site yet.");
     return;
   }
   if (!user) { pendingStart = false; openAuthModal(); return; }
   const testMode = !!appConfig.payments.testMode;
-  $("buy-title").textContent = testMode ? "Test Wick packs" : "Wick packs";
+  $("buy-title").textContent = testMode ? "Test story packs" : "Story Packs";
   $("buy-mode-note").classList.toggle("hidden", !testMode);
   $("buy-fineprint").textContent = testMode
     ? "Stripe sandbox checkout. Test cards only; no real charge will be made."
-    : "Secure checkout by Stripe. Your Wicks never expire.";
+    : "Secure checkout by Stripe. Unused stories never expire.";
   renderPacks();
   $("buy-message").classList.add("hidden");
   modal.classList.remove("hidden");
@@ -2543,8 +2551,8 @@ function handleCheckoutReturn() {
   history.replaceState({}, "", location.pathname);
   if (status === "success") {
     toast(appConfig.payments?.testMode
-      ? "Sandbox payment received — your test Wicks are being added."
-      : "Payment received — your Wicks are being added.");
+      ? "Sandbox payment received — your test stories are being added."
+      : "Payment received — your stories are being added.");
     let tries = 0;
     const poll = setInterval(async () => {
       await refreshCredits();

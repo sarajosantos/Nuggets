@@ -1,6 +1,6 @@
 # Story QA
 
-How to tell whether a Plotwick story is actually any good. Two halves: the
+How to tell whether a Larkspin story is actually any good. Two halves: the
 checks a machine can make honestly, and the ones only a reader can.
 
 ## 1. The automated pass
@@ -34,6 +34,8 @@ Play a story to the end on the live site, then in the browser console:
 ```js
 // dumps the most recently updated story in the format story-qa.js expects
 (() => {
+  // "plotwick-" is correct: the storage keys are frozen at the old name on
+  // purpose, so a rename cannot orphan readers' on-device libraries.
   const key = Object.keys(localStorage).find(k => k.startsWith("plotwick-library-"));
   const lib = JSON.parse(localStorage.getItem(key));
   const s = Object.values(lib.stories).sort((a, b) => b.updatedAt - a.updatedAt)[0];

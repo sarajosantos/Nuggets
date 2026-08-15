@@ -1,19 +1,25 @@
-/* Plotwick — the midnight reading room.
-   A single, deliberate dark world: warm ink ground, candle-gold accent,
-   book typography (running heads, drop caps, asterisms). */
+/* Larkspin — first light.
+   Keep the book, change the hour. A single, deliberate dark world read at the
+   hour before dawn: pre-dawn indigo ground, first-light accent, book
+   typography (running heads, drop caps, asterisms).
+
+   The variable names below (--ink-well, --gold) are kept on purpose. They are
+   referenced ~400 times across this file; renaming them would be a large
+   diff that changes nothing a reader can see. The values moved, not the keys. */
 
 :root {
-  --ink-well: #131017;   /* ground — warm black, violet-brown bias */
-  --page: #1e1826;       /* raised surface */
-  --plate: #251d2f;      /* cards */
-  --text: #eae4d6;       /* warm ivory */
-  --muted: #9b917f;      /* parchment grey */
-  --gold: #d9a648;       /* candle gold — the one accent */
-  --gold-dim: rgba(217, 166, 72, 0.14);
-  --gold-line: rgba(217, 166, 72, 0.4);
-  --wine: #9c4d43;       /* oxblood — errors only */
-  --hairline: rgba(234, 228, 214, 0.1);
-  --display: "Cormorant Garamond", "Palatino Linotype", Palatino, serif;
+  --ink-well: #12131e;   /* ground — charcoal indigo, faint plum undertone */
+  --page: #1b1b2a;       /* raised surface — the horizon */
+  --plate: #242235;      /* cards — cloudbank */
+  --text: #e7e4dc;       /* warm ivory — carried over from the reading room */
+  --muted: #9994a4;      /* overcast — cool grey, leaning plum not sky */
+  --gold: #f0a868;       /* first light — the one accent */
+  --gold-dim: rgba(240, 168, 104, 0.14);
+  --gold-line: rgba(240, 168, 104, 0.4);
+  --larkspur: #9c8df2;   /* secondary, used sparingly */
+  --wine: #b4524a;       /* oxblood — errors only */
+  --hairline: rgba(231, 228, 220, 0.1);
+  --display: "Fraunces", "Palatino Linotype", Palatino, serif;
   --prose: "Crimson Pro", "Iowan Old Style", Georgia, serif;
   --ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
 }
@@ -22,9 +28,13 @@
 
 body {
   background: var(--ink-well);
+  /* The light arrives from below, not above: first light sits on the horizon
+     at the foot of the page. The upper wash is kept desaturated and pulled in
+     tight — a bright blue halo up there turns the whole canvas sci-fi and
+     drowns the warm accent it is supposed to sit against. */
   background-image:
-    radial-gradient(ellipse 90% 50% at 50% -5%, rgba(217, 166, 72, 0.06), transparent 70%),
-    radial-gradient(ellipse at 50% 110%, #1a1422, var(--ink-well) 60%);
+    radial-gradient(ellipse 90% 45% at 50% 104%, rgba(240, 168, 104, 0.09), transparent 72%),
+    radial-gradient(ellipse at 50% -10%, #1d1a2b, var(--ink-well) 55%);
   color: var(--text);
   font-family: var(--ui);
   min-height: 100vh;
@@ -49,12 +59,29 @@ body {
 .demo-banner code { font-size: 0.75rem; }
 
 .site-header { text-align: center; padding: 3rem 1rem 0.75rem; }
-.header-rule { color: var(--gold); opacity: 0.7; font-size: 0.9rem; letter-spacing: 0.4em; }
+
+/* The mark stands where the fleuron used to. */
+.header-rule { line-height: 0; }
+.mark {
+  display: inline-block;
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--gold);
+  opacity: 0.9;
+}
+/* The stroke itself is set as presentation attributes on the <symbol>'s path
+   in the markup: a <use> renders into a shadow tree this stylesheet cannot
+   select into. Only `color` crosses the boundary, via currentColor. */
+
+/* Fraunces carries the brand's one flourish on the wordmark (WONK 1) and
+   nowhere else; every other display setting stays upright. */
 .logo {
   font-family: var(--display);
   font-weight: 600;
+  font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
+  font-optical-sizing: none;
   font-size: clamp(2.6rem, 6vw, 3.4rem);
-  letter-spacing: 0.04em;
+  letter-spacing: -0.012em;
   color: var(--gold);
   cursor: pointer;
   line-height: 1.1;
@@ -90,6 +117,14 @@ main { width: 100%; max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4r
 }
 
 /* ---------- shared type ---------- */
+
+/* Everything set in Fraunces other than the wordmark stays upright: the
+   personality lives in one place, so it keeps its value. */
+.screen-title, .card h3, .ledger-section-title, .modal-title,
+.journal-col h4, .ending-word, .chapter-head {
+  font-variation-settings: "opsz" 48, "SOFT" 14, "WONK" 0;
+  font-optical-sizing: none;
+}
 
 .screen-title {
   font-family: var(--display);

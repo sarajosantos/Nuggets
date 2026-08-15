@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- The Larkspin mark: one continuous stroke that rises, turns once, and
+       releases. A lark's ascent and a length of spun thread are the same
+       gesture. Stroke is kept at 7 so the loop's counter stays open. -->
+  <path d="M13.39 91C14.26 90.2 16.87 87.79 18.62 86.18C20.36 84.58 22.1 82.97 23.85 81.36C25.59 79.76 27.32 78.15 29.08 76.55C30.84 74.94 30.44 74.87 34.41 71.72C38.38 68.58 48.39 65.76 52.9 57.66C57.4 49.56 63.18 31.25 61.42 23.14C59.66 15.03 46.5 7.68 42.35 9C38.21 10.32 34.18 24.82 36.54 31.06C38.89 37.3 51.63 44.49 56.49 46.45C61.35 48.41 63.29 44.23 65.69 42.82C68.1 41.42 69.18 39.61 70.92 38.01C72.67 36.4 74.41 34.79 76.15 33.19C77.9 31.58 79.64 29.98 81.38 28.37C83.13 26.76 85.74 24.36 86.61 23.55"
+        fill="none" stroke="#F0A868" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

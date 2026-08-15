@@ -11,7 +11,7 @@ const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
 
-test("new accounts receive exactly one ledger-backed welcome Wick", () => {
+test("new accounts receive exactly one ledger-backed welcome story", () => {
   assert.match(schema, /credits integer not null default 1/);
   assert.match(schema, /create table if not exists public\.credit_ledger/);
   assert.match(schema, /idempotency_key text not null unique/);
@@ -37,14 +37,14 @@ test("concurrent first chapters share an idempotent start token", () => {
   assert.match(app, /startToken: crypto\.randomUUID\(\)/);
 });
 
-test("Wick packs are server-owned and keep purchase reconciliation metadata", () => {
+test("Story packs are server-owned and keep purchase reconciliation metadata", () => {
   assert.match(server, /single:\s*\{ credits: 1, price: 399/);
   assert.match(server, /reader:\s*\{ credits: 5, price: 1500/);
   assert.match(server, /library:\s*\{ credits: 15, price: 3600/);
   assert.match(server, /payments:\s*PAYMENTS_ENABLED/);
   assert.match(server, /p_amount_total: grant\.amountTotal/);
   assert.match(server, /p_currency: grant\.currency/);
-  assert.match(server, /integration_identifier: `plotwick_\$\{suffix\}`/);
+  assert.match(server, /integration_identifier: `larkspin_\$\{suffix\}`/);
   assert.doesNotMatch(server, /payment_method_types/);
 });
 
