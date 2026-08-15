@@ -158,25 +158,26 @@ continuity, warm enough that the prose still reads like prose.
 **The sunrise ramp** — apricot → rose → larkspur, the sky read left to right.
 Reserved for the wordmark and nothing else, so it stays an event.
 
-**The mark** — first light cresting a horizon, drawn as one turning stroke. The
-horizon line and the dome give it a stable silhouette; the stroke's left end
-curls under and below the line, so the same shape that reads as a sunrise across
-a room reads as a turn up close. It replaces the 📖 emoji data-URI currently
-serving as the favicon.
+**The mark** — one continuous stroke that rises, turns once, and releases. A
+lark's ascent and a length of spun thread are the same gesture, which is the
+whole argument for the name in a single line. It replaces the 📖 emoji data-URI
+that was serving as the favicon. The stroke is set at 7 units in a 100-unit box:
+heavier and the loop's counter starts to close.
 
-> #### Rebuilt — the first mark failed its test
+> #### Known tradeoff — small sizes
 >
-> The original proposal was a single thin stroke that rose, looped once, and
-> released — a lark's ascent and a spun thread in one gesture. It was tested at
-> 16, 20, 24 and 32 px against a live tab strip and **it failed**: the loop's
-> counter fills in below about 24 px and the release tail disappears, leaving a
-> shape that reads as a script **q** or a **9**.
+> This mark was tested at 16, 20, 24 and 32 px against a tab strip. Below about
+> 24 px the loop's counter fills in and the release tail thins out, and the
+> silhouette reads closer to a script **q** than to an ascent. A dome-on-a-horizon
+> alternative was built and briefly shipped because it survives that test, but it
+> lost the gesture the name is built on, so the loop was reinstated as the
+> identity.
 >
-> Two further rounds confirmed the real constraint. Thin strokes with closed
-> loops — spirals, curls, the original — all collapse into letterforms at favicon
-> size. Marks that survive (arc clusters, sunrises) were legible but generic. The
-> dome-on-a-horizon is the synthesis: **a legible silhouette with an ownable
-> interior**, which is how a mark is supposed to degrade.
+> The tradeoff is accepted deliberately: the mark is chosen for the wordmark
+> lockup and the header, where it has room to read. If the favicon becomes a
+> problem in practice, the fix is a separate heavier-stroke cut for 16–32 px
+> rather than changing the identity — standard practice for a mark with fine
+> interior detail.
 
 ## The system
 
