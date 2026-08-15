@@ -112,10 +112,10 @@ test("Stripe refunds only fully refunded charges tied to a payment intent", () =
 });
 
 test("public origin rejects credentials and insecure remote HTTP", () => {
-  assert.equal(normalizePublicOrigin("https://plotwick.com/path"), "https://plotwick.com");
+  assert.equal(normalizePublicOrigin("https://larkspin.com/path"), "https://larkspin.com");
   assert.equal(normalizePublicOrigin("http://localhost:3000"), "http://localhost:3000");
-  assert.equal(normalizePublicOrigin("http://plotwick.com"), null);
-  assert.equal(normalizePublicOrigin("https://user:pass@plotwick.com"), null);
+  assert.equal(normalizePublicOrigin("http://larkspin.com"), null);
+  assert.equal(normalizePublicOrigin("https://user:pass@larkspin.com"), null);
 });
 
 test("monetization summary reconciles balances and counts unique funnel readers", () => {

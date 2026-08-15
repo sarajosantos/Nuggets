@@ -1,8 +1,8 @@
-# Plotwick 📖
+# Larkspin
 
-**[plotwick.com](https://plotwick.com)** — an AI-powered choose-your-own-adventure platform. Pick a scenario (or write your own), create a character, and get a story written live by Claude — with three choices at the end of every chapter, plus the option to write your own action.
+**[larkspin.com](https://larkspin.com)** — an AI-powered choose-your-own-adventure platform. Pick a scenario (or write your own), create a character, and get a story written live by Claude — with three choices at the end of every chapter, plus the option to write your own action.
 
-A single story is called a **Wick**: a complete interactive story, written for you as you read it. One Wick carries one story from its opening to a real ending.
+A single story runs from its opening line to a real ending: a complete interactive story, spun for you as you read it.
 
 ## Features
 
@@ -11,8 +11,8 @@ A single story is called a **Wick**: a complete interactive story, written for y
 - **A hidden "story director"** — the server injects private pacing directives each chapter (setup → escalation → midpoint reversal → convergence → climax) so stories arc properly instead of meandering, and a hard cap forces a finale if a story runs long. Players choose *how* events unfold; the director ensures they *do*.
 - **State ledger & journal** — the model maintains hidden JSON state every chapter (title, act, condition, inventory, companions, open plot threads) and re-reads it for continuity. The Journal panel shows the player their condition, items, and companions.
 - **Accounts & cloud library (Supabase)** — sign in with email/password and your library follows you across devices. Local stories merge into your account on sign-in.
-- **One free Wick + Wick packs (Stripe)** — every new account receives one complete Wick. After that, readers buy whole Wicks rather than tokens or chapters. An immutable server ledger records every grant, start, purchase, and automatic refund.
-- **Publisher’s ledger** — staff can inspect the activation funnel, world performance, verified reader balances, outstanding Wick obligations, revenue, and configured model-cost estimates without exposing story text.
+- **One free story + story packs (Stripe)** — every new account receives one complete story. After that, readers buy whole stories rather than tokens or chapters. An immutable server ledger records every grant, start, purchase, and automatic refund.
+- **Publisher’s ledger** — staff can inspect the activation funnel, world performance, verified reader balances, outstanding story obligations, revenue, and configured model-cost estimates without exposing story text.
 - **Story library** — every story is saved locally; resume in-progress tales or re-read finished ones.
 - **Share links** — publish a finished story to a read-only link (`/s/:id`) with its cover and full text.
 - **Generated cover art** — deterministic SVG covers by default; optional, authenticated AI covers are strictly sanitized and quota-limited.
@@ -56,11 +56,11 @@ Selling credits needs Stripe on top of Supabase:
    - URL: `https://YOUR-DOMAIN/api/stripe/webhook`
    - Events: **`checkout.session.completed`**, **`checkout.session.async_payment_succeeded`**, and **`checkout.session.async_payment_failed`**
    - After creating it, copy the endpoint's **Signing secret** into `.env` as `STRIPE_WEBHOOK_SECRET`.
-4. Restart. The “Add Wicks” button appears for signed-in users.
+4. Restart. The “Get more stories” button appears for signed-in users.
 5. Set `PUBLIC_APP_URL`, run the payment test matrix in [`TODO.md`](TODO.md), then set `STORY_CREDITS_ENABLED=1`.
 6. Prefer a restricted Stripe key (`rk_…`) with only the permissions this service needs. Use separate test and live credentials and restrict their network access in Stripe.
 
-The launch pack hypotheses live in `CREDIT_PACKS` near the top of `server.js`: one Wick for $3.99, five for $15, or fifteen for $36. Prices are server-owned; the browser cannot change them. Revisit them after the publisher’s ledger has enough completion, purchase, and true model-cost data.
+The launch pack hypotheses live in `CREDIT_PACKS` near the top of `server.js`: one story for $3.99, five for $15, or fifteen for $36. Prices are server-owned; the browser cannot change them. Revisit them after the publisher’s ledger has enough completion, purchase, and true model-cost data.
 
 ## Configuration
 

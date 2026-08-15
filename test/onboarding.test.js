@@ -21,7 +21,7 @@ test("the home page clearly sets beta expectations", () => {
   assert.match(html, /id="beta-notice"/);
   assert.match(html, /Founding reader beta/);
   assert.match(html, /for readers 18 and older/);
-  assert.match(html, /Purchasing Wicks is optional/);
+  assert.match(html, /Purchasing stories is optional/);
   assert.match(html, /complete stories to read now/);
   assert.match(html, /AI-generated stories can still surprise/);
   assert.match(html, /don’t include sensitive personal information/);

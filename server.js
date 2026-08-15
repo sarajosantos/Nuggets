@@ -1,4 +1,4 @@
-// Plotwick — AI choose-your-own-adventure server.
+// Larkspin — AI choose-your-own-adventure server.
 // Holds the Anthropic API key server-side and streams story chapters to the
 // browser over Server-Sent Events. Story state lives on the client; every
 // request carries the full history, so chapter generation is stateless.
@@ -100,7 +100,7 @@ if (SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
 // story costs us roughly ~$1 in API calls, so a credit is priced above that
 // for margin. Tune the numbers, then keep them in sync with what you tell users.
 const CREDIT_PACKS = {
-  single:  { credits: 1, price: 399, label: "Single Wick" },
+  single:  { credits: 1, price: 399, label: "Single story" },
   reader:  { credits: 5, price: 1500, label: "Reader pack" },
   library: { credits: 15, price: 3600, label: "Library pack" },
 };
@@ -562,7 +562,7 @@ async function enforceRateLimit(req, res, { user, scope, limit, windowSeconds })
 // account — which it does.
 async function teaserAllowed(req, { user, storyId, history, worldId, scenarioHash, sessionId }) {
   if (!TEASER_ENABLED || DEMO_MODE) return false;
-  // Acquisition only. A signed-in reader who is out of Wicks gets the buy modal;
+  // Acquisition only. A signed-in reader who is out of stories gets the buy modal;
   // an account must never become a renewable source of free chapters.
   if (user) return false;
   if (storyId) return false;
@@ -668,7 +668,7 @@ app.get("/api/credits", async (req, res) => {
       .eq("user_id", user.id),
   ]);
   if (profileError || ledgerError || storyCountError || libraryStoryCountError) {
-    return res.status(500).json({ error: "couldn't verify Wick balance" });
+    return res.status(500).json({ error: "couldn't verify story balance" });
   }
   const balance = profile ? profile.credits : 0;
   const ledgerBalance = ledgerRows && ledgerRows.length ? ledgerRows[0].balance_after : 0;
@@ -680,7 +680,7 @@ app.get("/api/credits", async (req, res) => {
       ledgerBalance,
     });
     return res.status(503).json({
-      error: "Your Wick balance needs review. No credits were changed.",
+      error: "Your story balance needs review. No credits were changed.",
       ledgerStatus: "mismatch",
     });
   }
@@ -863,7 +863,7 @@ app.post("/api/story", async (req, res) => {
   const user = await userFromReq(req);
   // An eligible anonymous visitor gets one live first chapter before the wall,
   // so they can read our prose — with their own character in it — before being
-  // asked for an account. It runs with no session and no charge; the Wick is
+  // asked for an account. It runs with no session and no charge; the story is
   // taken later, at /api/story/adopt, when they choose to continue.
   const teaser = await teaserAllowed(req, {
     user,
@@ -916,7 +916,7 @@ app.post("/api/story", async (req, res) => {
         });
       }
       return res.status(402).json({
-        error: "You have no Wicks left.",
+        error: "You have no stories left.",
         needCredits: true,
         needNovellas: true,
         credits: 0,
@@ -1068,9 +1068,9 @@ app.post("/api/story", async (req, res) => {
 
 // Redeem an anonymous teaser chapter for a real story.
 //
-// This is where the Wick is actually charged. The visitor read chapter one for
+// This is where the story is actually charged. The visitor read chapter one for
 // free; continuing past its first choice is what costs them, which means their
-// welcome Wick buys the story they are already inside rather than an abstract
+// welcome story buys the tale they are already inside rather than an abstract
 // credit. Afterwards the story is indistinguishable from any other: chapter two
 // onward flows through /api/story and claim_story_chapter unchanged.
 app.post("/api/story/adopt", async (req, res) => {
@@ -1143,7 +1143,7 @@ app.post("/api/story/adopt", async (req, res) => {
         });
       }
       return res.status(402).json({
-        error: "You have no Wicks left.",
+        error: "You have no stories left.",
         needCredits: true,
         credits: 0,
       });
@@ -1309,7 +1309,7 @@ app.post("/api/checkout", async (req, res) => {
     const suffix = crypto.randomBytes(6).toString("base64url").replace(/[^a-z]/gi, "").slice(0, 8).padEnd(8, "x");
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      integration_identifier: `plotwick_${suffix}`,
+      integration_identifier: `larkspin_${suffix}`,
       // Attribute this purchase to the user and pack so the webhook can grant
       // the right credits to the right account.
       client_reference_id: user.id,
@@ -1325,7 +1325,7 @@ app.post("/api/checkout", async (req, res) => {
             currency: CURRENCY,
             unit_amount: pack.price,
             product_data: {
-              name: `Plotwick — ${pack.label} (${pack.credits} ${pack.credits === 1 ? "Wick" : "Wicks"})`,
+              name: `Larkspin — ${pack.label}${pack.credits === 1 ? "" : ` (${pack.credits} stories)`}`,
             },
           },
         },
@@ -1693,7 +1693,7 @@ app.get("/api/account/export", async (req, res) => {
   if (profileError || storiesError || sharesError || ledgerError) {
     return res.status(500).json({ error: "Couldn't export account data." });
   }
-  res.setHeader("Content-Disposition", 'attachment; filename="plotwick-export.json"');
+  res.setHeader("Content-Disposition", 'attachment; filename="larkspin-export.json"');
   res.json({
     exportedAt: new Date().toISOString(),
     account: { id: user.id, email: user.email, profile },
@@ -1897,7 +1897,7 @@ async function streamDemoChapter(res, chapterNum) {
 }
 
 if (require.main === module) app.listen(PORT, () => {
-  console.log(`Plotwick running at http://localhost:${PORT}`);
+  console.log(`Larkspin running at http://localhost:${PORT}`);
   console.log(DEMO_MODE
     ? "Mode: DEMO (no API key found — canned story content). Set ANTHROPIC_API_KEY for live stories."
     : `Mode: LIVE (model: ${MODEL}, target ~${TARGET_CHAPTERS} chapters, ${RATE_LIMIT_PER_HOUR} chapters/hr/IP)`);

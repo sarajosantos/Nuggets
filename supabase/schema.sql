@@ -1,4 +1,4 @@
--- Plotwick — Supabase schema.
+-- Larkspin — Supabase schema.
 -- Paste this into the Supabase SQL editor (or run via `supabase db push`).
 -- Safe to re-run: everything is idempotent.
 
@@ -47,19 +47,19 @@ create policy "anyone can read shares" on public.shared_stories
   for select
   using (true);
 -- No insert/update/delete policies: only the service-role key (which bypasses
--- RLS) can write, i.e. the Plotwick server.
+-- RLS) can write, i.e. the Larkspin server.
 
 -- ---------------------------------------------------------------------------
 -- Profiles & story credits
 -- ---------------------------------------------------------------------------
--- One row per user, holding the cached Wick-credit balance. The immutable
+-- One row per user, holding the cached story-credit balance. The immutable
 -- credit_ledger below is the audit trail; this number is the fast read model.
--- A new signup receives exactly one complete Wick.
+-- A new signup receives exactly one complete story.
 --
 -- NOTE: the ledger reason 'welcome_novella' keeps its original spelling on
 -- purpose. It is a stored enum value present in existing rows, so renaming it
 -- would orphan history and break reconciliation. The reader-facing term is
--- "Wick"; this identifier is data, not copy.
+-- "story"; this identifier is data, not copy.
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -127,7 +127,7 @@ where p.credits > 0
   )
 on conflict (idempotency_key) do nothing;
 
--- Auto-create a profile and its single welcome Wick atomically.
+-- Auto-create a profile and its single welcome story atomically.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -709,7 +709,7 @@ revoke all on function public.begin_story_session_v2(
 --
 -- A teaser is chapter one generated for a visitor with no account: no session,
 -- no ledger entry, no charge. When they sign in to keep reading, this turns that
--- chapter into an ordinary story session and takes the Wick. From here on the
+-- chapter into an ordinary story session and takes the story. From here on the
 -- story is indistinguishable from one begun the normal way, so claim_story_chapter
 -- and the reconciliation views need no special cases.
 --
@@ -721,7 +721,7 @@ revoke all on function public.begin_story_session_v2(
 --
 --   * chapter_count stays 0, NOT 1. It counts chapters delivered *under the
 --     charge*, and the teaser chapter was free. fail_story_chapter only refunds
---     when chapter_count = 0, so seeding 1 here would silently swallow the Wick
+--     when chapter_count = 0, so seeding 1 here would silently swallow the story
 --     when the reader's first paid chapter fails.
 -- ---------------------------------------------------------------------------
 create or replace function public.adopt_teaser_session(

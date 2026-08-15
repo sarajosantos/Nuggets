@@ -17,7 +17,15 @@ canonical copy.
 
 > Revised after review. The unit of sale is a **story**, not a branded currency;
 > the mark was rebuilt after failing a favicon test. Both changes are recorded
-> in place below. Phase 0 has landed.
+> in place below.
+>
+> **Status: phases 0–4 are shipped.** The site is Larkspin. What remains is
+> phase 3's infrastructure half (the `larkspin.com` DNS cutover and redirects,
+> which is an ops task, not a code one) and phase 5 (the note to founding
+> readers). Phase 4's schema note: the two `Wick` comments in
+> `supabase/migrations/20260807050000_teaser_adoption.sql` are deliberately
+> untouched — that migration is already applied, and applied migrations are
+> historical records. `schema.sql`, the canonical current schema, is updated.
 
 ## The audit — what we are actually changing
 
