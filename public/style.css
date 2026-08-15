@@ -8,11 +8,11 @@
    diff that changes nothing a reader can see. The values moved, not the keys. */
 
 :root {
-  --ink-well: #0e1220;   /* ground — pre-dawn indigo */
-  --page: #161c2e;       /* raised surface — the horizon */
-  --plate: #1e2540;      /* cards — cloudbank */
+  --ink-well: #12131e;   /* ground — charcoal indigo, faint plum undertone */
+  --page: #1b1b2a;       /* raised surface — the horizon */
+  --plate: #242235;      /* cards — cloudbank */
   --text: #e7e4dc;       /* warm ivory — carried over from the reading room */
-  --muted: #8b92ac;      /* overcast — parchment grey turned toward the sky */
+  --muted: #9994a4;      /* overcast — cool grey, leaning plum not sky */
   --gold: #f0a868;       /* first light — the one accent */
   --gold-dim: rgba(240, 168, 104, 0.14);
   --gold-line: rgba(240, 168, 104, 0.4);
@@ -28,11 +28,13 @@
 
 body {
   background: var(--ink-well);
-  /* The light arrives from below now, not above: first light sits on the
-     horizon at the foot of the page, with the cold of the upper sky above it. */
+  /* The light arrives from below, not above: first light sits on the horizon
+     at the foot of the page. The upper wash is kept desaturated and pulled in
+     tight — a bright blue halo up there turns the whole canvas sci-fi and
+     drowns the warm accent it is supposed to sit against. */
   background-image:
     radial-gradient(ellipse 90% 45% at 50% 104%, rgba(240, 168, 104, 0.09), transparent 72%),
-    radial-gradient(ellipse at 50% -10%, #182042, var(--ink-well) 62%);
+    radial-gradient(ellipse at 50% -10%, #1d1a2b, var(--ink-well) 55%);
   color: var(--text);
   font-family: var(--ui);
   min-height: 100vh;

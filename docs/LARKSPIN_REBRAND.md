@@ -189,27 +189,37 @@ accents — is correct and is preserved.
 
 | Token | New | Was | Role |
 |---|---|---|---|
-| Pre-dawn | `#0E1220` | `#131017` | ground |
-| Horizon | `#161C2E` | `#1e1826` | raised surface |
-| Cloudbank | `#1E2540` | `#251d2f` | cards |
+| Pre-dawn | `#12131E` | `#131017` | ground |
+| Horizon | `#1B1B2A` | `#1e1826` | raised surface |
+| Cloudbank | `#242235` | `#251d2f` | cards |
 | Ivory | `#E7E4DC` | `#eae4d6` | text (carried over) |
-| Overcast | `#8B92AC` | `#9b917f` | muted |
+| Overcast | `#9994A4` | `#9b917f` | muted |
 | First light | `#F0A868` | `#d9a648` | the one accent |
 | Larkspur | `#9C8DF2` | — | secondary, sparing |
 | Oxblood | `#B4524A` | `#9c4d43` | errors only |
 
 The muted tone is the meaningful change beyond the accent: Plotwick's `#9b917f`
-was parchment grey — warm, papery, indoors. `#8B92AC` is the same value with the
-hue turned toward the sky.
+was parchment grey — warm, papery, indoors. `#9994A4` keeps that value and cools
+it, without committing to blue.
+
+**On how far to cool the ground.** The first pass went further — a true navy
+(`#0e1220` / `#161c2e` / `#1e2540`) with a saturated blue wash at the top of the
+page. Across the large empty areas of the canvas that read as a sci-fi platform
+rather than a pre-dawn literary one, and it fought the warm accent it was meant
+to sit behind. The shipped palette is the halfway house: charcoal-indigo with a
+faint plum undertone, still cool and nocturnal, but no longer navy. The upper
+background wash was desaturated to `#1d1a2b` and its falloff tightened from 62%
+to 55% for the same reason — a bright halo up there was doing most of the work
+of making the page feel blue.
 
 ### The six world accents — unchanged
 
 Emerald `#5FB08A`, steel-cyan `#5AA0DC`, claret `#CC6058`, spectral violet
 `#A17FD4`, copper `#CE8149`, rose `#D07CA6`. Set per world in `public/app.js`,
 driving the card tint, ornament, cover hue, and the reading view's
-`--story-accent`. They already read correctly against a bluer ground, they carry
-all the colour variety in the product, and they are the reason the house accent
-can stay disciplined at one. **Do not touch them.**
+`--story-accent`. They already read correctly against the cooler ground, they
+carry all the colour variety in the product, and they are the reason the house
+accent can stay disciplined at one. **Do not touch them.**
 
 ### Type
 
