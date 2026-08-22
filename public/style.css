@@ -551,6 +551,44 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   margin: 0.4rem 0 3rem;
   padding: 2rem 0 2.4rem;
 }
+.library-spotlight {
+  align-items: stretch;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--gold) 10%, var(--page)), var(--page) 58%);
+  border: 1px solid var(--gold-line);
+  border-left: 3px solid var(--gold);
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.8rem;
+  padding: 1rem;
+}
+.library-spotlight-art {
+  align-items: center;
+  background: var(--plate);
+  color: var(--gold);
+  display: flex;
+  flex: 0 0 4.1rem;
+  font-family: var(--display);
+  font-size: 2rem;
+  justify-content: center;
+  min-height: 6.2rem;
+}
+.library-spotlight-copy { min-width: 0; }
+.library-spotlight-copy .section-kicker { margin-bottom: 0.25rem; }
+.library-spotlight-copy h3 {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.library-spotlight-excerpt {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  margin: 0.35rem 0 0.75rem;
+  max-width: 58ch;
+}
+.library-spotlight.hidden { display: none; }
 .library-header {
   align-items: end;
   display: flex;
@@ -1436,6 +1474,8 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
   .shelf-shortcut .btn { width: 100%; }
   .shelf-shortcut span { max-width: none; text-align: center; }
   .journey-progress li { font-size: 0.58rem; }
+  .library-spotlight { align-items: flex-start; }
+  .library-spotlight-art { flex-basis: 3.2rem; min-height: 5.4rem; }
   .library-header { align-items: flex-start; flex-direction: column; }
   .library-filters { width: 100%; }
   .library-filters button { flex: 1; }

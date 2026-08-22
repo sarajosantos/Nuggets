@@ -491,6 +491,7 @@ let adminDays = 30;
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 let libraryFilter = "all";
+let librarySpotlightStoryId = null;
 const cloudSaveChains = new Map(); // serialize saves per story to prevent stale writes
 
 // Reading state. The governing rule: while a chapter streams, the page does
@@ -728,6 +729,7 @@ function renderLibrary() {
   $("activation-shortcut").classList.toggle("hidden", allEntries.length > 0);
   $("worlds-title").textContent = allEntries.length > 0 ? "Choose another world" : "Choose your world";
   $("library-section").classList.toggle("hidden", allEntries.length === 0);
+  renderLibrarySpotlight(allEntries);
   $("library-summary").textContent =
     `${allEntries.length} ${allEntries.length === 1 ? "story" : "stories"} · ` +
     `${readingCount} in progress · ${finishedCount} finished`;
@@ -781,6 +783,34 @@ function renderLibrary() {
     });
     grid.appendChild(card);
   }
+}
+
+function renderLibrarySpotlight(allEntries) {
+  const spotlight = $("library-spotlight");
+  const candidate = allEntries.find((st) => !st.done);
+  const visible = libraryFilter === "all" && !!candidate;
+  spotlight.classList.toggle("hidden", !visible);
+  if (!visible) {
+    librarySpotlightStoryId = null;
+    return;
+  }
+
+  librarySpotlightStoryId = candidate.id;
+  $("library-spotlight-ornament").textContent = candidate.scenario.ornament || "❦";
+  $("library-spotlight-title").textContent = candidate.title || candidate.scenario.title || "Untitled story";
+  $("library-spotlight-excerpt").textContent = libraryExcerpt(candidate);
+}
+
+function libraryExcerpt(st) {
+  const last = [...(st.history || [])].reverse().find((entry) => entry.role === "assistant");
+  if (!last || !last.content) return "Your next chapter is waiting in the wings.";
+  const excerpt = last.content
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/[*_#`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!excerpt) return "Your next chapter is waiting in the wings.";
+  return `${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}`;
 }
 
 function formatLibraryDate(timestamp) {
@@ -883,6 +913,9 @@ function rollName() {
 // ----- events -----
 function wireEvents() {
   $("surprise-story").addEventListener("click", openSurpriseStory);
+  $("library-spotlight-btn").addEventListener("click", () => {
+    if (librarySpotlightStoryId) openStory(librarySpotlightStoryId);
+  });
   $("library-filters").addEventListener("click", (event) => {
     const button = event.target.closest("[data-library-filter]");
     if (!button) return;
