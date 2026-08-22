@@ -1897,10 +1897,16 @@ function wireAuthEvents() {
       closeAccountModal();
     }
   });
-  $("signin-btn").addEventListener("click", () => submitAuth("signin"));
-  $("signup-btn").addEventListener("click", () => submitAuth("signup"));
+  $("signin-btn").addEventListener("click", () => {
+    setAuthMode("signin");
+    submitAuth("signin");
+  });
+  $("signup-btn").addEventListener("click", () => {
+    setAuthMode("signup");
+    submitAuth("signup");
+  });
   $("auth-password").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submitAuth("signin");
+    if (e.key === "Enter") submitAuth($("auth-modal").querySelector(".auth-card").dataset.authMode || "signin");
   });
   $("account-close").addEventListener("click", closeAccountModal);
   $("account-modal").addEventListener("click", (e) => {
@@ -1925,11 +1931,30 @@ function wireAuthEvents() {
   });
 }
 
+function setAuthMode(mode) {
+  const signup = mode === "signup";
+  const card = $("auth-modal").querySelector(".auth-card");
+  card.dataset.authMode = signup ? "signup" : "signin";
+  $("signup-btn").setAttribute("aria-pressed", String(signup));
+  $("signin-btn").setAttribute("aria-pressed", String(!signup));
+  $("auth-mode-kicker").textContent = signup ? "New reader" : "Returning reader";
+  $("auth-password").autocomplete = signup ? "new-password" : "current-password";
+
+  if (pendingStart) {
+    $("auth-title").textContent = signup ? "Keep this story going" : "Welcome back to your story";
+    $("auth-sub").textContent = signup
+      ? "Create your free account. Your world and character will be saved right where you left them."
+      : "Sign in to return to your world and continue from this exact moment.";
+  } else {
+    $("auth-title").textContent = signup ? "Begin your library" : "Your library, anywhere";
+    $("auth-sub").textContent = signup
+      ? "Create a free account and keep every story together in your library."
+      : "Sign in and your stories follow you across devices.";
+  }
+}
+
 function openAuthModal() {
-  $("auth-title").textContent = pendingStart ? "Save your place, then begin" : "Your library, anywhere";
-  $("auth-sub").textContent = pendingStart
-    ? "Create a free account or sign in. Your world and character are waiting."
-    : "Sign in and your stories follow you across devices.";
+  setAuthMode("signin");
   $("auth-message").classList.add("hidden");
   $("auth-modal").classList.remove("hidden");
   $("auth-email").focus();

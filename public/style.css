@@ -1056,6 +1056,78 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
   margin-top: 0.3rem;
 }
 .modal-actions { display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 1.6rem; }
+.auth-card {
+  --auth-accent: var(--gold);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--auth-accent);
+  opacity: 0.82;
+  transition: background 0.2s ease;
+}
+.auth-card[data-auth-mode="signup"] {
+  --auth-accent: #dcae75;
+  border-color: rgba(220, 174, 117, 0.72);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 38px rgba(220, 174, 117, 0.08);
+}
+.auth-mode-kicker {
+  color: var(--auth-accent);
+  font-family: var(--ui);
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.45rem;
+  text-align: center;
+  text-transform: uppercase;
+  transition: color 0.2s ease;
+}
+.auth-actions { align-items: stretch; }
+.auth-action {
+  flex: 1;
+  position: relative;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.auth-action[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -0.48rem;
+  width: 0.28rem;
+  height: 0.28rem;
+  border-radius: 50%;
+  background: var(--auth-accent);
+  transform: translateX(-50%);
+}
+.auth-card[data-auth-mode="signup"] #signup-btn {
+  background: var(--auth-accent);
+  border-color: var(--auth-accent);
+  color: #221a0e;
+}
+.auth-card[data-auth-mode="signup"] #signin-btn {
+  background: transparent;
+  border-color: var(--hairline);
+  color: var(--muted);
+}
+.auth-card[data-auth-mode="signin"] #signin-btn {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #221a0e;
+}
+.auth-card[data-auth-mode="signin"] #signup-btn {
+  background: transparent;
+  border-color: var(--hairline);
+  color: var(--muted);
+}
+.auth-card[data-auth-mode="signup"] input:focus {
+  outline-color: var(--auth-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-card, .auth-card::before, .auth-mode-kicker, .auth-action { transition: none; }
+}
 .auth-message {
   margin-top: 1rem;
   font-size: 0.88rem;

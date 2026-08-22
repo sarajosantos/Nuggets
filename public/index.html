@@ -269,8 +269,9 @@
 
   <!-- Sign-in / sign-up -->
   <div id="auth-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-    <div class="modal-card">
+    <div class="modal-card auth-card" data-auth-mode="signin">
       <button id="auth-close" class="modal-close" aria-label="Close">×</button>
+      <p id="auth-mode-kicker" class="auth-mode-kicker">Returning reader</p>
       <h3 id="auth-title" class="modal-title">Your library, anywhere</h3>
       <p id="auth-sub" class="modal-sub">Sign in and your stories follow you across devices. By continuing, you confirm that you are at least 18 years old and agree to the Terms.</p>
 
@@ -282,9 +283,9 @@
 
       <p id="auth-message" class="auth-message hidden"></p>
 
-      <div class="modal-actions">
-        <button id="signup-btn" class="btn btn-ghost">Create account</button>
-        <button id="signin-btn" class="btn btn-primary">Sign in</button>
+      <div class="modal-actions auth-actions" aria-label="Choose how to continue">
+        <button id="signup-btn" class="btn btn-ghost auth-action" aria-pressed="false">Create account</button>
+        <button id="signin-btn" class="btn btn-primary auth-action" aria-pressed="true">Sign in</button>
       </div>
     </div>
   </div>
