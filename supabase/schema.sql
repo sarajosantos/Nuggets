@@ -30,6 +30,27 @@ create policy "own stories" on public.stories
 create index if not exists stories_user_idx on public.stories (user_id, updated_at desc);
 
 -- ---------------------------------------------------------------------------
+-- Story Studio catalog (drafts + published worlds)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.world_catalog (
+  id text primary key check (id ~ '^[a-z0-9][a-z0-9_-]{1,79}$'),
+  draft_data jsonb not null,
+  published_data jsonb,
+  active boolean not null default true,
+  version integer not null default 1,
+  updated_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  published_at timestamptz
+);
+
+alter table public.world_catalog enable row level security;
+drop policy if exists "world catalog is server only" on public.world_catalog;
+create index if not exists world_catalog_active_idx
+  on public.world_catalog (active, updated_at desc);
+
+-- ---------------------------------------------------------------------------
 -- Shared (published) stories: world-readable, written only by the server.
 -- ---------------------------------------------------------------------------
 

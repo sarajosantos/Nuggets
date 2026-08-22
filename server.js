@@ -630,6 +630,143 @@ app.get("/api/config", (_req, res) => {
   });
 });
 
+// ----------------------------------------------------------------------
+// Story Studio catalog
+// ----------------------------------------------------------------------
+
+const CATALOG_TEXT_LIMITS = {
+  genre: 80,
+  tone: 240,
+  question: 160,
+  namePlaceholder: 100,
+  title: 120,
+  premise: 900,
+  blurb: 320,
+};
+
+function catalogText(value, limit) {
+  return String(value == null ? "" : value).trim().slice(0, limit);
+}
+
+function catalogList(value, limit, itemLimit) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => catalogText(item, itemLimit))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function cleanCatalogArchetypes(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 12).map((archetype) => ({
+    title: catalogText(archetype && archetype.title, CATALOG_TEXT_LIMITS.title),
+    blurb: catalogText(archetype && archetype.blurb, CATALOG_TEXT_LIMITS.blurb),
+    ornament: catalogText(archetype && archetype.ornament, 8),
+  })).filter((archetype) => archetype.title);
+}
+
+function cleanCatalogStory(value) {
+  const story = value && typeof value === "object" ? value : {};
+  return {
+    title: catalogText(story.title, CATALOG_TEXT_LIMITS.title),
+    premise: catalogText(story.premise, CATALOG_TEXT_LIMITS.premise),
+    tone: catalogText(story.tone, CATALOG_TEXT_LIMITS.tone),
+    question: catalogText(story.question, CATALOG_TEXT_LIMITS.question),
+    namePlaceholder: catalogText(story.namePlaceholder, CATALOG_TEXT_LIMITS.namePlaceholder),
+    names: catalogList(story.names, 24, 80),
+    archetypes: cleanCatalogArchetypes(story.archetypes),
+    traits: catalogList(story.traits, 24, 60),
+  };
+}
+
+function cleanCatalogWorld(value, id) {
+  const world = value && typeof value === "object" ? value : {};
+  return {
+    id,
+    ornament: catalogText(world.ornament, 8) || "❦",
+    genre: catalogText(world.genre, CATALOG_TEXT_LIMITS.genre),
+    accent: /^#[0-9a-f]{6}$/i.test(String(world.accent || "")) ? world.accent : "#c89b5d",
+    tone: catalogText(world.tone, CATALOG_TEXT_LIMITS.tone),
+    question: catalogText(world.question, CATALOG_TEXT_LIMITS.question),
+    namePlaceholder: catalogText(world.namePlaceholder, CATALOG_TEXT_LIMITS.namePlaceholder),
+    names: catalogList(world.names, 24, 80),
+    archetypes: cleanCatalogArchetypes(world.archetypes),
+    traits: catalogList(world.traits, 24, 60),
+    stories: Array.isArray(world.stories)
+      ? world.stories.slice(0, 12).map(cleanCatalogStory).filter((story) => story.title && story.premise)
+      : [],
+  };
+}
+
+async function catalogAdminUser(req) {
+  if (!supabaseAdmin) return null;
+  const user = await userFromReq(req);
+  return isAdmin(user) ? user : null;
+}
+
+app.get("/api/catalog", async (_req, res) => {
+  if (!supabaseAdmin) return res.json({ worlds: [] });
+  const { data, error } = await supabaseAdmin
+    .from("world_catalog")
+    .select("id, published_data, version, published_at")
+    .eq("active", true)
+    .not("published_data", "is", null)
+    .order("updated_at", { ascending: false });
+  if (error) return res.status(500).json({ error: "couldn't load the story catalog" });
+  res.json({ worlds: (data || []).map((row) => row.published_data).filter(Boolean) });
+});
+
+app.get("/api/admin/catalog", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Story Studio isn't configured." });
+  if (!await catalogAdminUser(req)) return res.status(403).json({ error: "forbidden" });
+  const { data, error } = await supabaseAdmin
+    .from("world_catalog")
+    .select("id, draft_data, published_data, active, version, updated_at, published_at")
+    .order("updated_at", { ascending: false });
+  if (error) return res.status(500).json({ error: "couldn't load Story Studio" });
+  res.json({ worlds: data || [] });
+});
+
+app.put("/api/admin/catalog/:id", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Story Studio isn't configured." });
+  const user = await catalogAdminUser(req);
+  if (!user) return res.status(403).json({ error: "forbidden" });
+  const id = catalogText(req.params.id, 80).toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{1,79}$/.test(id)) return res.status(400).json({ error: "invalid world id" });
+  const draft = cleanCatalogWorld(req.body && req.body.draft, id);
+  if (!draft.genre || !draft.tone || !draft.stories.length) {
+    return res.status(400).json({ error: "A world needs a genre, tone, and at least one complete story." });
+  }
+  const { data, error } = await supabaseAdmin.from("world_catalog").upsert({
+    id,
+    draft_data: draft,
+    active: req.body && req.body.active !== false,
+    updated_by: user.id,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "id" }).select("id, draft_data, published_data, active, version, updated_at, published_at").single();
+  if (error) return res.status(500).json({ error: "couldn't save the draft" });
+  res.json({ world: data });
+});
+
+app.post("/api/admin/catalog/:id/publish", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Story Studio isn't configured." });
+  const user = await catalogAdminUser(req);
+  if (!user) return res.status(403).json({ error: "forbidden" });
+  const id = catalogText(req.params.id, 80).toLowerCase();
+  const { data: existing, error: readError } = await supabaseAdmin
+    .from("world_catalog").select("draft_data, version").eq("id", id).maybeSingle();
+  if (readError || !existing) return res.status(404).json({ error: "draft world not found" });
+  const { data, error } = await supabaseAdmin.from("world_catalog").update({
+    published_data: existing.draft_data,
+    version: (Number(existing.version) || 1) + 1,
+    published_at: new Date().toISOString(),
+    updated_by: user.id,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).select("id, draft_data, published_data, active, version, updated_at, published_at").single();
+  if (error) return res.status(500).json({ error: "couldn't publish the world" });
+  res.json({ world: data });
+});
+
 // A signed-in user's current credit balance.
 app.get("/api/credits", async (req, res) => {
   if (!supabaseAdmin) return res.json({ credits: null, enforced: false });

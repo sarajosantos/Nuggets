@@ -139,6 +139,61 @@
         </section>
       </div>
       <p id="admin-status" class="auth-message hidden"></p>
+
+      <section class="studio-section" aria-labelledby="studio-title">
+        <div class="studio-heading">
+          <div>
+            <p class="section-kicker">Content studio</p>
+            <h3 id="studio-title" class="ledger-section-title">Worlds &amp; characters</h3>
+            <p class="screen-sub">Shape a draft, preview it privately, then publish when it is ready.</p>
+          </div>
+          <div class="studio-toolbar">
+            <label class="sr-only" for="studio-world-select">World to edit</label>
+            <select id="studio-world-select"></select>
+            <button id="studio-new" class="btn btn-ghost btn-small" type="button">New world</button>
+          </div>
+        </div>
+        <form id="studio-form" class="studio-form hidden">
+          <div class="studio-fields">
+            <div>
+              <label class="field-label" for="studio-id">World ID</label>
+              <input id="studio-id" required maxlength="80" pattern="[a-z0-9][a-z0-9_-]{1,79}" autocomplete="off">
+            </div>
+            <div>
+              <label class="field-label" for="studio-genre">Genre label</label>
+              <input id="studio-genre" required maxlength="80" autocomplete="off">
+            </div>
+            <div>
+              <label class="field-label" for="studio-accent">Accent</label>
+              <input id="studio-accent" type="text" maxlength="7" pattern="#[0-9a-fA-F]{6}" placeholder="#c89b5d" autocomplete="off">
+            </div>
+            <div>
+              <label class="field-label" for="studio-question">Character question</label>
+              <input id="studio-question" maxlength="160" autocomplete="off">
+            </div>
+            <div>
+              <label class="field-label" for="studio-name-placeholder">Name placeholder</label>
+              <input id="studio-name-placeholder" maxlength="120" autocomplete="off">
+            </div>
+          </div>
+          <label class="field-label" for="studio-tone">World tone</label>
+          <textarea id="studio-tone" maxlength="240" rows="2"></textarea>
+          <label class="field-label" for="studio-premise-names">Character name pool <span class="studio-hint">comma-separated</span></label>
+          <input id="studio-premise-names" maxlength="1800" autocomplete="off">
+          <label class="field-label" for="studio-traits">Defining traits <span class="studio-hint">comma-separated</span></label>
+          <input id="studio-traits" maxlength="1400" autocomplete="off">
+          <label class="field-label" for="studio-stories-json">Stories &amp; archetypes <span class="studio-hint">JSON · each story can override the character cast</span></label>
+          <textarea id="studio-stories-json" class="studio-json" rows="12" spellcheck="false"></textarea>
+          <label class="studio-check"><input id="studio-active" type="checkbox" checked> Reader-visible when published</label>
+          <div class="studio-actions">
+            <p id="studio-status" class="auth-message hidden" role="status"></p>
+            <div>
+              <button id="studio-save" class="btn btn-ghost" type="submit">Save draft</button>
+              <button id="studio-publish" class="btn btn-primary" type="button">Publish draft</button>
+            </div>
+          </div>
+        </form>
+      </section>
     </section>
 
     <!-- Screen 1b: custom scenario -->

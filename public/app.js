@@ -479,6 +479,7 @@ const USER_LIB_PREFIX = "plotwick-library-user-v2:";
 let library = loadLibrary(ANON_LIB_KEY, { migrateLegacy: true });
 let story = null; // the active story object (a member of library.stories)
 let draft = { scenario: null, character: { name: "", archetype: null, trait: null } };
+let activeScenarios = SCENARIOS;
 let pendingAction = null; // player action that led to the chapter now streaming
 let generating = false;
 let sb = null; // Supabase client (null when accounts aren't configured)
@@ -488,6 +489,8 @@ let credits = null; // current credit balance (null = unknown / not enforced)
 let creditAccount = null; // verified balance metadata from the server
 let currentUserAdmin = false;
 let adminDays = 30;
+let studioCatalog = [];
+let studioSelectedId = null;
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 let libraryFilter = "all";
@@ -610,6 +613,8 @@ async function init() {
     if (appConfig.demo) $("demo-banner").classList.remove("hidden");
   } catch { /* cosmetic */ }
 
+  await loadPublishedCatalog();
+
   renderScenarios();
   renderLibrary();
   wireEvents();
@@ -619,16 +624,31 @@ async function init() {
   handleCheckoutReturn(); // show a message if we just came back from Stripe
 }
 
+async function loadPublishedCatalog() {
+  try {
+    const res = await fetch("/api/catalog");
+    if (!res.ok) return;
+    const body = await res.json();
+    if (!Array.isArray(body.worlds) || !body.worlds.length) return;
+    const byId = new Map(activeScenarios.map((world) => [world.id, world]));
+    for (const world of body.worlds) {
+      if (!world || !world.id || !Array.isArray(world.stories) || !world.stories.length) continue;
+      byId.set(world.id, world);
+    }
+    activeScenarios = [...byId.values()];
+  } catch { /* bundled worlds remain the safe fallback */ }
+}
+
 // ----- screen 1: home -----
 function renderScenarios() {
   const grid = $("scenario-grid");
   grid.innerHTML = "";
-  for (const world of SCENARIOS) grid.appendChild(worldCard(world));
+  for (const world of activeScenarios) grid.appendChild(worldCard(world));
   grid.appendChild(customCard());
 }
 
 function openSurpriseStory() {
-  const world = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
+  const world = activeScenarios[Math.floor(Math.random() * activeScenarios.length)];
   const selectedStory = world.stories[Math.floor(Math.random() * world.stories.length)];
   draft.scenario = buildScenario(world, selectedStory);
   trackProductEvent("world_selected", { worldId: world.id });
@@ -1481,13 +1501,13 @@ function renderEndingRitual() {
   $("ending-summary").textContent =
     `${story.character.name}'s story now rests in your library after ${count} ` +
     `${count === 1 ? "chapter" : "chapters"}. Return whenever you want to read it again.`;
-  const world = SCENARIOS.find((candidate) => candidate.id === story.scenario.id);
+  const world = activeScenarios.find((candidate) => candidate.id === story.scenario.id);
   $("next-world-btn").classList.toggle("hidden", !world || world.stories.length < 2);
 }
 
 function openAnotherInWorld() {
   if (!story || !story.done) return;
-  const world = SCENARIOS.find((candidate) => candidate.id === story.scenario.id);
+  const world = activeScenarios.find((candidate) => candidate.id === story.scenario.id);
   if (!world) return goHome();
   const alternatives = world.stories.filter((candidate) => candidate.title !== story.scenario.title);
   const selectedStory = alternatives[Math.floor(Math.random() * alternatives.length)] || world.stories[0];
@@ -1952,6 +1972,35 @@ function wireAuthEvents() {
   $("export-account-btn").addEventListener("click", exportAccountData);
   $("delete-account-btn").addEventListener("click", deleteAccount);
   $("admin-btn").addEventListener("click", openAdminDashboard);
+  $("studio-world-select").addEventListener("change", (event) => {
+    studioSelectedId = event.target.value;
+    const entry = studioCatalog.find((candidate) => candidate.id === studioSelectedId);
+    if (entry) fillStudioForm(entry.draft);
+  });
+  $("studio-new").addEventListener("click", () => {
+    studioSelectedId = `new-world-${Date.now().toString(36)}`;
+    const fresh = {
+      id: studioSelectedId,
+      ornament: "❦",
+      genre: "New world",
+      accent: "#c89b5d",
+      tone: "A vivid world with a clear promise and room for danger.",
+      question: "Who are you?",
+      namePlaceholder: "e.g. Rowan Ashford",
+      names: [],
+      traits: [],
+      archetypes: [],
+      stories: [{ title: "The first opening", premise: "Something is about to change.", tone: "", question: "Who are you?", names: [], traits: [], archetypes: [] }],
+    };
+    studioCatalog = [{ id: fresh.id, draft: fresh }, ...studioCatalog];
+    populateStudioSelect();
+    fillStudioForm(fresh);
+  });
+  $("studio-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveStudioDraft(false);
+  });
+  $("studio-publish").addEventListener("click", () => saveStudioDraft(true));
   $("admin-back").addEventListener("click", goHome);
   $("admin-range").addEventListener("click", (event) => {
     const button = event.target.closest("[data-days]");
@@ -2234,6 +2283,116 @@ function openAdminDashboard() {
   if (!currentUserAdmin) return;
   showScreen("admin");
   loadAdminDashboard();
+  loadStudioCatalog();
+}
+
+function studioStatus(text, gentle = false) {
+  const status = $("studio-status");
+  status.textContent = text;
+  status.classList.toggle("gentle", gentle);
+  status.classList.remove("hidden");
+}
+
+function populateStudioSelect() {
+  const select = $("studio-world-select");
+  select.innerHTML = studioCatalog.map((entry) =>
+    `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.draft.genre || entry.id)}${entry.published ? " · published" : " · draft"}</option>`
+  ).join("");
+  select.value = studioSelectedId || studioCatalog[0]?.id || "";
+}
+
+function fillStudioForm(world) {
+  if (!world) return;
+  $("studio-form").classList.remove("hidden");
+  $("studio-id").value = world.id || "";
+  $("studio-genre").value = world.genre || "";
+  $("studio-accent").value = world.accent || "#c89b5d";
+  $("studio-question").value = world.question || "Who are you?";
+  $("studio-name-placeholder").value = world.namePlaceholder || "e.g. Your character's name";
+  $("studio-tone").value = world.tone || "";
+  $("studio-premise-names").value = (world.names || []).join(", ");
+  $("studio-traits").value = (world.traits || []).join(", ");
+  $("studio-stories-json").value = JSON.stringify(world.stories || [], null, 2);
+  $("studio-active").checked = world.active !== false;
+}
+
+function readStudioForm() {
+  let stories;
+  try {
+    stories = JSON.parse($("studio-stories-json").value || "[]");
+  } catch {
+    throw new Error("Stories & archetypes must be valid JSON.");
+  }
+  if (!Array.isArray(stories)) throw new Error("Stories & archetypes must be a JSON array.");
+  return {
+    id: $("studio-id").value.trim().toLowerCase(),
+    genre: $("studio-genre").value.trim(),
+    accent: $("studio-accent").value.trim(),
+    tone: $("studio-tone").value.trim(),
+    question: $("studio-question").value.trim(),
+    namePlaceholder: $("studio-name-placeholder").value.trim(),
+    names: $("studio-premise-names").value.split(",").map((name) => name.trim()).filter(Boolean),
+    traits: $("studio-traits").value.split(",").map((trait) => trait.trim()).filter(Boolean),
+    stories,
+  };
+}
+
+async function loadStudioCatalog() {
+  const form = $("studio-form");
+  try {
+    const res = await fetch("/api/admin/catalog", { headers: await authHeader() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Story Studio is unavailable.");
+    const rows = Array.isArray(body.worlds) ? body.worlds : [];
+    const saved = new Map(rows.map((row) => [row.id, row]));
+    studioCatalog = activeScenarios.map((world) => ({
+      id: world.id,
+      draft: { ...(saved.get(world.id)?.draft_data || world), active: saved.get(world.id)?.active !== false },
+      published: !!saved.get(world.id)?.published_data,
+    }));
+    for (const row of rows) {
+      if (!studioCatalog.some((entry) => entry.id === row.id)) {
+        studioCatalog.push({ id: row.id, draft: { ...row.draft_data, active: row.active !== false }, published: !!row.published_data });
+      }
+    }
+    studioSelectedId = studioSelectedId || studioCatalog[0]?.id;
+    populateStudioSelect();
+    fillStudioForm(studioCatalog.find((entry) => entry.id === studioSelectedId)?.draft);
+    studioStatus(rows.length ? "Draft catalog loaded." : "Bundled worlds are ready to edit. Save a draft to create the catalog.", true);
+  } catch (error) {
+    form.classList.add("hidden");
+    studioStatus(error.message || "Story Studio is unavailable.");
+  }
+}
+
+async function saveStudioDraft(publish) {
+  try {
+    const draft = readStudioForm();
+    if (!draft.id || !/^[a-z0-9][a-z0-9_-]{1,79}$/.test(draft.id)) {
+      throw new Error("World ID must use lowercase letters, numbers, hyphens, or underscores.");
+    }
+    studioStatus(publish ? "Publishing…" : "Saving draft…", true);
+    const saved = await fetch(`/api/admin/catalog/${encodeURIComponent(draft.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ draft, active: $("studio-active").checked }),
+    });
+    const savedBody = await saved.json().catch(() => ({}));
+    if (!saved.ok) throw new Error(savedBody.error || "Couldn’t save the draft.");
+    if (publish) {
+      const published = await fetch(`/api/admin/catalog/${encodeURIComponent(draft.id)}/publish`, {
+        method: "POST",
+        headers: await authHeader(),
+      });
+      const publishedBody = await published.json().catch(() => ({}));
+      if (!published.ok) throw new Error(publishedBody.error || "Couldn’t publish the world.");
+    }
+    studioSelectedId = draft.id;
+    await loadStudioCatalog();
+    studioStatus(publish ? "Published. New readers will see it on their next visit." : "Draft saved. It is not visible to readers yet.", true);
+  } catch (error) {
+    studioStatus(error.message || "Couldn’t save the world.");
+  }
 }
 
 async function loadAdminDashboard() {
@@ -2315,7 +2474,7 @@ function renderAdminDashboard(data) {
   $("admin-pilots").innerHTML = pilotRows || '<p class="ledger-empty">No tagged pilot readers in this period.</p>';
 
   const worldRows = (data.worlds || []).map((world) => {
-    const known = SCENARIOS.find((candidate) => candidate.id === world.worldId);
+    const known = activeScenarios.find((candidate) => candidate.id === world.worldId);
     const name = known ? known.genre : world.worldId === "custom" ? "Write your own" : world.worldId;
     return `<div class="ledger-row"><strong>${escapeHtml(name)}</strong>` +
       `<span>${world.selected} chosen · ${world.completed} finished</span></div>`;
