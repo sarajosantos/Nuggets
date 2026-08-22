@@ -184,10 +184,18 @@
           </div>
           <label class="field-label" for="studio-tone">World tone</label>
           <textarea id="studio-tone" maxlength="240" rows="2"></textarea>
-          <label class="field-label" for="studio-premise-names">Character name pool <span class="studio-hint">comma-separated</span></label>
-          <input id="studio-premise-names" maxlength="1800" autocomplete="off">
-          <label class="field-label" for="studio-traits">Defining traits <span class="studio-hint">comma-separated</span></label>
-          <input id="studio-traits" maxlength="1400" autocomplete="off">
+          <label class="field-label" for="studio-premise-names">Character name pool</label>
+          <div class="studio-token-editor" data-token-kind="names">
+            <div id="studio-name-tokens" class="studio-token-list" aria-live="polite"></div>
+            <input id="studio-premise-names" class="studio-token-input" maxlength="120" placeholder="Type a name, then press Enter" autocomplete="off">
+          </div>
+          <p class="studio-token-help">Each name becomes its own cast card. Press Enter or comma to add it.</p>
+          <label class="field-label" for="studio-traits">Defining traits</label>
+          <div class="studio-token-editor" data-token-kind="traits">
+            <div id="studio-trait-tokens" class="studio-token-list" aria-live="polite"></div>
+            <input id="studio-traits" class="studio-token-input" maxlength="80" placeholder="Type a trait, then press Enter" autocomplete="off">
+          </div>
+          <p class="studio-token-help">Keep traits short and distinct; readers choose one during character creation.</p>
           <section class="studio-stories" aria-labelledby="studio-stories-title">
             <div class="studio-stories-heading">
               <div>

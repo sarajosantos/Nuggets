@@ -717,6 +717,59 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .studio-form .field-label { margin-top: 0.8rem; }
 .studio-fields .field-label { margin-top: 0; }
 .studio-hint { color: var(--muted); font-size: 0.62rem; letter-spacing: 0.02em; text-transform: none; }
+.studio-token-editor {
+  align-items: center;
+  background: var(--ink-well);
+  border: 1px solid var(--hairline);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-height: 3.25rem;
+  padding: 0.55rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.studio-token-editor:focus-within { border-color: var(--gold-line); box-shadow: 0 0 0 2px var(--gold-dim); }
+.studio-token-list { display: contents; }
+.studio-token {
+  align-items: center;
+  background: color-mix(in srgb, var(--larkspur) 13%, var(--plate));
+  border: 1px solid color-mix(in srgb, var(--larkspur) 35%, transparent);
+  display: inline-flex;
+  font-family: var(--prose);
+  font-size: 0.9rem;
+  gap: 0.35rem;
+  line-height: 1.2;
+  max-width: 100%;
+  padding: 0.38rem 0.42rem 0.38rem 0.65rem;
+}
+.studio-token.trait { background: var(--gold-dim); border-color: var(--gold-line); font-family: var(--ui); font-size: 0.75rem; }
+.studio-token > span { overflow-wrap: anywhere; }
+.studio-token button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1rem;
+  height: 1.35rem;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 1.35rem;
+}
+.studio-token button:hover, .studio-token button:focus-visible { color: var(--text); }
+.studio-token-input,
+.studio-token-editor .studio-token-input {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  flex: 1 1 13rem;
+  min-width: 9rem;
+  padding: 0.4rem 0.25rem;
+}
+.studio-token-input:focus { border: 0; box-shadow: none; outline: 0; }
+.studio-token-help { color: var(--muted); font-size: 0.68rem; margin-top: 0.3rem; }
 .studio-json {
   background: var(--ink-well);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -779,6 +832,8 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   .studio-story-fields { grid-template-columns: 1fr; }
   .studio-story-card { grid-template-columns: 1.7rem 1fr; }
   .studio-story-card-actions { flex-direction: row; grid-column: 2; }
+  .studio-token-editor { align-items: stretch; }
+  .studio-token-input, .studio-token-editor .studio-token-input { flex-basis: 100%; min-width: 0; }
 }
 
 /* ---------- story screen: the book page ---------- */

@@ -493,6 +493,8 @@ let studioCatalog = [];
 let studioSelectedId = null;
 let studioStories = [];
 let studioEditingStoryIndex = null;
+let studioNames = [];
+let studioTraits = [];
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 let libraryFilter = "all";
@@ -2019,6 +2021,28 @@ function wireAuthEvents() {
   });
   $("studio-story-cancel").addEventListener("click", () => $("studio-story-editor").classList.add("hidden"));
   $("studio-story-save").addEventListener("click", saveStudioStory);
+  for (const kind of ["names", "traits"]) {
+    const input = $(kind === "names" ? "studio-premise-names" : "studio-traits");
+    const list = $(kind === "names" ? "studio-name-tokens" : "studio-trait-tokens");
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === ",") {
+        event.preventDefault();
+        commitStudioTokenInput(kind);
+      } else if (event.key === "Backspace" && !input.value) {
+        const values = kind === "names" ? studioNames : studioTraits;
+        values.pop();
+        renderStudioTokens(kind);
+      }
+    });
+    input.addEventListener("blur", () => commitStudioTokenInput(kind));
+    list.addEventListener("click", (event) => {
+      const remove = event.target.closest("[data-token-index]");
+      if (!remove) return;
+      const values = kind === "names" ? studioNames : studioTraits;
+      values.splice(Number(remove.dataset.tokenIndex), 1);
+      renderStudioTokens(kind);
+    });
+  }
   $("admin-back").addEventListener("click", goHome);
   $("studio-back").addEventListener("click", goHome);
   $("admin-range").addEventListener("click", (event) => {
@@ -2328,6 +2352,29 @@ function populateStudioSelect() {
   select.value = studioSelectedId || studioCatalog[0]?.id || "";
 }
 
+function renderStudioTokens(kind) {
+  const values = kind === "names" ? studioNames : studioTraits;
+  const list = $(kind === "names" ? "studio-name-tokens" : "studio-trait-tokens");
+  const label = kind === "names" ? "name" : "trait";
+  list.innerHTML = values.map((value, index) => `
+    <span class="studio-token ${kind === "traits" ? "trait" : ""}">
+      <span>${escapeHtml(value)}</span>
+      <button type="button" data-token-index="${index}" aria-label="Remove ${escapeHtml(value)} ${label}">×</button>
+    </span>
+  `).join("");
+}
+
+function commitStudioTokenInput(kind) {
+  const input = $(kind === "names" ? "studio-premise-names" : "studio-traits");
+  const values = kind === "names" ? studioNames : studioTraits;
+  const additions = input.value.split(",").map((value) => value.trim()).filter(Boolean);
+  for (const addition of additions) {
+    if (!values.some((value) => value.toLowerCase() === addition.toLowerCase())) values.push(addition);
+  }
+  input.value = "";
+  renderStudioTokens(kind);
+}
+
 function renderStudioStories() {
   const list = $("studio-story-list");
   if (!studioStories.length) {
@@ -2404,8 +2451,12 @@ function fillStudioForm(world) {
   $("studio-question").value = world.question || "Who are you?";
   $("studio-name-placeholder").value = world.namePlaceholder || "e.g. Your character's name";
   $("studio-tone").value = world.tone || "";
-  $("studio-premise-names").value = (world.names || []).join(", ");
-  $("studio-traits").value = (world.traits || []).join(", ");
+  studioNames = [...(world.names || [])];
+  studioTraits = [...(world.traits || [])];
+  $("studio-premise-names").value = "";
+  $("studio-traits").value = "";
+  renderStudioTokens("names");
+  renderStudioTokens("traits");
   studioStories = JSON.parse(JSON.stringify(world.stories || []));
   studioEditingStoryIndex = null;
   $("studio-story-editor").classList.add("hidden");
@@ -2414,6 +2465,8 @@ function fillStudioForm(world) {
 }
 
 function readStudioForm() {
+  commitStudioTokenInput("names");
+  commitStudioTokenInput("traits");
   return {
     id: $("studio-id").value.trim().toLowerCase(),
     genre: $("studio-genre").value.trim(),
@@ -2421,8 +2474,8 @@ function readStudioForm() {
     tone: $("studio-tone").value.trim(),
     question: $("studio-question").value.trim(),
     namePlaceholder: $("studio-name-placeholder").value.trim(),
-    names: $("studio-premise-names").value.split(",").map((name) => name.trim()).filter(Boolean),
-    traits: $("studio-traits").value.split(",").map((trait) => trait.trim()).filter(Boolean),
+    names: [...studioNames],
+    traits: [...studioTraits],
     stories: studioStories,
   };
 }
