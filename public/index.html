@@ -33,6 +33,7 @@
       <button id="buy-btn" class="tool-btn hidden">Get more stories</button>
       <button id="pilot-feedback-btn" class="tool-btn hidden">Pilot feedback</button>
       <button id="admin-btn" class="tool-btn hidden">Publisher’s ledger</button>
+      <button id="studio-btn" class="tool-btn hidden">Story Studio</button>
       <span id="account-email" class="account-email hidden"></span>
       <button id="account-btn" class="tool-btn">Sign in</button>
     </div>
@@ -139,13 +140,18 @@
         </section>
       </div>
       <p id="admin-status" class="auth-message hidden"></p>
+    </section>
 
-      <section class="studio-section" aria-labelledby="studio-title">
+    <section id="screen-studio" class="screen hidden" aria-labelledby="studio-title">
+      <nav class="screen-nav">
+        <button id="studio-back" class="back-link">← Home</button>
+      </nav>
+      <section class="studio-section">
         <div class="studio-heading">
           <div>
             <p class="section-kicker">Content studio</p>
-            <h3 id="studio-title" class="ledger-section-title">Worlds &amp; characters</h3>
-            <p class="screen-sub">Shape a draft, preview it privately, then publish when it is ready.</p>
+            <h2 id="studio-title" class="screen-title">Story Studio</h2>
+            <p class="screen-sub">A private workshop for worlds, stories, and their casts.</p>
           </div>
           <div class="studio-toolbar">
             <label class="sr-only" for="studio-world-select">World to edit</label>
@@ -182,8 +188,37 @@
           <input id="studio-premise-names" maxlength="1800" autocomplete="off">
           <label class="field-label" for="studio-traits">Defining traits <span class="studio-hint">comma-separated</span></label>
           <input id="studio-traits" maxlength="1400" autocomplete="off">
-          <label class="field-label" for="studio-stories-json">Stories &amp; archetypes <span class="studio-hint">JSON · each story can override the character cast</span></label>
-          <textarea id="studio-stories-json" class="studio-json" rows="12" spellcheck="false"></textarea>
+          <section class="studio-stories" aria-labelledby="studio-stories-title">
+            <div class="studio-stories-heading">
+              <div>
+                <p class="section-kicker">Stories in this world</p>
+                <h4 id="studio-stories-title">Existing stories</h4>
+              </div>
+              <button id="studio-story-new" class="btn btn-ghost btn-small" type="button">Add story</button>
+            </div>
+            <div id="studio-story-list" class="studio-story-list"></div>
+            <div id="studio-story-editor" class="studio-story-editor hidden">
+              <p id="studio-story-editor-label" class="section-kicker">Edit story</p>
+              <div class="studio-story-fields">
+                <div>
+                  <label class="field-label" for="studio-story-title">Story title</label>
+                  <input id="studio-story-title" maxlength="140" autocomplete="off">
+                </div>
+                <div>
+                  <label class="field-label" for="studio-story-question">Character question</label>
+                  <input id="studio-story-question" maxlength="160" autocomplete="off">
+                </div>
+              </div>
+              <label class="field-label" for="studio-story-premise">Premise</label>
+              <textarea id="studio-story-premise" maxlength="1200" rows="4"></textarea>
+              <label class="field-label" for="studio-story-archetypes">Character archetypes <span class="studio-hint">JSON · optional story-specific cast</span></label>
+              <textarea id="studio-story-archetypes" class="studio-json" rows="7" spellcheck="false"></textarea>
+              <div class="studio-story-editor-actions">
+                <button id="studio-story-cancel" class="btn btn-ghost btn-small" type="button">Cancel</button>
+                <button id="studio-story-save" class="btn btn-primary btn-small" type="button">Save story</button>
+              </div>
+            </div>
+          </section>
           <label class="studio-check"><input id="studio-active" type="checkbox" checked> Reader-visible when published</label>
           <div class="studio-actions">
             <p id="studio-status" class="auth-message hidden" role="status"></p>

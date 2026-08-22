@@ -491,6 +491,8 @@ let currentUserAdmin = false;
 let adminDays = 30;
 let studioCatalog = [];
 let studioSelectedId = null;
+let studioStories = [];
+let studioEditingStoryIndex = null;
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 let libraryFilter = "all";
@@ -510,6 +512,7 @@ const $ = (id) => document.getElementById(id);
 const screens = {
   scenario: $("screen-scenario"),
   admin: $("screen-admin"),
+  studio: $("screen-studio"),
   custom: $("screen-custom"),
   character: $("screen-character"),
   story: $("screen-story"),
@@ -1972,6 +1975,7 @@ function wireAuthEvents() {
   $("export-account-btn").addEventListener("click", exportAccountData);
   $("delete-account-btn").addEventListener("click", deleteAccount);
   $("admin-btn").addEventListener("click", openAdminDashboard);
+  $("studio-btn").addEventListener("click", openStoryStudio);
   $("studio-world-select").addEventListener("change", (event) => {
     studioSelectedId = event.target.value;
     const entry = studioCatalog.find((candidate) => candidate.id === studioSelectedId);
@@ -2001,7 +2005,22 @@ function wireAuthEvents() {
     saveStudioDraft(false);
   });
   $("studio-publish").addEventListener("click", () => saveStudioDraft(true));
+  $("studio-story-new").addEventListener("click", () => openStudioStoryEditor(-1));
+  $("studio-story-list").addEventListener("click", (event) => {
+    const action = event.target.closest("[data-story-action]");
+    if (!action) return;
+    const index = Number(action.dataset.storyIndex);
+    if (action.dataset.storyAction === "edit") openStudioStoryEditor(index);
+    if (action.dataset.storyAction === "remove") {
+      studioStories.splice(index, 1);
+      renderStudioStories();
+      $("studio-story-editor").classList.add("hidden");
+    }
+  });
+  $("studio-story-cancel").addEventListener("click", () => $("studio-story-editor").classList.add("hidden"));
+  $("studio-story-save").addEventListener("click", saveStudioStory);
   $("admin-back").addEventListener("click", goHome);
+  $("studio-back").addEventListener("click", goHome);
   $("admin-range").addEventListener("click", (event) => {
     const button = event.target.closest("[data-days]");
     if (!button) return;
@@ -2148,6 +2167,7 @@ function setUser(u) {
   if (changed) {
     currentUserAdmin = false;
     $("admin-btn").classList.add("hidden");
+    $("studio-btn").classList.add("hidden");
     saveLibrary();
     user = u;
     if (u) {
@@ -2187,6 +2207,7 @@ function setUser(u) {
   if (!u) {
     currentUserAdmin = false;
     $("admin-btn").classList.add("hidden");
+    $("studio-btn").classList.add("hidden");
   }
 
   // Credits follow the signed-in user.
@@ -2259,6 +2280,7 @@ async function refreshCredits() {
     const body = await res.json();
     currentUserAdmin = !!body.admin;
     $("admin-btn").classList.toggle("hidden", !currentUserAdmin);
+    $("studio-btn").classList.toggle("hidden", !currentUserAdmin);
     setCredits(body.credits, body);
   } catch { /* leave as-is */ }
 }
@@ -2283,6 +2305,11 @@ function openAdminDashboard() {
   if (!currentUserAdmin) return;
   showScreen("admin");
   loadAdminDashboard();
+}
+
+function openStoryStudio() {
+  if (!currentUserAdmin) return;
+  showScreen("studio");
   loadStudioCatalog();
 }
 
@@ -2301,6 +2328,73 @@ function populateStudioSelect() {
   select.value = studioSelectedId || studioCatalog[0]?.id || "";
 }
 
+function renderStudioStories() {
+  const list = $("studio-story-list");
+  if (!studioStories.length) {
+    list.innerHTML = `<div class="studio-story-empty"><span>❦</span><p>No stories yet. Add the first opening for this world.</p></div>`;
+    return;
+  }
+  list.innerHTML = studioStories.map((story, index) => `
+    <article class="studio-story-card">
+      <div class="studio-story-number">${String(index + 1).padStart(2, "0")}</div>
+      <div class="studio-story-copy">
+        <h5>${escapeHtml(story.title || "Untitled story")}</h5>
+        <p>${escapeHtml(story.premise || "No premise written yet.")}</p>
+        <span>${Array.isArray(story.archetypes) && story.archetypes.length ? `${story.archetypes.length} character archetypes` : "Uses the world’s character cast"}</span>
+      </div>
+      <div class="studio-story-card-actions">
+        <button class="btn btn-ghost btn-small" type="button" data-story-action="edit" data-story-index="${index}">Edit</button>
+        <button class="studio-remove" type="button" data-story-action="remove" data-story-index="${index}" aria-label="Remove ${escapeHtml(story.title || "story")}">Remove</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+function openStudioStoryEditor(index) {
+  studioEditingStoryIndex = index;
+  const story = index >= 0 ? studioStories[index] : {};
+  $("studio-story-editor-label").textContent = index >= 0 ? "Edit story" : "New story";
+  $("studio-story-title").value = story.title || "";
+  $("studio-story-premise").value = story.premise || "";
+  $("studio-story-question").value = story.question || "";
+  $("studio-story-archetypes").value = JSON.stringify(story.archetypes || [], null, 2);
+  $("studio-story-editor").classList.remove("hidden");
+  $("studio-story-title").focus();
+}
+
+function saveStudioStory() {
+  const title = $("studio-story-title").value.trim();
+  const premise = $("studio-story-premise").value.trim();
+  if (!title || !premise) {
+    studioStatus("Each story needs a title and premise.");
+    return;
+  }
+  let archetypes;
+  try {
+    archetypes = JSON.parse($("studio-story-archetypes").value || "[]");
+  } catch {
+    studioStatus("Character archetypes must be valid JSON.");
+    return;
+  }
+  if (!Array.isArray(archetypes)) {
+    studioStatus("Character archetypes must be a JSON array.");
+    return;
+  }
+  const previous = studioEditingStoryIndex >= 0 ? studioStories[studioEditingStoryIndex] : {};
+  const next = {
+    ...previous,
+    title,
+    premise,
+    question: $("studio-story-question").value.trim(),
+    archetypes,
+  };
+  if (studioEditingStoryIndex >= 0) studioStories[studioEditingStoryIndex] = next;
+  else studioStories.push(next);
+  renderStudioStories();
+  $("studio-story-editor").classList.add("hidden");
+  studioStatus("Story changes are ready. Save the world draft to keep them.", true);
+}
+
 function fillStudioForm(world) {
   if (!world) return;
   $("studio-form").classList.remove("hidden");
@@ -2312,18 +2406,14 @@ function fillStudioForm(world) {
   $("studio-tone").value = world.tone || "";
   $("studio-premise-names").value = (world.names || []).join(", ");
   $("studio-traits").value = (world.traits || []).join(", ");
-  $("studio-stories-json").value = JSON.stringify(world.stories || [], null, 2);
+  studioStories = JSON.parse(JSON.stringify(world.stories || []));
+  studioEditingStoryIndex = null;
+  $("studio-story-editor").classList.add("hidden");
+  renderStudioStories();
   $("studio-active").checked = world.active !== false;
 }
 
 function readStudioForm() {
-  let stories;
-  try {
-    stories = JSON.parse($("studio-stories-json").value || "[]");
-  } catch {
-    throw new Error("Stories & archetypes must be valid JSON.");
-  }
-  if (!Array.isArray(stories)) throw new Error("Stories & archetypes must be a JSON array.");
   return {
     id: $("studio-id").value.trim().toLowerCase(),
     genre: $("studio-genre").value.trim(),
@@ -2333,7 +2423,7 @@ function readStudioForm() {
     namePlaceholder: $("studio-name-placeholder").value.trim(),
     names: $("studio-premise-names").value.split(",").map((name) => name.trim()).filter(Boolean),
     traits: $("studio-traits").value.split(",").map((trait) => trait.trim()).filter(Boolean),
-    stories,
+    stories: studioStories,
   };
 }
 
