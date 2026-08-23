@@ -2451,6 +2451,7 @@ function fillStudioForm(world) {
   $("studio-id").value = world.id || "";
   $("studio-genre").value = world.genre || "";
   $("studio-accent").value = world.accent || "#c89b5d";
+  $("studio-ornament").value = world.ornament || "❦";
   $("studio-question").value = world.question || "Who are you?";
   $("studio-name-placeholder").value = world.namePlaceholder || "e.g. Your character's name";
   $("studio-tone").value = world.tone || "";
@@ -2460,6 +2461,7 @@ function fillStudioForm(world) {
   $("studio-traits").value = "";
   renderStudioTokens("names");
   renderStudioTokens("traits");
+  $("studio-world-archetypes").value = JSON.stringify(world.archetypes || [], null, 2);
   studioStories = JSON.parse(JSON.stringify(world.stories || []));
   studioEditingStoryIndex = null;
   $("studio-story-editor").classList.add("hidden");
@@ -2470,16 +2472,25 @@ function fillStudioForm(world) {
 function readStudioForm() {
   commitStudioTokenInput("names");
   commitStudioTokenInput("traits");
+  let worldArchetypes;
+  try {
+    worldArchetypes = JSON.parse($("studio-world-archetypes").value || "[]");
+  } catch {
+    throw new Error("Default character archetypes must be valid JSON.");
+  }
+  if (!Array.isArray(worldArchetypes)) throw new Error("Default character archetypes must be a JSON array.");
   return {
     ...studioWorldSource,
     id: $("studio-id").value.trim().toLowerCase(),
     genre: $("studio-genre").value.trim(),
     accent: $("studio-accent").value.trim(),
+    ornament: $("studio-ornament").value.trim() || "❦",
     tone: $("studio-tone").value.trim(),
     question: $("studio-question").value.trim(),
     namePlaceholder: $("studio-name-placeholder").value.trim(),
     names: [...studioNames],
     traits: [...studioTraits],
+    archetypes: worldArchetypes,
     stories: studioStories,
   };
 }
