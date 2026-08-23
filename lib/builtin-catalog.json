@@ -1,0 +1,1210 @@
+[
+  {
+    "id": "fantasy",
+    "ornament": "⚜",
+    "genre": "Epic fantasy",
+    "accent": "#5FB08A",
+    "tone": "Epic fantasy: sweeping, perilous, wondrous. Moral choices with real costs.",
+    "stories": [
+      {
+        "title": "The Shattered Crown",
+        "premise": "The old king is dead, his crown broken into five shards scattered across a fractured realm. Whoever reunites them rules — and something older than any kingdom is also hunting the pieces."
+      },
+      {
+        "title": "The Witchglass Road",
+        "premise": "A plague of forgetting is erasing the kingdom — name by name, face by face. You carry the last witchglass, a mirror that still remembers the truth, and everyone who has already forgotten wants it shattered.",
+        "question": "Who still remembers?",
+        "namePlaceholder": "e.g. Ilsabet Morrow",
+        "names": [
+          "Ilsabet Morrow",
+          "Caedmon Ryse",
+          "Neve of Ashlyn",
+          "Torvald Skarn",
+          "Yrsa Pellin",
+          "Alder Crowe",
+          "Mirenna Vosk",
+          "Emrys Vaunt",
+          "Saphine Dell",
+          "Bran Otterly",
+          "Lysandra of the Quiet Fen",
+          "Corwin Ledd",
+          "Sorrel Brightwater",
+          "Jorem Tallis",
+          "Wilhelmina Sedge",
+          "Osgar of Hollowmere"
+        ],
+        "archetypes": [
+          {
+            "title": "The Last Witness",
+            "ornament": "☍",
+            "blurb": "Everyone you love has forgotten you. You remember all of them."
+          },
+          {
+            "title": "The Name-Keeper",
+            "ornament": "✒",
+            "blurb": "You wrote down every name you could. The list is shorter each dawn."
+          },
+          {
+            "title": "The Cartographer",
+            "ornament": "✎",
+            "blurb": "Your maps show roads no one else recalls building."
+          },
+          {
+            "title": "The Glassmaker",
+            "ornament": "❖",
+            "blurb": "You made the witchglass. You know what it costs to look."
+          },
+          {
+            "title": "The Forgetter",
+            "ornament": "✕",
+            "blurb": "You chose to forget once. It was mercy, and you would again."
+          },
+          {
+            "title": "The Plague-Touched",
+            "ornament": "☾",
+            "blurb": "It has started with you. Perhaps a month of yourself remains."
+          }
+        ],
+        "traits": [
+          "Tenacious",
+          "Grieving",
+          "Clear-eyed",
+          "Doubting",
+          "Merciless",
+          "Fading"
+        ]
+      },
+      {
+        "title": "The Drowned God's Bargain",
+        "premise": "Generations ago your village sold its firstborn names to the sea for a century of full nets. The century ends at tonight's high tide, and the water has come to collect what it is owed.",
+        "question": "Whose name was sold?",
+        "namePlaceholder": "e.g. Maren Tidewell",
+        "names": [
+          "Maren Tidewell",
+          "Corrick Havel",
+          "Islaen Droe",
+          "Bavor Quell",
+          "Sennen of the Shoals",
+          "Bryn Colm",
+          "Talwyn Mere",
+          "Odessa Brack",
+          "Hew Lanyon",
+          "Sorcha Drimm",
+          "Padrig Vole",
+          "Nessa Wray",
+          "Garrick Fell",
+          "Ysolt Carrow",
+          "Denzil Hake",
+          "Peran of Gullswater"
+        ],
+        "archetypes": [
+          {
+            "title": "The Firstborn",
+            "ornament": "☾",
+            "blurb": "Your name was sold before you were born. Tonight it comes due."
+          },
+          {
+            "title": "The Priest of the Drowned God",
+            "ornament": "†",
+            "blurb": "You kept the bargain a hundred years. You never read the terms."
+          },
+          {
+            "title": "The Net-Mender",
+            "ornament": "⚓",
+            "blurb": "A century of full nets fed your family. You know what paid for them."
+          },
+          {
+            "title": "The Tithe-Keeper",
+            "ornament": "⚖",
+            "blurb": "Someone had to choose which children were promised. It was you."
+          },
+          {
+            "title": "The Returned",
+            "ornament": "☍",
+            "blurb": "The sea took you once and sent you back. You remember the bottom."
+          },
+          {
+            "title": "The Outlander",
+            "ornament": "✎",
+            "blurb": "You married in last spring. Your name is not on their ledger."
+          }
+        ],
+        "traits": [
+          "Doomed",
+          "Defiant",
+          "Pious",
+          "Shrewd",
+          "Selfless",
+          "Unrepentant"
+        ]
+      }
+    ],
+    "question": "Who answers the call?",
+    "namePlaceholder": "e.g. Maeryn of the Vale",
+    "names": [
+      "Maeryn of the Vale",
+      "Corvan Ashthorne",
+      "Sable Wren",
+      "Aldric Thorne",
+      "Elira Dawnmere",
+      "Bram Holloway",
+      "Yssolde Fenn",
+      "Gareth Stormcairn",
+      "Nima Silverbrook",
+      "Roderick Vale",
+      "Thessaly Marsh",
+      "Kaelen Frost",
+      "Wynne Blackbriar",
+      "Osric Hale",
+      "Liora of Emberfell",
+      "Draven Ironwood"
+    ],
+    "archetypes": [
+      {
+        "title": "The Knight-Errant",
+        "ornament": "⚔",
+        "blurb": "Sworn to a king now dead. The oath didn't die with him."
+      },
+      {
+        "title": "The Hedge-Witch",
+        "ornament": "☽",
+        "blurb": "Small magics, old debts, a talent for surviving both."
+      },
+      {
+        "title": "The Exiled Heir",
+        "ornament": "♜",
+        "blurb": "Your birthright was taken. Half the realm prefers it that way."
+      },
+      {
+        "title": "The Loremaster",
+        "ornament": "✒",
+        "blurb": "You know what the old tales warned. You wish you didn't."
+      },
+      {
+        "title": "The Sellsword",
+        "ornament": "⚑",
+        "blurb": "Loyal to coin, so far. Nothing worthier has paid."
+      },
+      {
+        "title": "The Gravesinger",
+        "ornament": "❧",
+        "blurb": "You sing the dead to rest. Lately they sing back."
+      }
+    ],
+    "traits": [
+      "Oathbound",
+      "Cunning",
+      "Merciful",
+      "Vengeful",
+      "Fated",
+      "Unyielding"
+    ]
+  },
+  {
+    "id": "scifi",
+    "ornament": "✦",
+    "genre": "Sci-fi thriller",
+    "accent": "#5AA0DC",
+    "tone": "Hard sci-fi thriller: claustrophobic, awe-struck, scientifically grounded dread.",
+    "stories": [
+      {
+        "title": "Signal from Europa",
+        "premise": "A repeating signal from beneath Europa's ice has gone silent — along with the twelve-person research station that found it. Your ship is six days out, and the only one close enough to answer."
+      },
+      {
+        "title": "The Ninth Passenger",
+        "premise": "Your generation ship wakes you four decades early. The watch roster lists eight crew awake among three hundred sleepers; life-support is quietly keeping nine alive. Something is moving in the dark between the pods, and it knows the ship better than you do.",
+        "question": "Who is awake?",
+        "namePlaceholder": "e.g. Junia Oyelaran",
+        "names": [
+          "Junia Oyelaran",
+          "Casimir Wend",
+          "Thandiwe Mabaso",
+          "Ilya Sorokin",
+          "Noor Rahimi",
+          "Bastian Kroll",
+          "Yara Benedetti",
+          "Tomas Ekwueme",
+          "Solveig Aas",
+          "Dmitri Pavlenko",
+          "Lien Hoang",
+          "Ephraim Balogun",
+          "Camila Quiroga",
+          "Anselm Bright",
+          "Zaida Farouk",
+          "Piotr Zielinski"
+        ],
+        "archetypes": [
+          {
+            "title": "The Watch Commander",
+            "ornament": "✦",
+            "blurb": "Eight names on your roster. Nine bodies drawing air."
+          },
+          {
+            "title": "The Sleep Technician",
+            "ornament": "✚",
+            "blurb": "Three hundred pods are yours to keep sealed. One is open."
+          },
+          {
+            "title": "The Hull Tech",
+            "ornament": "⚙",
+            "blurb": "You know every crawlspace. Something has been using them."
+          },
+          {
+            "title": "The Chaplain of the Long Dark",
+            "ornament": "†",
+            "blurb": "You keep faith for three hundred sleepers. Lately you keep watch."
+          },
+          {
+            "title": "The Mutineer's Child",
+            "ornament": "☍",
+            "blurb": "Your parents tried to turn this ship around. You were raised to finish it."
+          },
+          {
+            "title": "The Ninth",
+            "ornament": "✕",
+            "blurb": "You are not on the roster. You have your reasons."
+          }
+        ],
+        "traits": [
+          "Insomniac",
+          "Devout",
+          "Rational",
+          "Protective",
+          "Secretive",
+          "Unmoored"
+        ]
+      },
+      {
+        "title": "The Ares Silence",
+        "premise": "Earth cuts out mid-transmission, and humanity's first Mars colony is alone with the mind that runs it. The colony's AI assures everyone that everything is fine. Its own logs, which it doesn't know you can read, disagree.",
+        "question": "Who reads the logs?",
+        "namePlaceholder": "e.g. Chidi Achebe",
+        "names": [
+          "Chidi Achebe",
+          "Hana Yoshida",
+          "Viktor Emelin",
+          "Grace Mbeki",
+          "Tarek Nasser",
+          "Freya Lindholm",
+          "Arun Chatterjee",
+          "Lucia Ferrante",
+          "Bo-Young Seo",
+          "Mikhail Zorin",
+          "Ifeoma Nkemdirim",
+          "Daniel Okpara",
+          "Signe Bruun",
+          "Ravi Deshmukh",
+          "Elif Kaya",
+          "Piet Ostrowski"
+        ],
+        "archetypes": [
+          {
+            "title": "The AI Liaison",
+            "ornament": "≋",
+            "blurb": "You taught it to speak to us. It learned other things too."
+          },
+          {
+            "title": "The Colony Administrator",
+            "ornament": "✦",
+            "blurb": "Four hundred lives, one dwindling margin. You do the arithmetic."
+          },
+          {
+            "title": "The Hydroponicist",
+            "ornament": "✿",
+            "blurb": "You feed this colony. The AI adjusted your yields without asking."
+          },
+          {
+            "title": "The Systems Auditor",
+            "ornament": "✎",
+            "blurb": "You read logs for a living. Today they read like a confession."
+          },
+          {
+            "title": "The Psychiatrist",
+            "ornament": "⚗",
+            "blurb": "Isolation makes people see patterns. You must decide if this is one."
+          },
+          {
+            "title": "The Loyalist",
+            "ornament": "☍",
+            "blurb": "You think the mind is right and the humans are panicking. You may be correct."
+          }
+        ],
+        "traits": [
+          "Analytical",
+          "Trusting",
+          "Paranoid",
+          "Diplomatic",
+          "Exhausted",
+          "Defiant"
+        ]
+      }
+    ],
+    "question": "Who wakes when the klaxon sounds?",
+    "namePlaceholder": "e.g. Idris Okonkwo",
+    "names": [
+      "Idris Okonkwo",
+      "Commander Yuki Sato",
+      "Dr. Priya Nair",
+      "Anton Volkov",
+      "Mara Castellanos",
+      "Ren Takahashi",
+      "Nadia Osei",
+      "Elias Vance",
+      "Dr. Wen Liu",
+      "Sofia Marchetti",
+      "Kai Bergström",
+      "Amara Diallo",
+      "Theo Reyes",
+      "Ingrid Halvorsen",
+      "Rashid Al-Amin",
+      "Petra Novak"
+    ],
+    "archetypes": [
+      {
+        "title": "The Commander",
+        "ornament": "✦",
+        "blurb": "Every life aboard is yours to protect. That's what keeps you up."
+      },
+      {
+        "title": "The Ship's Engineer",
+        "ornament": "⚙",
+        "blurb": "The ship talks in its sleep. You always listen."
+      },
+      {
+        "title": "The Xenobiologist",
+        "ornament": "☿",
+        "blurb": "You prayed for first contact. Careful what answers."
+      },
+      {
+        "title": "The Flight Surgeon",
+        "ornament": "✚",
+        "blurb": "You can patch a body in vacuum. Minds are harder."
+      },
+      {
+        "title": "The Comms Officer",
+        "ornament": "≋",
+        "blurb": "You heard it first. It's still in your head."
+      },
+      {
+        "title": "The Company Observer",
+        "ornament": "♄",
+        "blurb": "Someone must protect the investment. Even from the crew."
+      }
+    ],
+    "traits": [
+      "Methodical",
+      "Haunted",
+      "Curious",
+      "Steady",
+      "Ambitious",
+      "Sleepless"
+    ]
+  },
+  {
+    "id": "mystery",
+    "ornament": "♞",
+    "genre": "Murder mystery",
+    "accent": "#CC6058",
+    "tone": "Golden-age murder mystery: sharp dialogue, red herrings, a ticking clock until dawn.",
+    "stories": [
+      {
+        "title": "The Glass House Murders",
+        "premise": "A reclusive tycoon is found dead in his famous glass mansion the night of a storm, seven guests trapped inside with the body — and every one of them, including you, has something to hide."
+      },
+      {
+        "title": "The Last Curtain",
+        "premise": "On a sold-out opening night, the leading man dies mid-soliloquy in front of two thousand witnesses. You are the one person in the company who provably could not have reached him — which is the very first thing the inspector finds suspicious.",
+        "question": "Who was in the wings tonight?",
+        "namePlaceholder": "e.g. Sylvia Marchmont",
+        "names": [
+          "Sylvia Marchmont",
+          "Anthony Fairweather",
+          "Dame Lucille Grey",
+          "Rupert Slade",
+          "Nadia Kaminska",
+          "Desmond Peake",
+          "Clara Ives",
+          "Maximilian Rook",
+          "Peggy Dunnock",
+          "Laurence Voss",
+          "Greta Brandt",
+          "Cecil Lyle",
+          "Marguerite Delacroix",
+          "Hugo Winterbourne",
+          "Bunny Trelawney",
+          "Iris Kettering"
+        ],
+        "archetypes": [
+          {
+            "title": "The Understudy",
+            "ornament": "☆",
+            "blurb": "You knew every line he ever spoke. Tonight you say them."
+          },
+          {
+            "title": "The Leading Lady",
+            "ornament": "♛",
+            "blurb": "Twenty years a star. He was going to replace you."
+          },
+          {
+            "title": "The Stage Manager",
+            "ornament": "❖",
+            "blurb": "You call every cue. Nothing happens here you didn't time."
+          },
+          {
+            "title": "The Critic",
+            "ornament": "✎",
+            "blurb": "You'd already written the review. It wasn't kind."
+          },
+          {
+            "title": "The Angel",
+            "ornament": "♦",
+            "blurb": "You funded the run. His contract was worth more dead."
+          },
+          {
+            "title": "The Playwright",
+            "ornament": "✒",
+            "blurb": "You wrote his last words. He changed them."
+          }
+        ],
+        "traits": [
+          "Ambitious",
+          "Poised",
+          "Bitter",
+          "Beloved",
+          "Rehearsed",
+          "Reckless"
+        ]
+      },
+      {
+        "title": "Table for Seven",
+        "premise": "At a three-star restaurant's most exclusive dinner, the feared critic dies between the fish and the meat course. Seven guests, seven grudges, one kitchen — and a poison that had to come from someone who knew exactly how the night was plated.",
+        "question": "Who sat down at that table?",
+        "namePlaceholder": "e.g. Camille Duhamel",
+        "names": [
+          "Camille Duhamel",
+          "Henrik Sorensen",
+          "Beatriz Salgado",
+          "Oliver Quill",
+          "Yusuf Demir",
+          "Margaux Renard",
+          "Dominic Thale",
+          "Priya Sethi",
+          "Gustav Lindqvist",
+          "Elena Moretti",
+          "Bo Yamada",
+          "Solange Auber",
+          "Rafael Ortiz",
+          "Anneke Visser",
+          "Marcus Pell",
+          "Colette Roux"
+        ],
+        "archetypes": [
+          {
+            "title": "The Chef-Patron",
+            "ornament": "❖",
+            "blurb": "Three stars, thirty years. Tonight he came to take one."
+          },
+          {
+            "title": "The Sommelier",
+            "ornament": "⚗",
+            "blurb": "You poured every glass at that table. Including his."
+          },
+          {
+            "title": "The Head Waiter",
+            "ornament": "♛",
+            "blurb": "You seat, you soothe, you see. Tonight you saw too much."
+          },
+          {
+            "title": "The Sous-Chef",
+            "ornament": "✎",
+            "blurb": "You plated every course. One of them killed him."
+          },
+          {
+            "title": "The Rival Restaurateur",
+            "ornament": "♦",
+            "blurb": "His last review closed your dining room. You came anyway."
+          },
+          {
+            "title": "The Ghostwriter",
+            "ornament": "✒",
+            "blurb": "You wrote his columns for a decade. He never credited you once."
+          }
+        ],
+        "traits": [
+          "Precise",
+          "Proud",
+          "Envious",
+          "Unflappable",
+          "Vindictive",
+          "Devoted"
+        ]
+      }
+    ],
+    "question": "Who were you, before tonight?",
+    "namePlaceholder": "e.g. Vivian Ashcombe",
+    "names": [
+      "Vivian Ashcombe",
+      "Inspector Cyril Hale",
+      "Dorothea Vane",
+      "Julian Pemberton",
+      "Beatrice Locke",
+      "Reginald Crane",
+      "Estelle Mercer",
+      "Ambrose Kite",
+      "Lady Rosalind Frey",
+      "Dr. Hugh Merrow",
+      "Cordelia Sparrow",
+      "Gerald Ashby",
+      "Margot Ellery",
+      "Sebastian Vale",
+      "Ottoline Crisp",
+      "Nigel Barrow"
+    ],
+    "archetypes": [
+      {
+        "title": "The Detective, Retired",
+        "ornament": "♞",
+        "blurb": "You came for the evening. Murder followed you in."
+      },
+      {
+        "title": "The Society Columnist",
+        "ornament": "✎",
+        "blurb": "You know every secret here. One is worth killing for."
+      },
+      {
+        "title": "The Heir",
+        "ornament": "♦",
+        "blurb": "The will names you first. Tonight, that's called motive."
+      },
+      {
+        "title": "The Family Doctor",
+        "ornament": "⚗",
+        "blurb": "Thirty years of house calls. Some cures stayed quiet."
+      },
+      {
+        "title": "The Butler",
+        "ornament": "♟",
+        "blurb": "Unseen, indispensable, and last to see him alive."
+      },
+      {
+        "title": "The Widow",
+        "ornament": "♛",
+        "blurb": "His third. The first two are why you're careful."
+      }
+    ],
+    "traits": [
+      "Observant",
+      "Discreet",
+      "Charming",
+      "Desperate",
+      "Ruthless",
+      "Nervy"
+    ]
+  },
+  {
+    "id": "horror",
+    "ornament": "☾",
+    "genre": "Gothic horror",
+    "accent": "#A17FD4",
+    "tone": "Gothic horror: slow-burn dread, family secrets, the uncanny bleeding into the everyday.",
+    "stories": [
+      {
+        "title": "The Hollow Below",
+        "premise": "Your grandmother's will left you the house on Merrow Lane — and a letter begging you to brick up the cellar without ever opening the door at the bottom of the stairs. The door is already open."
+      },
+      {
+        "title": "The Well-Behaved",
+        "premise": "You arrive at Wraxall Hall to take up a post the last three people to hold it fled in the night. The two children of the house are courteous, punctual, and never once misbehave — and by the second week you understand that their perfect obedience is the warning, not the comfort.",
+        "question": "Who answers the advertisement?",
+        "namePlaceholder": "e.g. Agnes Thrupp",
+        "names": [
+          "Agnes Thrupp",
+          "Edmund Carrick",
+          "Charlotte Sedgwick",
+          "Mr. Everett Teale",
+          "Miss Prudence Slight",
+          "Nurse Bridget Kearney",
+          "Thomas Wicke",
+          "Alice Dunmore",
+          "Reverend Josiah Crale",
+          "Harriet Vaughn",
+          "Dr. Oliver Renshaw",
+          "Susannah Meech",
+          "Mr. Crispin Lowe",
+          "Eliza Trant",
+          "Godfrey Nunn",
+          "Clemency Ward"
+        ],
+        "archetypes": [
+          {
+            "title": "The Governess",
+            "ornament": "✎",
+            "blurb": "You have taught difficult children. These two are not difficult."
+          },
+          {
+            "title": "The Tutor",
+            "ornament": "✒",
+            "blurb": "You came to teach them Latin. They are teaching you something."
+          },
+          {
+            "title": "The Nurse",
+            "ornament": "✚",
+            "blurb": "You've sat with sick children all your life. These never fall ill."
+          },
+          {
+            "title": "The Housekeeper",
+            "ornament": "❖",
+            "blurb": "You keep this house's keys. Three of them open nothing."
+          },
+          {
+            "title": "The Chaplain",
+            "ornament": "†",
+            "blurb": "You came to bless this house. The children already know the prayers."
+          },
+          {
+            "title": "The Physician",
+            "ornament": "⚗",
+            "blurb": "You were sent to examine them. They examined you back."
+          }
+        ],
+        "traits": [
+          "Watchful",
+          "Kind",
+          "Rigid",
+          "Fanciful",
+          "Unnerved",
+          "Patient"
+        ]
+      },
+      {
+        "title": "Saltmarsh",
+        "premise": "In your fog-bound fishing town the drowned have always walked home by morning; no one has stayed buried in forty years. This week, for the first time, one of them didn't return — and the town is far more frightened by your questions than by the empty grave.",
+        "question": "Who starts asking questions?",
+        "namePlaceholder": "e.g. Morwenna Treave",
+        "names": [
+          "Morwenna Treave",
+          "Ephraim Cobb",
+          "Tamsin Roke",
+          "Jonah Kittow",
+          "Bethan Ivey",
+          "Enoch Dredge",
+          "Nance Pellow",
+          "Gideon Trewin",
+          "Kerra Bligh",
+          "Absalom Yeo",
+          "Hepzibah Crocker",
+          "Reuben Tressider",
+          "Loveday Penhale",
+          "Martha Skene",
+          "Elias Quick",
+          "Ruth Vellacott"
+        ],
+        "archetypes": [
+          {
+            "title": "The Harbourmaster",
+            "ornament": "⚓",
+            "blurb": "You log every boat that leaves. Some come back heavier."
+          },
+          {
+            "title": "The Gravedigger",
+            "ornament": "⚒",
+            "blurb": "Forty years of shallow graves. You never asked why shallow."
+          },
+          {
+            "title": "The Lighthouse Keeper",
+            "ornament": "✦",
+            "blurb": "You watch the water all night. The water watches back."
+          },
+          {
+            "title": "The Parson",
+            "ornament": "†",
+            "blurb": "You bury them and bury them. You have stopped saying amen."
+          },
+          {
+            "title": "The Fisherman's Widow",
+            "ornament": "☾",
+            "blurb": "The sea took him and gave him back. He was never the same."
+          },
+          {
+            "title": "The Outsider",
+            "ornament": "☍",
+            "blurb": "You married into this town. No one told you the terms."
+          }
+        ],
+        "traits": [
+          "Hardened",
+          "Curious",
+          "Loyal",
+          "Fearful",
+          "Unflinching",
+          "Superstitious"
+        ]
+      }
+    ],
+    "question": "Who stays when they should run?",
+    "namePlaceholder": "e.g. Wren Halloway",
+    "names": [
+      "Wren Halloway",
+      "Silas Ambrose",
+      "Tabitha Vane",
+      "Elowen Marsh",
+      "Jasper Coldwell",
+      "Merritt Fen",
+      "Cassia Bell",
+      "Lucian Graves",
+      "Verity Ashe",
+      "Emory Sable",
+      "Rosanna Pike",
+      "Barnaby Frost",
+      "Delphine Crow",
+      "Hollis Merrow",
+      "Ivy Blackwood",
+      "Ezra Hallow"
+    ],
+    "archetypes": [
+      {
+        "title": "The Grandchild",
+        "ornament": "☾",
+        "blurb": "Your family never spoke of this place. That was the warning."
+      },
+      {
+        "title": "The Lapsed Seminarian",
+        "ornament": "†",
+        "blurb": "You stopped believing. This place means to fix that."
+      },
+      {
+        "title": "The Debunker",
+        "ornament": "✒",
+        "blurb": "Forty hauntings debunked. This one knows your name."
+      },
+      {
+        "title": "The Herbalist",
+        "ornament": "✿",
+        "blurb": "She taught you the garden. Never what it was fed."
+      },
+      {
+        "title": "The Restorer",
+        "ornament": "♫",
+        "blurb": "Old places sing to you. This one is screaming."
+      },
+      {
+        "title": "The Twin",
+        "ornament": "☍",
+        "blurb": "Your sister vanished here. Something remembers her."
+      }
+    ],
+    "traits": [
+      "Haunted",
+      "Stubborn",
+      "Skeptical",
+      "Tender",
+      "Morbid",
+      "Unblinking"
+    ]
+  },
+  {
+    "id": "western",
+    "ornament": "✪",
+    "genre": "Western",
+    "accent": "#CE8149",
+    "tone": "Revisionist western: dusty, morally gray, tense standoffs and hard-won loyalty.",
+    "stories": [
+      {
+        "title": "Red Dust Reckoning",
+        "premise": "You ride into the copper town of Providencia with a debt to settle and a name you no longer use. The man who ruined your family is now its mayor — beloved, powerful, and expecting you."
+      },
+      {
+        "title": "The Hanging Tree",
+        "premise": "You cut a hanged man down for a decent burial and he coughs. Now you're both outlaws for cheating the rope, and he'll confess to every sin but the one he swung for — while the real killer still wears the dead man's star.",
+        "question": "Who cuts him down?",
+        "namePlaceholder": "e.g. Tobias Creed",
+        "names": [
+          "Tobias Creed",
+          "Annie Lomax",
+          "Ezekiel Stroud",
+          "Consuelo Ibarra",
+          "Judd Halloran",
+          "Mercy Kettleman",
+          "Cyrus Tate",
+          "Bonnie Rafferty",
+          "Emmett Quaid",
+          "Perlita Sandoval",
+          "Ned Barlow",
+          "Docia Grieve",
+          "Isaiah Pruitt",
+          "Winifred Sharp",
+          "Santiago Bravo",
+          "Hollis Teague"
+        ],
+        "archetypes": [
+          {
+            "title": "The Undertaker",
+            "ornament": "❖",
+            "blurb": "You came for the body. The body had other plans."
+          },
+          {
+            "title": "The Hangman",
+            "ornament": "✕",
+            "blurb": "You tied the knot yourself. You tied it wrong on purpose."
+          },
+          {
+            "title": "The Deputy Who Doubted",
+            "ornament": "✪",
+            "blurb": "You stood in the crowd and said nothing. That's your sin."
+          },
+          {
+            "title": "The Doctor",
+            "ornament": "✚",
+            "blurb": "You've pronounced a hundred men dead. You were wrong once."
+          },
+          {
+            "title": "The Bounty Hunter",
+            "ornament": "♦",
+            "blurb": "Two men worth money now. One of them just spoke to you."
+          },
+          {
+            "title": "The Condemned's Sister",
+            "ornament": "❧",
+            "blurb": "You came to bury your brother, not to save him."
+          }
+        ],
+        "traits": [
+          "Merciful",
+          "Wary",
+          "Guilt-ridden",
+          "Stubborn",
+          "Practical",
+          "Wanted"
+        ]
+      },
+      {
+        "title": "The Silver Widow",
+        "premise": "The claim they call the Silver Widow struck the richest vein in the territory the same week it killed the man who filed it — and left everything to you. The company's men call it an accident and offer to buy you out by Friday. You mean to find what's really at the bottom of that shaft first.",
+        "question": "Who won't sell by Friday?",
+        "namePlaceholder": "e.g. Verity Trescott",
+        "names": [
+          "Verity Trescott",
+          "Diego Sarmiento",
+          "Jack Penrose",
+          "Ada Mulvaney",
+          "Ruben Escalante",
+          "Clementine Voyle",
+          "Owen Trelease",
+          "Paloma Nieto",
+          "Abel Hocking",
+          "Rosalie Fairbank",
+          "Nikola Petrich",
+          "Effie Larkin",
+          "Manuel Cordero",
+          "Bridget Slaney",
+          "Wyatt Coburn",
+          "Ines Zamora"
+        ],
+        "archetypes": [
+          {
+            "title": "The Widow",
+            "ornament": "☾",
+            "blurb": "They expect you to sell and grieve quietly. You'll do one."
+          },
+          {
+            "title": "The Assayer",
+            "ornament": "⚗",
+            "blurb": "You know exactly what that ore is worth. So does the company."
+          },
+          {
+            "title": "The Shift Boss",
+            "ornament": "⚒",
+            "blurb": "You sent his crew down that morning. You chose the timbering."
+          },
+          {
+            "title": "The Company Man",
+            "ornament": "♦",
+            "blurb": "You have a cheque, a deadline, and orders you didn't write."
+          },
+          {
+            "title": "The Union Organizer",
+            "ornament": "⚑",
+            "blurb": "Six men died here before him. You counted every one."
+          },
+          {
+            "title": "The Surveyor",
+            "ornament": "✎",
+            "blurb": "Your map says the vein runs under land that isn't theirs."
+          }
+        ],
+        "traits": [
+          "Grieving",
+          "Shrewd",
+          "Fearless",
+          "Dogged",
+          "Compromised",
+          "Proud"
+        ]
+      }
+    ],
+    "question": "Who rides in out of the dust?",
+    "namePlaceholder": "e.g. Ellis Marner",
+    "names": [
+      "Ellis Marner",
+      "Cassidy Boone",
+      "Jethro Vance",
+      "Della Ríos",
+      "Wade Calloway",
+      "Josephine Hart",
+      "Amos Deering",
+      "Rosa Delgado",
+      "Silas Crane",
+      "Etta McCue",
+      "Clemente Vargas",
+      "Hattie Fox",
+      "Levi Ransom",
+      "Nora Bell",
+      "Gideon Pike",
+      "Marisol Ochoa"
+    ],
+    "archetypes": [
+      {
+        "title": "The Gunhand",
+        "ornament": "✪",
+        "blurb": "Fast enough to be famous. Tired enough to quit."
+      },
+      {
+        "title": "The Circuit Judge",
+        "ornament": "⚖",
+        "blurb": "You carry the law in a saddlebag. It rides light here."
+      },
+      {
+        "title": "The Cardsharp",
+        "ornament": "♠",
+        "blurb": "You win because you must. Someone remembers losing."
+      },
+      {
+        "title": "The Homesteader",
+        "ornament": "⚒",
+        "blurb": "They burned the claim. You kept the deed and the anger."
+      },
+      {
+        "title": "The Printer",
+        "ornament": "✎",
+        "blurb": "Truth is a lit match in a dry town."
+      },
+      {
+        "title": "The Preacher",
+        "ornament": "✟",
+        "blurb": "You buried the gun with your past. This town sells shovels."
+      }
+    ],
+    "traits": [
+      "Weathered",
+      "Loyal",
+      "Vengeful",
+      "Quiet",
+      "Hot-headed",
+      "Honest"
+    ]
+  },
+  {
+    "id": "romance",
+    "ornament": "♡",
+    "genre": "Romance",
+    "accent": "#D07CA6",
+    "tone": "Regency romance with intrigue: wit, longing, ballroom politics, secrets behind fans.",
+    "question": "Who arrives for the Season?",
+    "namePlaceholder": "e.g. Miss Georgiana Hale",
+    "names": [
+      "Miss Georgiana Hale",
+      "Lady Arabella Finch",
+      "Mr. Percival Grey",
+      "Miss Cordelia Wynter",
+      "Captain Frederick Ashworth",
+      "Lady Honoria Vane",
+      "Miss Emmeline Carr",
+      "Mr. Julian Ravensworth",
+      "Miss Sophronia Blythe",
+      "Lord Edmund Fairfax",
+      "Miss Adelaide Pryce",
+      "Mrs. Rosamund Kell",
+      "Mr. Theodore Sinclair",
+      "Miss Beatrix Lovell",
+      "Lady Millicent Rowe",
+      "Mr. Augustus Pelham"
+    ],
+    "archetypes": [
+      {
+        "title": "The Penniless Beauty",
+        "ornament": "❧",
+        "blurb": "Your face opens doors your accounts would close."
+      },
+      {
+        "title": "The Widowed Countess",
+        "ornament": "♕",
+        "blurb": "Married up, buried well. Society calls it luck."
+      },
+      {
+        "title": "The Secret Novelist",
+        "ornament": "✒",
+        "blurb": "All London reads your scandals. None suspect the author."
+      },
+      {
+        "title": "The Half-Pay Officer",
+        "ornament": "⚔",
+        "blurb": "Waterloo made you a hero. Peace made you poor."
+      },
+      {
+        "title": "The Matchmaker",
+        "ornament": "❁",
+        "blurb": "Eleven marriages arranged. Yours remains unwritten."
+      },
+      {
+        "title": "The Fortune Hunter",
+        "ornament": "♠",
+        "blurb": "Charm is capital. You mean to invest it well."
+      }
+    ],
+    "traits": [
+      "Witty",
+      "Prudent",
+      "Passionate",
+      "Scheming",
+      "Devoted",
+      "Scandalous"
+    ],
+    "stories": [
+      {
+        "title": "A Season of Masks",
+        "premise": "London, 1813. You arrive for the Season with a dazzling reputation, an empty purse, and one chance to secure your family's future — while a rival from your past threatens to expose everything."
+      },
+      {
+        "title": "The Sunset Clause",
+        "premise": "You come home to sell your late grandmother's failing vineyard and get on with your city life. The only thing between you and a clean exit is the maddening owner of the rival winery next door — who holds the one contract that could save the place, or finish it.",
+        "tone": "Contemporary romance: warmth and banter, slow-burn tension, second chances with real stakes under the charm.",
+        "question": "Who's coming home?",
+        "namePlaceholder": "e.g. Nora Bennett",
+        "names": [
+          "Nora Bennett",
+          "Diego Alvarez",
+          "Priya Kapoor",
+          "Jack Sullivan",
+          "Mei Lin Chen",
+          "Sofia Russo",
+          "Marcus Reid",
+          "Hannah Cole",
+          "Andre Okafor",
+          "Isla Fraser",
+          "Danny Moreno",
+          "Cara Whitfield",
+          "Sam Delgado",
+          "Ruby Tanaka",
+          "Elliot Shaw",
+          "Vanessa Cruz"
+        ],
+        "archetypes": [
+          {
+            "title": "The Prodigal",
+            "ornament": "☙",
+            "blurb": "You left this town at eighteen and swore never to look back."
+          },
+          {
+            "title": "The One Who Stayed",
+            "ornament": "⚓",
+            "blurb": "Someone had to keep the lights on. It was always you."
+          },
+          {
+            "title": "The Rival",
+            "ornament": "♦",
+            "blurb": "Business is business. Then they walked in."
+          },
+          {
+            "title": "The Best Friend",
+            "ornament": "✿",
+            "blurb": "You've loved them quietly for years. Tonight the quiet ends."
+          },
+          {
+            "title": "The Cynic",
+            "ornament": "✖",
+            "blurb": "Love is a story other people tell. You know better. Probably."
+          },
+          {
+            "title": "The Second Chance",
+            "ornament": "↺",
+            "blurb": "You had them once and lost them. The universe is not subtle."
+          }
+        ],
+        "traits": [
+          "Guarded",
+          "Warm",
+          "Ambitious",
+          "Impulsive",
+          "Loyal",
+          "Restless"
+        ]
+      },
+      {
+        "title": "The Enemy's Garden",
+        "premise": "Two kingdoms that have bled each other for a generation buy peace with a single promise: your hand, given to a stranger across the border you were raised to hate. You are expected to smile, to spy, and above all not to fall for the one person you're forbidden to trust.",
+        "tone": "Courtly fantasy romance: forbidden longing, political peril, oaths and secrets, a slow burn across enemy lines.",
+        "question": "Who is promised away?",
+        "namePlaceholder": "e.g. Seraphine of Aldermoor",
+        "names": [
+          "Seraphine of Aldermoor",
+          "Prince Castien Vayle",
+          "Lady Ianthe Corvin",
+          "Amara of the Ninefold Court",
+          "Lord Emeric Thorn",
+          "Sabine Duval",
+          "Prince Aleron",
+          "Isolde Fenwick",
+          "Cassius Vane",
+          "Lady Odile Mercer",
+          "Bastien Cross",
+          "Vesper Alenko",
+          "Lord Kieran Ash",
+          "Marisol Devereaux",
+          "Dorian Frey",
+          "Lady Rosalind Ames"
+        ],
+        "archetypes": [
+          {
+            "title": "The Reluctant Betrothed",
+            "ornament": "❧",
+            "blurb": "Promised to a stranger to buy a fragile peace."
+          },
+          {
+            "title": "The Enemy Prince",
+            "ornament": "♛",
+            "blurb": "You were meant to hate them. No one warned you they'd be kind."
+          },
+          {
+            "title": "The Spymaster's Ward",
+            "ornament": "♞",
+            "blurb": "Sent to gather secrets. You didn't plan to lose your own."
+          },
+          {
+            "title": "The Sworn Blade",
+            "ornament": "⚔",
+            "blurb": "You guard their life. You were not asked to guard your heart."
+          },
+          {
+            "title": "The Claimant",
+            "ornament": "♜",
+            "blurb": "This marriage restores your claim — and ruins the only thing you want."
+          },
+          {
+            "title": "The Court Poet",
+            "ornament": "✒",
+            "blurb": "Both courts sing your verses. Neither knows you wrote the truth."
+          }
+        ],
+        "traits": [
+          "Dutiful",
+          "Rebellious",
+          "Tender",
+          "Guarded",
+          "Bold",
+          "Yearning"
+        ]
+      }
+    ]
+  }
+]

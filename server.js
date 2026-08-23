@@ -26,6 +26,8 @@ const {
   verifyTeaser: verifyTeaserWith,
 } = require("./lib/core");
 const { isBuiltinScenario } = require("./lib/worlds");
+const BUILTIN_CATALOG = require("./lib/builtin-catalog.json");
+const { repairBuiltinWorldRow } = require("./lib/catalog-repair");
 
 const PORT = process.env.PORT || 3000;
 const MODEL = process.env.STORY_MODEL || "claude-opus-4-8";
@@ -702,6 +704,39 @@ async function catalogAdminUser(req) {
   if (!supabaseAdmin) return null;
   const user = await userFromReq(req);
   return isAdmin(user) ? user : null;
+}
+
+async function repairDamagedBuiltinCatalog() {
+  if (!supabaseAdmin) return;
+  const builtins = new Map(BUILTIN_CATALOG.map((world) => [world.id, world]));
+  const { data: rows, error: readError } = await supabaseAdmin
+    .from("world_catalog")
+    .select("id, draft_data, published_data, version")
+    .in("id", [...builtins.keys()]);
+  if (readError) throw readError;
+
+  let repairedCount = 0;
+  for (const row of rows || []) {
+    const repaired = repairBuiltinWorldRow(row, builtins.get(row.id));
+    if (!repaired) continue;
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("world_catalog")
+      .update({
+        ...repaired,
+        version: (Number(row.version) || 1) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id)
+      .eq("version", row.version)
+      .select("id")
+      .maybeSingle();
+    if (updateError) throw updateError;
+    if (updated) repairedCount += 1;
+  }
+
+  if (repairedCount) {
+    console.log(`Story Studio: restored inherited casts and ornaments in ${repairedCount} built-in worlds.`);
+  }
 }
 
 app.get("/api/catalog", async (_req, res) => {
@@ -2039,6 +2074,9 @@ if (require.main === module) app.listen(PORT, () => {
     ? "Mode: DEMO (no API key found — canned story content). Set ANTHROPIC_API_KEY for live stories."
     : `Mode: LIVE (model: ${MODEL}, target ~${TARGET_CHAPTERS} chapters, ${RATE_LIMIT_PER_HOUR} chapters/hr/IP)`);
   console.log(`Accounts: ${supabaseAuth ? "on" : "off"} · Credits: ${CREDITS_ENFORCED ? "enforced" : "off"} · Payments: ${SANDBOX_CHECKOUT_ENABLED ? "Stripe sandbox" : PAYMENTS_ENABLED ? "Stripe" : "off"} · AI covers: ${AI_COVERS ? "on" : "off"}`);
+  repairDamagedBuiltinCatalog().catch((error) => {
+    console.error("Story Studio catalog repair failed:", error.message || error);
+  });
 });
 
 module.exports = { app };

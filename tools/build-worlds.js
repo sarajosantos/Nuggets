@@ -22,6 +22,7 @@ const { hashValue } = require("../lib/core");
 const ROOT = path.join(__dirname, "..");
 const APP_JS = path.join(ROOT, "public", "app.js");
 const OUT = path.join(ROOT, "lib", "worlds.js");
+const CATALOG_OUT = path.join(ROOT, "lib", "builtin-catalog.json");
 
 // Pull the SCENARIOS array literal out of the frontend bundle and evaluate it.
 // It is pure data, and this only ever runs as a build step — never in the
@@ -114,10 +115,13 @@ module.exports = {
 }
 
 if (require.main === module) {
-  const worlds = extractBuiltins();
+  const source = fs.readFileSync(APP_JS, "utf8");
+  const catalogue = extractCatalogue(source);
+  const worlds = extractBuiltins(source);
   fs.writeFileSync(OUT, render(worlds));
+  fs.writeFileSync(CATALOG_OUT, `${JSON.stringify(catalogue, null, 2)}\n`);
   const count = Object.values(worlds).reduce((n, s) => n + s.length, 0);
-  console.log(`wrote lib/worlds.js — ${Object.keys(worlds).length} worlds, ${count} scenarios`);
+  console.log(`wrote lib/worlds.js and lib/builtin-catalog.json — ${Object.keys(worlds).length} worlds, ${count} scenarios`);
 }
 
 module.exports = { extractBuiltins, extractCatalogue, scenarioTriple, render };
