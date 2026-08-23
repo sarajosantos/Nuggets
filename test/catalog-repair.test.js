@@ -37,6 +37,13 @@ test("leaves legitimate Studio edits and already-healthy rows untouched", () => 
   };
 
   assert.equal(repairBuiltinWorldRow(row, builtin), null);
+
+  const intentionallyEmpty = {
+    id: "fantasy",
+    draft_data: { ornament: "★", archetypes: [] },
+    published_data: { ornament: "★", archetypes: [] },
+  };
+  assert.equal(repairBuiltinWorldRow(intentionallyEmpty, builtin), null);
 });
 
 test("the generated repair catalog stays in sync with the browser catalog", () => {
