@@ -645,6 +645,7 @@ const CATALOG_TEXT_LIMITS = {
   premise: 900,
   blurb: 320,
 };
+const CATALOG_LIST_LIMITS = { archetypes: 8, traits: 6 };
 
 function catalogText(value, limit) {
   return String(value == null ? "" : value).trim().slice(0, limit);
@@ -660,7 +661,7 @@ function catalogList(value, limit, itemLimit) {
 
 function cleanCatalogArchetypes(value) {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 12).map((archetype) => ({
+  return value.slice(0, CATALOG_LIST_LIMITS.archetypes).map((archetype) => ({
     title: catalogText(archetype && archetype.title, CATALOG_TEXT_LIMITS.title),
     blurb: catalogText(archetype && archetype.blurb, CATALOG_TEXT_LIMITS.blurb),
     ornament: catalogText(archetype && archetype.ornament, 8),
@@ -677,7 +678,7 @@ function cleanCatalogStory(value) {
     namePlaceholder: catalogText(story.namePlaceholder, CATALOG_TEXT_LIMITS.namePlaceholder),
     names: catalogList(story.names, 24, 80),
     archetypes: cleanCatalogArchetypes(story.archetypes),
-    traits: catalogList(story.traits, 24, 60),
+    traits: catalogList(story.traits, CATALOG_LIST_LIMITS.traits, 60),
   };
 }
 
@@ -693,11 +694,30 @@ function cleanCatalogWorld(value, id) {
     namePlaceholder: catalogText(world.namePlaceholder, CATALOG_TEXT_LIMITS.namePlaceholder),
     names: catalogList(world.names, 24, 80),
     archetypes: cleanCatalogArchetypes(world.archetypes),
-    traits: catalogList(world.traits, 24, 60),
+    traits: catalogList(world.traits, CATALOG_LIST_LIMITS.traits, 60),
     stories: Array.isArray(world.stories)
       ? world.stories.slice(0, 12).map(cleanCatalogStory).filter((story) => story.title && story.premise)
       : [],
   };
+}
+
+function catalogLimitError(value) {
+  const world = value && typeof value === "object" ? value : {};
+  if (Array.isArray(world.archetypes) && world.archetypes.length > CATALOG_LIST_LIMITS.archetypes) {
+    return `A world can have up to ${CATALOG_LIST_LIMITS.archetypes} default character roles.`;
+  }
+  if (Array.isArray(world.traits) && world.traits.length > CATALOG_LIST_LIMITS.traits) {
+    return `A world can have up to ${CATALOG_LIST_LIMITS.traits} defining traits.`;
+  }
+  for (const story of Array.isArray(world.stories) ? world.stories : []) {
+    if (Array.isArray(story && story.archetypes) && story.archetypes.length > CATALOG_LIST_LIMITS.archetypes) {
+      return `A story can have up to ${CATALOG_LIST_LIMITS.archetypes} character roles.`;
+    }
+    if (Array.isArray(story && story.traits) && story.traits.length > CATALOG_LIST_LIMITS.traits) {
+      return `A story can have up to ${CATALOG_LIST_LIMITS.traits} defining traits.`;
+    }
+  }
+  return null;
 }
 
 async function catalogAdminUser(req) {
@@ -768,6 +788,8 @@ app.put("/api/admin/catalog/:id", async (req, res) => {
   if (!user) return res.status(403).json({ error: "forbidden" });
   const id = catalogText(req.params.id, 80).toLowerCase();
   if (!/^[a-z0-9][a-z0-9_-]{1,79}$/.test(id)) return res.status(400).json({ error: "invalid world id" });
+  const limitError = catalogLimitError(req.body && req.body.draft);
+  if (limitError) return res.status(400).json({ error: limitError });
   const draft = cleanCatalogWorld(req.body && req.body.draft, id);
   if (!draft.genre || !draft.tone || !draft.stories.length) {
     return res.status(400).json({ error: "A world needs a genre, tone, and at least one complete story." });
@@ -2079,4 +2101,4 @@ if (require.main === module) app.listen(PORT, () => {
   });
 });
 
-module.exports = { app };
+module.exports = { app, catalogLimitError, cleanCatalogWorld };

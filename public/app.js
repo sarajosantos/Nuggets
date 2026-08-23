@@ -456,6 +456,7 @@ const ARCHETYPES = [
 ];
 
 const TRAITS = ["Brave", "Cunning", "Compassionate", "Ruthless", "Curious", "Haunted"];
+const STUDIO_LIMITS = Object.freeze({ archetypes: 8, traits: 6 });
 const DEFAULT_QUESTION = "Who are you?";
 // Register-neutral names for "Write your own" worlds.
 const DEFAULT_NAMES = [
@@ -2384,6 +2385,12 @@ function renderStudioTokens(kind) {
       <button type="button" data-token-index="${index}" aria-label="Remove ${escapeHtml(value)} ${label}">×</button>
     </span>
   `).join("");
+  if (kind === "traits") {
+    const atLimit = values.length >= STUDIO_LIMITS.traits;
+    $("studio-trait-count").textContent = `${values.length} of ${STUDIO_LIMITS.traits}`;
+    $("studio-traits").disabled = atLimit;
+    $("studio-traits").placeholder = atLimit ? "Trait limit reached" : "Type a trait, then press Enter";
+  }
 }
 
 function commitStudioTokenInput(kind) {
@@ -2391,6 +2398,7 @@ function commitStudioTokenInput(kind) {
   const values = kind === "names" ? studioNames : studioTraits;
   const additions = input.value.split(",").map((value) => value.trim()).filter(Boolean);
   for (const addition of additions) {
+    if (kind === "traits" && values.length >= STUDIO_LIMITS.traits) break;
     if (!values.some((value) => value.toLowerCase() === addition.toLowerCase())) values.push(addition);
   }
   input.value = "";
@@ -2400,6 +2408,11 @@ function commitStudioTokenInput(kind) {
 function renderStudioArchetypes(scope) {
   const archetypes = scope === "world" ? studioWorldArchetypes : studioStoryArchetypes;
   const list = $(`studio-${scope}-archetypes`);
+  const addButton = $(`studio-${scope}-archetype-add`);
+  const atLimit = archetypes.length >= STUDIO_LIMITS.archetypes;
+  $(`studio-${scope}-archetype-count`).textContent = `${archetypes.length} of ${STUDIO_LIMITS.archetypes}`;
+  addButton.disabled = atLimit;
+  addButton.textContent = atLimit ? "Role limit reached" : "Add role";
   if (!archetypes.length) {
     list.innerHTML = `
       <div class="studio-cast-empty">
@@ -2434,6 +2447,10 @@ function renderStudioArchetypes(scope) {
 
 function addStudioArchetype(scope) {
   const archetypes = scope === "world" ? studioWorldArchetypes : studioStoryArchetypes;
+  if (archetypes.length >= STUDIO_LIMITS.archetypes) {
+    studioStatus(`A character cast can have up to ${STUDIO_LIMITS.archetypes} roles.`, true);
+    return;
+  }
   archetypes.push({ title: "", blurb: "", ornament: "❦" });
   renderStudioArchetypes(scope);
   $(`studio-${scope}-archetype-${archetypes.length - 1}-title`).focus();

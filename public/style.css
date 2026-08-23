@@ -770,6 +770,13 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 }
 .studio-token-input:focus { border: 0; box-shadow: none; outline: 0; }
 .studio-token-help { color: var(--muted); font-size: 0.68rem; margin-top: 0.3rem; }
+.studio-limit-count {
+  color: var(--gold);
+  font-family: var(--ui);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
 .studio-cast {
   border-top: 1px solid var(--hairline);
   margin-top: 1.15rem;
@@ -778,6 +785,7 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 .studio-cast-heading { align-items: end; display: flex; gap: 1rem; justify-content: space-between; }
 .studio-cast-heading h4 { font-family: var(--display); font-size: 1.15rem; margin: 0.12rem 0 0; }
 .studio-cast-heading p:not(.section-kicker) { color: var(--muted); font-size: 0.7rem; margin: 0.2rem 0 0; }
+.studio-cast-tools { align-items: center; display: flex; gap: 0.65rem; }
 .studio-archetype-list { display: grid; gap: 0.6rem; margin-top: 0.75rem; }
 .studio-archetype-card {
   align-items: start;
@@ -884,6 +892,7 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   .studio-token-input, .studio-token-editor .studio-token-input { flex-basis: 100%; min-width: 0; }
   .studio-cast-heading { align-items: stretch; flex-direction: column; }
   .studio-cast-heading .btn { align-self: flex-start; }
+  .studio-cast-tools { justify-content: space-between; }
   .studio-archetype-card { grid-template-columns: 2.25rem 1fr; }
   .studio-archetype-seal { margin-top: 1.05rem; }
   .studio-archetype-remove { grid-column: 2; justify-self: start; margin: -0.2rem 0 0; }
