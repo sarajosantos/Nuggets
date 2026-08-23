@@ -495,6 +495,8 @@ let studioStories = [];
 let studioEditingStoryIndex = null;
 let studioNames = [];
 let studioTraits = [];
+let studioWorldArchetypes = [];
+let studioStoryArchetypes = [];
 let studioWorldSource = {};
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
@@ -2022,6 +2024,25 @@ function wireAuthEvents() {
   });
   $("studio-story-cancel").addEventListener("click", () => $("studio-story-editor").classList.add("hidden"));
   $("studio-story-save").addEventListener("click", saveStudioStory);
+  $("studio-world-archetype-add").addEventListener("click", () => addStudioArchetype("world"));
+  $("studio-story-archetype-add").addEventListener("click", () => addStudioArchetype("story"));
+  for (const scope of ["world", "story"]) {
+    const list = $(`studio-${scope}-archetypes`);
+    list.addEventListener("input", (event) => {
+      const field = event.target.closest("[data-archetype-field]");
+      if (!field) return;
+      const archetypes = scope === "world" ? studioWorldArchetypes : studioStoryArchetypes;
+      const archetype = archetypes[Number(field.dataset.archetypeIndex)];
+      if (archetype) archetype[field.dataset.archetypeField] = field.value;
+    });
+    list.addEventListener("click", (event) => {
+      const remove = event.target.closest("[data-archetype-remove]");
+      if (!remove) return;
+      const archetypes = scope === "world" ? studioWorldArchetypes : studioStoryArchetypes;
+      archetypes.splice(Number(remove.dataset.archetypeRemove), 1);
+      renderStudioArchetypes(scope);
+    });
+  }
   for (const kind of ["names", "traits"]) {
     const input = $(kind === "names" ? "studio-premise-names" : "studio-traits");
     const list = $(kind === "names" ? "studio-name-tokens" : "studio-trait-tokens");
@@ -2376,6 +2397,60 @@ function commitStudioTokenInput(kind) {
   renderStudioTokens(kind);
 }
 
+function renderStudioArchetypes(scope) {
+  const archetypes = scope === "world" ? studioWorldArchetypes : studioStoryArchetypes;
+  const list = $(`studio-${scope}-archetypes`);
+  if (!archetypes.length) {
+    list.innerHTML = `
+      <div class="studio-cast-empty">
+        <span>❦</span>
+        <p>${scope === "world" ? "No default roles yet. Add the first role readers can inhabit." : "This story uses the world’s default cast."}</p>
+      </div>`;
+    return;
+  }
+  list.innerHTML = archetypes.map((archetype, index) => {
+    const prefix = `studio-${scope}-archetype-${index}`;
+    return `
+      <article class="studio-archetype-card">
+        <div class="studio-archetype-seal" aria-hidden="true">${escapeHtml(archetype.ornament || "❦")}</div>
+        <div class="studio-archetype-fields">
+          <div class="studio-archetype-title-row">
+            <div class="studio-archetype-name">
+              <label class="field-label" for="${prefix}-title">Role name</label>
+              <input id="${prefix}-title" type="text" maxlength="120" value="${escapeHtml(archetype.title || "")}" placeholder="e.g. The Penniless Beauty" data-archetype-index="${index}" data-archetype-field="title" autocomplete="off">
+            </div>
+            <div class="studio-archetype-ornament">
+              <label class="field-label" for="${prefix}-ornament">Ornament</label>
+              <input id="${prefix}-ornament" type="text" maxlength="8" value="${escapeHtml(archetype.ornament || "")}" placeholder="❦" data-archetype-index="${index}" data-archetype-field="ornament" autocomplete="off">
+            </div>
+          </div>
+          <label class="field-label" for="${prefix}-blurb">What this role promises the reader</label>
+          <input id="${prefix}-blurb" type="text" maxlength="240" value="${escapeHtml(archetype.blurb || "")}" placeholder="A short, evocative description" data-archetype-index="${index}" data-archetype-field="blurb" autocomplete="off">
+        </div>
+        <button class="studio-archetype-remove" type="button" data-archetype-remove="${index}" aria-label="Remove ${escapeHtml(archetype.title || `role ${index + 1}`)}">Remove</button>
+      </article>`;
+  }).join("");
+}
+
+function addStudioArchetype(scope) {
+  const archetypes = scope === "world" ? studioWorldArchetypes : studioStoryArchetypes;
+  archetypes.push({ title: "", blurb: "", ornament: "❦" });
+  renderStudioArchetypes(scope);
+  $(`studio-${scope}-archetype-${archetypes.length - 1}-title`).focus();
+}
+
+function cleanStudioArchetypes(archetypes) {
+  const cleaned = archetypes.map((archetype) => ({
+    title: String(archetype.title || "").trim(),
+    blurb: String(archetype.blurb || "").trim(),
+    ornament: String(archetype.ornament || "").trim() || "❦",
+  }));
+  if (cleaned.some((archetype) => !archetype.title)) {
+    throw new Error("Every character role needs a name.");
+  }
+  return cleaned;
+}
+
 function renderStudioStories() {
   const list = $("studio-story-list");
   if (!studioStories.length) {
@@ -2405,7 +2480,8 @@ function openStudioStoryEditor(index) {
   $("studio-story-title").value = story.title || "";
   $("studio-story-premise").value = story.premise || "";
   $("studio-story-question").value = story.question || "";
-  $("studio-story-archetypes").value = JSON.stringify(story.archetypes || [], null, 2);
+  studioStoryArchetypes = JSON.parse(JSON.stringify(story.archetypes || []));
+  renderStudioArchetypes("story");
   $("studio-story-editor").classList.remove("hidden");
   $("studio-story-title").focus();
 }
@@ -2417,15 +2493,10 @@ function saveStudioStory() {
     studioStatus("Each story needs a title and premise.");
     return;
   }
-  let archetypes;
   try {
-    archetypes = JSON.parse($("studio-story-archetypes").value || "[]");
-  } catch {
-    studioStatus("Character archetypes must be valid JSON.");
-    return;
-  }
-  if (!Array.isArray(archetypes)) {
-    studioStatus("Character archetypes must be a JSON array.");
+    studioStoryArchetypes = cleanStudioArchetypes(studioStoryArchetypes);
+  } catch (error) {
+    studioStatus(error.message);
     return;
   }
   const previous = studioEditingStoryIndex >= 0 ? studioStories[studioEditingStoryIndex] : {};
@@ -2435,7 +2506,7 @@ function saveStudioStory() {
     premise,
     question: $("studio-story-question").value.trim(),
   };
-  if (archetypes.length) next.archetypes = archetypes;
+  if (studioStoryArchetypes.length) next.archetypes = JSON.parse(JSON.stringify(studioStoryArchetypes));
   else delete next.archetypes;
   if (studioEditingStoryIndex >= 0) studioStories[studioEditingStoryIndex] = next;
   else studioStories.push(next);
@@ -2461,7 +2532,8 @@ function fillStudioForm(world) {
   $("studio-traits").value = "";
   renderStudioTokens("names");
   renderStudioTokens("traits");
-  $("studio-world-archetypes").value = JSON.stringify(world.archetypes || [], null, 2);
+  studioWorldArchetypes = JSON.parse(JSON.stringify(world.archetypes || []));
+  renderStudioArchetypes("world");
   studioStories = JSON.parse(JSON.stringify(world.stories || []));
   studioEditingStoryIndex = null;
   $("studio-story-editor").classList.add("hidden");
@@ -2472,13 +2544,7 @@ function fillStudioForm(world) {
 function readStudioForm() {
   commitStudioTokenInput("names");
   commitStudioTokenInput("traits");
-  let worldArchetypes;
-  try {
-    worldArchetypes = JSON.parse($("studio-world-archetypes").value || "[]");
-  } catch {
-    throw new Error("Default character archetypes must be valid JSON.");
-  }
-  if (!Array.isArray(worldArchetypes)) throw new Error("Default character archetypes must be a JSON array.");
+  studioWorldArchetypes = cleanStudioArchetypes(studioWorldArchetypes);
   return {
     ...studioWorldSource,
     id: $("studio-id").value.trim().toLowerCase(),
@@ -2490,7 +2556,7 @@ function readStudioForm() {
     namePlaceholder: $("studio-name-placeholder").value.trim(),
     names: [...studioNames],
     traits: [...studioTraits],
-    archetypes: worldArchetypes,
+    archetypes: JSON.parse(JSON.stringify(studioWorldArchetypes)),
     stories: studioStories,
   };
 }

@@ -200,8 +200,17 @@
             <input id="studio-traits" class="studio-token-input" maxlength="80" placeholder="Type a trait, then press Enter" autocomplete="off">
           </div>
           <p class="studio-token-help">Keep traits short and distinct; readers choose one during character creation.</p>
-          <label class="field-label" for="studio-world-archetypes">Default character archetypes <span class="studio-hint">JSON · used when a story does not define its own cast</span></label>
-          <textarea id="studio-world-archetypes" class="studio-json" rows="10" spellcheck="false"></textarea>
+          <section class="studio-cast" aria-labelledby="studio-world-cast-title">
+            <div class="studio-cast-heading">
+              <div>
+                <p class="section-kicker">Casting desk</p>
+                <h4 id="studio-world-cast-title">Default character cast</h4>
+                <p>These roles appear in every story unless that story has its own cast.</p>
+              </div>
+              <button id="studio-world-archetype-add" class="btn btn-ghost btn-small" type="button">Add role</button>
+            </div>
+            <div id="studio-world-archetypes" class="studio-archetype-list" aria-live="polite"></div>
+          </section>
           <section class="studio-stories" aria-labelledby="studio-stories-title">
             <div class="studio-stories-heading">
               <div>
@@ -225,8 +234,17 @@
               </div>
               <label class="field-label" for="studio-story-premise">Premise</label>
               <textarea id="studio-story-premise" maxlength="1200" rows="4"></textarea>
-              <label class="field-label" for="studio-story-archetypes">Character archetypes <span class="studio-hint">JSON · optional story-specific cast</span></label>
-              <textarea id="studio-story-archetypes" class="studio-json" rows="7" spellcheck="false"></textarea>
+              <section class="studio-cast studio-cast-story" aria-labelledby="studio-story-cast-title">
+                <div class="studio-cast-heading">
+                  <div>
+                    <p class="section-kicker">Story casting</p>
+                    <h4 id="studio-story-cast-title">Story-specific cast</h4>
+                    <p>Leave this empty to use the world’s default character cast.</p>
+                  </div>
+                  <button id="studio-story-archetype-add" class="btn btn-ghost btn-small" type="button">Add role</button>
+                </div>
+                <div id="studio-story-archetypes" class="studio-archetype-list" aria-live="polite"></div>
+              </section>
               <div class="studio-story-editor-actions">
                 <button id="studio-story-cancel" class="btn btn-ghost btn-small" type="button">Cancel</button>
                 <button id="studio-story-save" class="btn btn-primary btn-small" type="button">Save story</button>

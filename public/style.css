@@ -770,12 +770,60 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 }
 .studio-token-input:focus { border: 0; box-shadow: none; outline: 0; }
 .studio-token-help { color: var(--muted); font-size: 0.68rem; margin-top: 0.3rem; }
-.studio-json {
-  background: var(--ink-well);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.78rem;
-  line-height: 1.45;
+.studio-cast {
+  border-top: 1px solid var(--hairline);
+  margin-top: 1.15rem;
+  padding-top: 1rem;
 }
+.studio-cast-heading { align-items: end; display: flex; gap: 1rem; justify-content: space-between; }
+.studio-cast-heading h4 { font-family: var(--display); font-size: 1.15rem; margin: 0.12rem 0 0; }
+.studio-cast-heading p:not(.section-kicker) { color: var(--muted); font-size: 0.7rem; margin: 0.2rem 0 0; }
+.studio-archetype-list { display: grid; gap: 0.6rem; margin-top: 0.75rem; }
+.studio-archetype-card {
+  align-items: start;
+  background: linear-gradient(105deg, color-mix(in srgb, var(--larkspur) 8%, var(--ink-well)), var(--ink-well) 45%);
+  border: 1px solid var(--hairline);
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: 2.6rem 1fr auto;
+  padding: 0.8rem;
+}
+.studio-archetype-seal {
+  align-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--gold-line);
+  color: var(--gold);
+  display: flex;
+  font-family: var(--display);
+  font-size: 1.25rem;
+  justify-content: center;
+  margin-top: 1.15rem;
+  transform: rotate(-2deg);
+}
+.studio-archetype-fields { min-width: 0; }
+.studio-archetype-fields .field-label { margin-top: 0.55rem; }
+.studio-archetype-fields > .field-label { margin-top: 0.55rem; }
+.studio-archetype-title-row { display: grid; gap: 0.6rem; grid-template-columns: 1fr 6.2rem; }
+.studio-archetype-title-row .field-label { margin-top: 0; }
+.studio-archetype-remove {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.68rem;
+  margin-top: 1.35rem;
+  padding: 0.35rem;
+}
+.studio-archetype-remove:hover, .studio-archetype-remove:focus-visible { color: var(--wine); }
+.studio-cast-empty {
+  border: 1px dashed var(--hairline);
+  color: var(--muted);
+  padding: 1rem;
+  text-align: center;
+}
+.studio-cast-empty span { color: var(--gold); font-family: var(--display); font-size: 1.2rem; }
+.studio-cast-empty p { font-family: var(--prose); font-style: italic; margin: 0.25rem 0 0; }
+.studio-cast-story { border-top-color: var(--gold-line); margin-top: 1rem; }
 .studio-stories {
   border-top: 1px solid var(--gold-line);
   margin-top: 1.35rem;
@@ -834,6 +882,12 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   .studio-story-card-actions { flex-direction: row; grid-column: 2; }
   .studio-token-editor { align-items: stretch; }
   .studio-token-input, .studio-token-editor .studio-token-input { flex-basis: 100%; min-width: 0; }
+  .studio-cast-heading { align-items: stretch; flex-direction: column; }
+  .studio-cast-heading .btn { align-self: flex-start; }
+  .studio-archetype-card { grid-template-columns: 2.25rem 1fr; }
+  .studio-archetype-seal { margin-top: 1.05rem; }
+  .studio-archetype-remove { grid-column: 2; justify-self: start; margin: -0.2rem 0 0; }
+  .studio-archetype-title-row { grid-template-columns: 1fr; }
 }
 
 /* ---------- story screen: the book page ---------- */
