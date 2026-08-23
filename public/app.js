@@ -495,6 +495,7 @@ let studioStories = [];
 let studioEditingStoryIndex = null;
 let studioNames = [];
 let studioTraits = [];
+let studioWorldSource = {};
 let pendingStart = false; // user tried to start a story before signing in
 let namePool = DEFAULT_NAMES; // name pool for the current world's dice roll
 let libraryFilter = "all";
@@ -736,9 +737,9 @@ function buildScenario(world, story) {
     tone: story.tone || world.tone,
     question: story.question || world.question,
     namePlaceholder: story.namePlaceholder || world.namePlaceholder,
-    archetypes: story.archetypes || world.archetypes,
-    traits: story.traits || world.traits,
-    names: story.names || world.names,
+    archetypes: story.archetypes?.length ? story.archetypes : world.archetypes,
+    traits: story.traits?.length ? story.traits : world.traits,
+    names: story.names?.length ? story.names : world.names,
   };
 }
 
@@ -2433,8 +2434,9 @@ function saveStudioStory() {
     title,
     premise,
     question: $("studio-story-question").value.trim(),
-    archetypes,
   };
+  if (archetypes.length) next.archetypes = archetypes;
+  else delete next.archetypes;
   if (studioEditingStoryIndex >= 0) studioStories[studioEditingStoryIndex] = next;
   else studioStories.push(next);
   renderStudioStories();
@@ -2444,6 +2446,7 @@ function saveStudioStory() {
 
 function fillStudioForm(world) {
   if (!world) return;
+  studioWorldSource = JSON.parse(JSON.stringify(world));
   $("studio-form").classList.remove("hidden");
   $("studio-id").value = world.id || "";
   $("studio-genre").value = world.genre || "";
@@ -2468,6 +2471,7 @@ function readStudioForm() {
   commitStudioTokenInput("names");
   commitStudioTokenInput("traits");
   return {
+    ...studioWorldSource,
     id: $("studio-id").value.trim().toLowerCase(),
     genre: $("studio-genre").value.trim(),
     accent: $("studio-accent").value.trim(),
