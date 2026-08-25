@@ -1338,6 +1338,8 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 .modal-card {
   position: relative;
   width: min(26rem, 100%);
+  max-height: calc(100dvh - 2.4rem);
+  overflow-y: auto;
   background: var(--page);
   border: 1px solid var(--gold-line);
   border-radius: 4px;
@@ -1373,7 +1375,8 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 .modal-actions { display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 1.6rem; }
 .auth-card {
   --auth-accent: var(--gold);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .auth-card::before {
@@ -1439,6 +1442,25 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 }
 .auth-card[data-auth-mode="signup"] input:focus {
   outline-color: var(--auth-accent);
+}
+.text-action {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: block;
+  font-family: var(--ui);
+  font-size: 0.76rem;
+  margin: 0.65rem 0 0 auto;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.text-action:hover { color: var(--gold); }
+.auth-card[data-auth-mode="recovery"] { --auth-accent: var(--larkspur); }
+.auth-card[data-auth-mode="recovery"] #save-password-btn {
+  display: block;
+  width: 100%;
 }
 @media (prefers-reduced-motion: reduce) {
   .auth-card, .auth-card::before, .auth-mode-kicker, .auth-action { transition: none; }
@@ -1644,6 +1666,7 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 .pack-each { font-size: 0.68rem; color: var(--muted); }
 .buy-fineprint { text-align: center; color: var(--muted); font-size: 0.72rem; margin-top: 1rem; }
 .account-actions { display: grid; gap: 0.65rem; margin-top: 1rem; }
+.account-field-label { margin: 0.35rem 0 0; }
 .trust-note { color: var(--muted); font-family: var(--ui); font-size: 0.72rem; margin: 0.6rem 0; }
 .footer-links { display: flex; justify-content: center; gap: 1rem; }
 .footer-links a { color: var(--muted); font-family: var(--ui); font-size: 0.72rem; }

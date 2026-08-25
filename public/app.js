@@ -1990,7 +1990,10 @@ async function initSupabase(cfg) {
   $("account-bar").classList.remove("hidden");
   wireAuthEvents();
 
-  sb.auth.onAuthStateChange((_event, session) => setUser(session ? session.user : null));
+  sb.auth.onAuthStateChange((event, session) => {
+    setUser(session ? session.user : null);
+    if (event === "PASSWORD_RECOVERY") openPasswordRecoveryModal();
+  });
   const { data } = await sb.auth.getSession();
   setUser(data.session ? data.session.user : null);
 }
@@ -2031,8 +2034,13 @@ function wireAuthEvents() {
     setAuthMode("signup");
     submitAuth("signup");
   });
+  $("forgot-password-btn").addEventListener("click", () => requestPasswordReset());
+  $("save-password-btn").addEventListener("click", saveRecoveredPassword);
   $("auth-password").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submitAuth($("auth-modal").querySelector(".auth-card").dataset.authMode || "signin");
+    if (e.key !== "Enter") return;
+    const mode = $("auth-modal").querySelector(".auth-card").dataset.authMode || "signin";
+    if (mode === "recovery") saveRecoveredPassword();
+    else submitAuth(mode);
   });
   $("account-close").addEventListener("click", closeAccountModal);
   $("account-modal").addEventListener("click", (e) => {
@@ -2043,6 +2051,8 @@ function wireAuthEvents() {
     await sb.auth.signOut();
   });
   $("export-account-btn").addEventListener("click", exportAccountData);
+  $("change-email-btn").addEventListener("click", changeAccountEmail);
+  $("account-reset-password-btn").addEventListener("click", () => requestPasswordReset(user && user.email));
   $("delete-account-btn").addEventListener("click", deleteAccount);
   $("admin-btn").addEventListener("click", openAdminDashboard);
   $("studio-btn").addEventListener("click", openStoryStudio);
@@ -2145,12 +2155,27 @@ function wireAuthEvents() {
 
 function setAuthMode(mode) {
   const signup = mode === "signup";
+  const recovery = mode === "recovery";
   const card = $("auth-modal").querySelector(".auth-card");
-  card.dataset.authMode = signup ? "signup" : "signin";
+  card.dataset.authMode = recovery ? "recovery" : signup ? "signup" : "signin";
   $("signup-btn").setAttribute("aria-pressed", String(signup));
   $("signin-btn").setAttribute("aria-pressed", String(!signup));
   $("auth-mode-kicker").textContent = signup ? "New reader" : "Returning reader";
   $("auth-password").autocomplete = signup ? "new-password" : "current-password";
+  $("auth-email-field").classList.toggle("hidden", recovery);
+  $("forgot-password-btn").classList.toggle("hidden", recovery);
+  $("signup-btn").classList.toggle("hidden", recovery);
+  $("signin-btn").classList.toggle("hidden", recovery);
+  $("save-password-btn").classList.toggle("hidden", !recovery);
+  $("auth-password-label").textContent = recovery ? "New password" : "Password";
+  $("auth-password").autocomplete = recovery || signup ? "new-password" : "current-password";
+
+  if (recovery) {
+    $("auth-mode-kicker").textContent = "Account recovery";
+    $("auth-title").textContent = "Choose a new password";
+    $("auth-sub").textContent = "Use at least eight characters, then return to your library.";
+    return;
+  }
 
   if (pendingStart) {
     $("auth-title").textContent = signup ? "Keep this story going" : "Welcome back to your story";
@@ -2172,6 +2197,14 @@ function openAuthModal() {
   $("auth-email").focus();
 }
 
+function openPasswordRecoveryModal() {
+  setAuthMode("recovery");
+  $("auth-password").value = "";
+  $("auth-message").classList.add("hidden");
+  $("auth-modal").classList.remove("hidden");
+  $("auth-password").focus();
+}
+
 function closeAuthModal() {
   $("auth-modal").classList.add("hidden");
 }
@@ -2180,7 +2213,65 @@ function openAccountModal() {
   if (!user) return;
   $("account-modal-email").textContent = user.email || "";
   $("account-message").classList.add("hidden");
+  $("account-new-email").value = "";
   $("account-modal").classList.remove("hidden");
+}
+
+async function requestPasswordReset(accountEmail) {
+  const email = String(accountEmail || $("auth-email").value || "").trim();
+  if (!email) return authMessage("Enter your email first.");
+  const sourceIsAccount = !!accountEmail;
+  const button = sourceIsAccount ? $("account-reset-password-btn") : $("forgot-password-btn");
+  button.disabled = true;
+  try {
+    const redirectTo = `${location.origin}/?account=recovery`;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+    const message = "Check your inbox for a secure password-reset link.";
+    if (sourceIsAccount) accountMessage(message, true);
+    else authMessage(message, true);
+  } catch (error) {
+    const message = error && error.message ? error.message : "Couldn't send the reset email. Please try again.";
+    if (sourceIsAccount) accountMessage(message);
+    else authMessage(message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function saveRecoveredPassword() {
+  const password = $("auth-password").value;
+  if (password.length < 8) return authMessage("Use at least eight characters.");
+  const button = $("save-password-btn");
+  button.disabled = true;
+  try {
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) throw error;
+    history.replaceState({}, "", location.pathname);
+    closeAuthModal();
+    toast("Your password has been updated.");
+  } catch (error) {
+    authMessage(error && error.message ? error.message : "Couldn't update your password.");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function changeAccountEmail() {
+  const email = $("account-new-email").value.trim();
+  if (!email || email === user.email) return accountMessage("Enter a different email address.");
+  const button = $("change-email-btn");
+  button.disabled = true;
+  try {
+    const { error } = await sb.auth.updateUser({ email });
+    if (error) throw error;
+    $("account-new-email").value = "";
+    accountMessage("Confirmation sent. Follow the email instructions to finish the change.", true);
+  } catch (error) {
+    accountMessage(error && error.message ? error.message : "Couldn't change your email.");
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function closeAccountModal() {

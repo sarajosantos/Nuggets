@@ -407,6 +407,7 @@
     <nav class="footer-links" aria-label="Policies">
       <a href="/privacy.html">Privacy</a>
       <a href="/terms.html">Terms</a>
+      <a href="mailto:readlarkspin@gmail.com">Support</a>
     </nav>
   </footer>
 
@@ -418,17 +419,22 @@
       <h3 id="auth-title" class="modal-title">Your library, anywhere</h3>
       <p id="auth-sub" class="modal-sub">Sign in and your stories follow you across devices. By continuing, you confirm that you are at least 18 years old and agree to the Terms.</p>
 
-      <label class="field-label" for="auth-email">Email</label>
-      <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com">
+      <div id="auth-email-field">
+        <label class="field-label" for="auth-email">Email</label>
+        <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com">
+      </div>
 
-      <label class="field-label" for="auth-password">Password</label>
+      <label id="auth-password-label" class="field-label" for="auth-password">Password</label>
       <input type="password" id="auth-password" autocomplete="current-password" placeholder="••••••••">
+
+      <button id="forgot-password-btn" class="text-action" type="button">Forgot your password?</button>
 
       <p id="auth-message" class="auth-message hidden"></p>
 
       <div class="modal-actions auth-actions" aria-label="Choose how to continue">
         <button id="signup-btn" class="btn btn-ghost auth-action" aria-pressed="false">Create account</button>
         <button id="signin-btn" class="btn btn-primary auth-action" aria-pressed="true">Sign in</button>
+        <button id="save-password-btn" class="btn btn-primary auth-action hidden">Save new password</button>
       </div>
     </div>
   </div>
@@ -440,6 +446,10 @@
       <h3 id="account-title" class="modal-title">Your Larkspin account</h3>
       <p id="account-modal-email" class="modal-sub"></p>
       <div class="account-actions">
+        <label class="field-label account-field-label" for="account-new-email">Change email address</label>
+        <input type="email" id="account-new-email" autocomplete="email" placeholder="new@example.com">
+        <button id="change-email-btn" class="btn btn-ghost">Send confirmation</button>
+        <button id="account-reset-password-btn" class="btn btn-ghost">Send password reset email</button>
         <button id="export-account-btn" class="btn btn-ghost">Export my data</button>
         <button id="signout-btn" class="btn btn-ghost">Sign out</button>
         <button id="delete-account-btn" class="btn btn-danger">Delete account</button>

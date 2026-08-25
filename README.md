@@ -41,6 +41,9 @@ npm start              # http://localhost:3000
    - `SUPABASE_URL` and `SUPABASE_ANON_KEY` — enables sign-in and the cloud library
    - `SUPABASE_SERVICE_ROLE_KEY` (server-only secret; never expose it to the browser) — moves published share links into Postgres too
 4. Optional: under **Authentication → Providers → Email**, turn off "Confirm email" for instant signups, or configure SMTP so confirmation emails deliver.
+5. Under **Authentication → URL Configuration**, set the site URL to
+   `https://larkspin.com` and allow `https://larkspin.com/?account=recovery` as
+   a redirect URL. Password recovery depends on this allowlist entry.
 
 Without these vars the app runs exactly as before — libraries stay device-local and shares fall back to a JSON file. The browser talks to Supabase directly for auth and story sync (protected by RLS); the server only verifies tokens (for per-account rate limiting) and writes shares.
 
@@ -88,6 +91,23 @@ The launch pack hypotheses live in `CREDIT_PACKS` near the top of `server.js`: o
 The safe database-first launch sequence, Stripe test matrix, monitoring, and
 rollback procedure are in
 [`docs/MONETIZATION_ROLLOUT.md`](docs/MONETIZATION_ROLLOUT.md).
+
+## Launch operations
+
+- `npm run preflight` validates the free-beta production configuration and
+  reconciles the live credit ledger.
+- `npm run preflight:paid` additionally requires live restricted Stripe
+  credentials and explicit credit enforcement.
+- `npm run ops:check` evaluates the previous 24 hours for ledger mismatches,
+  generation failures, spend, refunds, AI-cover volume, report backlog, and
+  stuck sessions. Set `OPS_ALERT_WEBHOOK_URL` to deliver non-empty reports to a
+  private alerting endpoint.
+- `npm run maintenance` applies the documented retention policy without
+  deleting payment records, ledger entries, charged sessions, or resumable
+  stories. Schedule it daily after applying the latest Supabase migration.
+
+Paid-reader handling procedures are in
+[`docs/SUPPORT_RUNBOOK.md`](docs/SUPPORT_RUNBOOK.md).
 
 ## Roadmap
 

@@ -8,7 +8,11 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test",
-    "check": "npm test && npm audit --omit=dev --audit-level=high"
+    "check": "npm test && npm audit --omit=dev --audit-level=high",
+    "preflight": "node tools/launch-preflight.js",
+    "preflight:paid": "node tools/launch-preflight.js --paid",
+    "ops:check": "node tools/operations-check.js",
+    "maintenance": "node tools/maintenance.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.113.0",

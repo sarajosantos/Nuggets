@@ -23,3 +23,11 @@ test("the privacy policy limits Larkspin to adults", () => {
   assert.match(html, /only for people who are 18 or older/);
   assert.match(html, /under 18 may not use the Service, create an account, make a purchase/);
 });
+
+test("the privacy policy states the operational retention schedule", () => {
+  assert.match(html, /AI usage records are normally deleted after 180 days/);
+  assert.match(html, /rate-limit buckets after 48 hours/);
+  assert.match(html, /abandoned, uncharged generation sessions after 24 hours/);
+  assert.match(html, /resolved abuse reports after 365 days/);
+  assert.match(html, /immutable story-credit ledger/);
+});

@@ -56,6 +56,21 @@ const MODEL_INPUT_USD_PER_MILLION =
   Math.max(Number(process.env.MODEL_INPUT_USD_PER_MILLION) || 0, 0);
 const MODEL_OUTPUT_USD_PER_MILLION =
   Math.max(Number(process.env.MODEL_OUTPUT_USD_PER_MILLION) || 0, 0);
+const OPS_ALERT_WEBHOOK_URL = (() => {
+  try {
+    const url = new URL(process.env.OPS_ALERT_WEBHOOK_URL || "");
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+})();
+const OPS_REALTIME_ALERT_EVENTS = new Set([
+  "credit_ledger_mismatch",
+  "story_generation_failed",
+  "stripe_credit_grant_failed",
+  "stripe_credit_refund_failed",
+  "share_insert_failed",
+]);
 // Demo mode serves canned story content so the UI works with no API key.
 const DEMO_MODE =
   process.env.DEMO_MODE === "1" ||
@@ -364,6 +379,31 @@ function logEvent(level, event, details = {}) {
   if (level === "error") console.error(output);
   else if (level === "warn") console.warn(output);
   else console.log(output);
+
+  if (OPS_ALERT_WEBHOOK_URL && OPS_REALTIME_ALERT_EVENTS.has(event)) {
+    const alert = {
+      timestamp: entry.timestamp,
+      severity: level === "error" ? "critical" : "warning",
+      event,
+      requestId: details.requestId || null,
+      eventId: details.eventId || null,
+      storyId: details.storyId || null,
+    };
+    void fetch(OPS_ALERT_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(alert),
+      signal: AbortSignal.timeout(5_000),
+    }).catch((error) => {
+      console.warn(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: "warn",
+        event: "ops_alert_delivery_failed",
+        sourceEvent: event,
+        error: error.message,
+      }));
+    });
+  }
 }
 
 async function recordUsage({ req, user, kind, storyId, usage, status = "ok", metadata = {} }) {

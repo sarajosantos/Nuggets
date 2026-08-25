@@ -62,14 +62,15 @@ P0 item is deployed and tested in the production environment.
       bracketed placeholders for operator identity, jurisdiction, age,
       retention, refund/consumer rights, and liability cap — awaiting an
       attorney to finalize.)
-- [ ] Set measured retention periods for usage events, reports, rate-limit
-      buckets, abandoned story sessions, and Stripe reconciliation records.
-- [ ] Add a scheduled cleanup job for expired rate-limit buckets and abandoned
-      uncharged sessions.
-- [ ] Connect alerts for generation failure rate, Stripe grant failures, cover
-      volume, daily token spend, refund spikes, and report backlog.
-- [ ] Add a support runbook for paid-but-not-credited purchases and story loss.
-- [ ] Add password reset, email change, and stronger new-account UX.
+- [x] Set conservative, documented retention periods for operational data;
+      financial reconciliation records remain immutable.
+- [ ] Schedule the provided `npm run maintenance` job after applying the launch
+      operations migration.
+- [ ] Connect the provided `npm run ops:check` report to a private alert
+      destination and schedule it daily.
+- [x] Add a support runbook for paid-but-not-credited purchases and story loss.
+- [x] Add password reset and email change; stronger new-account UX can follow
+      measured reader feedback.
 
 ## P2 — product polish (choose a direction after the hardening PR)
 
