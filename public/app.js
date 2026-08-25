@@ -919,13 +919,12 @@ function renderBeginningSwitcher() {
   }
 
   const currentIndex = world.stories.findIndex((story) => story.title === draft.scenario.title);
-  $("beginning-switcher-count").textContent = `${currentIndex + 1} of ${world.stories.length} selected`;
   $("beginning-options").innerHTML = world.stories.map((story, index) => {
     const selected = index === currentIndex;
     return `
       <button class="beginning-option${selected ? " selected" : ""}" type="button"
         data-beginning-index="${index}" aria-pressed="${selected}">
-        <span>${selected ? "Current beginning" : "Read this beginning"}</span>
+        <span>${selected ? "Current story" : "Choose this story"}</span>
         <strong>${escapeHtml(story.title)}</strong>
       </button>`;
   }).join("");
