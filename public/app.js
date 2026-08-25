@@ -875,49 +875,110 @@ function submitCustomScenario() {
 // traits all come from the chosen world (generic fallbacks for custom ones).
 // Selections reset on entry since each world has a different cast.
 function openCharacterScreen() {
+  // A newly opened setup belongs to the newly selected world. Never carry a
+  // typed protagonist name across worlds or back-navigation into a new setup.
+  $("char-name").value = "";
+  draft.character.name = "";
+  draft.character.archetype = null;
+  draft.character.archetypeBlurb = null;
+  draft.character.trait = null;
+  refreshCharacterScreen();
+  showScreen("character");
+}
+
+function refreshCharacterScreen({ preserveSelections = false } = {}) {
   const s = draft.scenario;
+  const previousArchetype = preserveSelections ? draft.character.archetype : null;
+  const previousTrait = preserveSelections ? draft.character.trait : null;
+  const archetypes = s.archetypes || ARCHETYPES;
+  const traits = s.traits || TRAITS;
+  const keptArchetype = archetypes.find((archetype) => archetype.title === previousArchetype) || null;
+  const keptTrait = traits.includes(previousTrait) ? previousTrait : null;
+
   $("character-question").textContent = s.question || DEFAULT_QUESTION;
   $("character-scenario-label").textContent = `${s.ornament} ${s.title}`;
   $("character-premise").textContent = s.premise;
   $("char-name").placeholder = s.namePlaceholder || "e.g. Rowan Ashford";
   namePool = (s.names && s.names.length) ? s.names : DEFAULT_NAMES;
-  draft.character.archetype = null;
-  draft.character.archetypeBlurb = null;
-  draft.character.trait = null;
-  renderArchetypes(s.archetypes || ARCHETYPES, s.accent);
-  renderTraits(s.traits || TRAITS);
-  showScreen("character");
+  draft.character.archetype = keptArchetype?.title || null;
+  draft.character.archetypeBlurb = keptArchetype?.blurb || null;
+  draft.character.trait = keptTrait;
+  renderBeginningSwitcher();
+  renderArchetypes(archetypes, s.accent, draft.character.archetype);
+  renderTraits(traits, draft.character.trait);
   updateBeginButton();
 }
 
-function renderArchetypes(archetypes, accent) {
+function renderBeginningSwitcher() {
+  const switcher = $("beginning-switcher");
+  const world = activeScenarios.find((candidate) => candidate.id === draft.scenario.id);
+  if (!world || world.stories.length < 2) {
+    switcher.classList.add("hidden");
+    $("beginning-options").innerHTML = "";
+    return;
+  }
+
+  const currentIndex = world.stories.findIndex((story) => story.title === draft.scenario.title);
+  $("beginning-switcher-count").textContent = `${currentIndex + 1} of ${world.stories.length} selected`;
+  $("beginning-options").innerHTML = world.stories.map((story, index) => {
+    const selected = index === currentIndex;
+    return `
+      <button class="beginning-option${selected ? " selected" : ""}" type="button"
+        data-beginning-index="${index}" aria-pressed="${selected}">
+        <span>${selected ? "Current beginning" : "Read this beginning"}</span>
+        <strong>${escapeHtml(story.title)}</strong>
+      </button>`;
+  }).join("");
+  switcher.classList.remove("hidden");
+}
+
+function switchBeginning(index) {
+  const world = activeScenarios.find((candidate) => candidate.id === draft.scenario.id);
+  const selectedStory = world && world.stories[index];
+  if (!selectedStory || selectedStory.title === draft.scenario.title) return;
+  draft.character.name = $("char-name").value.trim();
+  draft.scenario = buildScenario(world, selectedStory);
+  refreshCharacterScreen({ preserveSelections: true });
+}
+
+function renderArchetypes(archetypes, accent, selectedTitle = null) {
   const grid = $("archetype-grid");
   grid.innerHTML = "";
   for (const a of archetypes) {
     const card = document.createElement("button");
     card.className = "card";
+    card.classList.toggle("selected", a.title === selectedTitle);
+    card.setAttribute("aria-pressed", String(a.title === selectedTitle));
     if (accent) card.style.setProperty("--card-accent", accent);
     card.innerHTML = `<span class="ornament">${a.ornament}</span><h3>${escapeHtml(a.title)}</h3><p>${escapeHtml(a.blurb)}</p>`;
     card.addEventListener("click", () => {
       draft.character.archetype = a.title;
       draft.character.archetypeBlurb = a.blurb;
-      grid.querySelectorAll(".card").forEach((c) => c.classList.toggle("selected", c === card));
+      grid.querySelectorAll(".card").forEach((c) => {
+        c.classList.toggle("selected", c === card);
+        c.setAttribute("aria-pressed", String(c === card));
+      });
       updateBeginButton();
     });
     grid.appendChild(card);
   }
 }
 
-function renderTraits(traits) {
+function renderTraits(traits, selectedTrait = null) {
   const row = $("trait-row");
   row.innerHTML = "";
   for (const t of traits) {
     const chip = document.createElement("button");
     chip.className = "chip";
+    chip.classList.toggle("selected", t === selectedTrait);
+    chip.setAttribute("aria-pressed", String(t === selectedTrait));
     chip.textContent = t;
     chip.addEventListener("click", () => {
       draft.character.trait = t;
-      row.querySelectorAll(".chip").forEach((c) => c.classList.toggle("selected", c === chip));
+      row.querySelectorAll(".chip").forEach((c) => {
+        c.classList.toggle("selected", c === chip);
+        c.setAttribute("aria-pressed", String(c === chip));
+      });
       updateBeginButton();
     });
     row.appendChild(chip);
@@ -953,6 +1014,10 @@ function wireEvents() {
   });
   $("char-name").addEventListener("input", updateBeginButton);
   $("roll-name").addEventListener("click", rollName);
+  $("beginning-options").addEventListener("click", (event) => {
+    const option = event.target.closest("[data-beginning-index]");
+    if (option) switchBeginning(Number(option.dataset.beginningIndex));
+  });
   $("back-to-scenarios").addEventListener("click", () => showScreen("scenario"));
   $("custom-back").addEventListener("click", () => showScreen("scenario"));
   ["custom-title", "custom-premise", "custom-tone"].forEach((id) =>

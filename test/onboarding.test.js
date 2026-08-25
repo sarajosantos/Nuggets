@@ -47,6 +47,20 @@ test("character setup explains progress and preserves the selected premise", () 
   assert.match(app, /\$\("character-premise"\)\.textContent = s\.premise/);
 });
 
+test("readers can switch beginnings without leaving their chosen world", () => {
+  assert.match(html, /id="beginning-switcher"/);
+  assert.match(html, /Beginnings in this world/);
+  assert.match(app, /function renderBeginningSwitcher\(\)/);
+  assert.match(app, /function switchBeginning\(index\)/);
+  assert.match(app, /refreshCharacterScreen\(\{ preserveSelections: true \}\)/);
+  assert.match(css, /\.beginning-options[\s\S]*scroll-snap-type: x mandatory/);
+});
+
+test("a new character setup never carries a typed name across worlds", () => {
+  assert.match(app, /function openCharacterScreen\(\)[\s\S]*\$\("char-name"\)\.value = ""/);
+  assert.match(app, /draft\.character\.name = ""/);
+});
+
 test("returning readers can filter a progress-aware bookshelf", () => {
   assert.match(html, /id="library-filters"/);
   assert.match(app, /role="progressbar"/);
