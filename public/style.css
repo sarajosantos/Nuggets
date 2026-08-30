@@ -1715,9 +1715,11 @@ body.paged-reading .screen-nav { margin-bottom: 0.4rem; }
 .ledger-row span { color: var(--muted); font: 0.75rem var(--ui); }
 .ledger-empty { color: var(--muted); font: italic 0.9rem var(--prose); padding: 0.9rem 0; }
 
+/* Fits however many packs are offered — two today, three if a bulk pack
+   earns its place back — without leaving a hole in the row. */
 .pack-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
   gap: 0.7rem;
   margin: 1.4rem 0 0.4rem;
 }

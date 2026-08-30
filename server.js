@@ -113,13 +113,24 @@ if (SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
 // Credit packs are defined HERE, on the server — the client can never set its
 // own price. Prices are in the smallest currency unit (cents).
 //
-// ⚠️ PLACEHOLDER PRICING — review these before charging real money. A full
-// story costs us roughly ~$1 in API calls, so a credit is priced above that
-// for margin. Tune the numbers, then keep them in sync with what you tell users.
+// ⚠️ PLACEHOLDER PRICING — review these before charging real money.
+//
+// Cost basis, derived from the generation loop rather than guessed: a story
+// resends its whole history uncached, so a ten-chapter read runs about $0.60
+// in Opus 4.8 tokens and one that goes to the fourteen-chapter cap about
+// $0.96, with adaptive thinking pushing the worst case near $1.40. Output is
+// roughly two thirds of that, so chapter length and thinking depth move the
+// number more than history does. Set MODEL_*_USD_PER_MILLION and read the
+// real figure off the publisher's ledger before trusting this note.
+//
+// Two packs, not three, until purchase data exists. A fifteen-story pack asks
+// $36 up front from someone who has not yet finished one story, and it earns
+// the thinnest margin of the three — the wrong thing to discount hardest
+// while repeat-purchase rate is still unknown. Add it back when readers ask
+// for bulk, not before.
 const CREDIT_PACKS = {
   single:  { credits: 1, price: 399, label: "Single story" },
   reader:  { credits: 5, price: 1500, label: "Reader pack" },
-  library: { credits: 15, price: 3600, label: "Library pack" },
 };
 const CURRENCY = (process.env.STRIPE_CURRENCY || "usd").toLowerCase();
 const REPORT_HASH_SALT = process.env.REPORT_HASH_SALT || crypto.randomBytes(32).toString("hex");

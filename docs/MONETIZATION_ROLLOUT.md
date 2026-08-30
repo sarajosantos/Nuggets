@@ -29,7 +29,6 @@ Use Stripe test mode and verify every pack:
 
 - Single story: 1 for $3.99
 - Reader pack: 5 for $15
-- Library pack: 15 for $36
 
 For each pack:
 

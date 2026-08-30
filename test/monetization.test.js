@@ -40,7 +40,8 @@ test("concurrent first chapters share an idempotent start token", () => {
 test("Story packs are server-owned and keep purchase reconciliation metadata", () => {
   assert.match(server, /single:\s*\{ credits: 1, price: 399/);
   assert.match(server, /reader:\s*\{ credits: 5, price: 1500/);
-  assert.match(server, /library:\s*\{ credits: 15, price: 3600/);
+  // Deliberately two packs while repeat-purchase rate is unknown.
+  assert.doesNotMatch(server, /library:\s*\{ credits: 15/);
   assert.match(server, /payments:\s*PAYMENTS_ENABLED/);
   assert.match(server, /p_amount_total: grant\.amountTotal/);
   assert.match(server, /p_currency: grant\.currency/);
