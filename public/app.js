@@ -625,6 +625,7 @@ async function init() {
   await loadPublishedCatalog();
 
   renderScenarios();
+  renderPriceNote();
   renderLibrary();
   wireEvents();
   wirePayments();
@@ -2436,9 +2437,50 @@ function setUser(u) {
 }
 
 // ----- credits display -----
+// The price note under the shelf. Driven entirely by /api/config and the
+// verified balance, so it states the live terms and nothing else: it stays
+// hidden on a site with no payments, names the welcome story only while the
+// reader still has it, and says plainly that the sandbox cannot charge.
+function renderPriceNote() {
+  const note = $("price-note");
+  if (!note) return;
+  const packs = appConfig.payments?.packs;
+  const single = packs?.single;
+  const testMode = !!appConfig.payments?.testMode;
+  if (!single || (!appConfig.creditsEnforced && !testMode)) {
+    note.classList.add("hidden");
+    return;
+  }
+  const currency = appConfig.payments.currency || "usd";
+  const each = (pack) => dashboardMoney(pack.price / pack.credits, currency);
+
+  // A reader who has already spent their welcome story should not be offered
+  // it a second time.
+  const welcomeUnspent = !user || !!creditAccount?.firstNovellaIncluded;
+  const reader = packs.reader;
+  const packLine = reader && reader.credits > 1
+    ? ` — ${each(reader)} each in the ${reader.credits}-story pack`
+    : "";
+
+  $("price-note-title").textContent = welcomeUnspent
+    ? "Your first story is on the house."
+    : "A complete story, start to finish.";
+  $("price-note-body").textContent =
+    (welcomeUnspent
+      ? `After that, a complete story is ${each(single)}`
+      : `Each one is ${each(single)}`) +
+    packLine +
+    (testMode
+      ? ". Payments are still in testing, so nothing can be charged yet."
+      : ". No subscription, nothing to cancel, and the stories you buy never expire.");
+  $("price-note-figure").textContent = each(single);
+  note.classList.remove("hidden");
+}
+
 function setCredits(n, account = creditAccount) {
   credits = n;
   creditAccount = account && typeof account === "object" ? account : creditAccount;
+  renderPriceNote(); // the shelf note reads the same balance state as the pill
   const pill = $("credits-pill");
   if (!pill) return;
   if (n === null || (!appConfig.creditsEnforced && !appConfig.payments?.testMode)) {

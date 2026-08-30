@@ -66,6 +66,7 @@
         <p class="screen-sub">Each world holds three stories. Turn the small arrows to browse.</p>
       </div>
       <div id="scenario-grid" class="card-grid"></div>
+
       <div id="activation-shortcut" class="shelf-shortcut">
         <p><strong>Let chance choose the opening.</strong> We’ll take you straight to your protagonist.</p>
         <div>
@@ -73,6 +74,20 @@
           <span>About a minute to your first page</span>
         </div>
       </div>
+      <!-- The jacket-flap price. Stated in the open, before a reader spends
+           half an hour on a protagonist. Every figure is rendered from
+           /api/config so this can never quote a price Stripe is not taking. -->
+      <aside id="price-note" class="price-note hidden" aria-labelledby="price-note-title">
+        <div class="price-note-copy">
+          <p class="section-kicker">What a story costs</p>
+          <h3 id="price-note-title" class="price-note-title"></h3>
+          <p id="price-note-body" class="price-note-body"></p>
+        </div>
+        <p class="price-note-plate" aria-hidden="true">
+          <span id="price-note-figure" class="price-note-figure"></span>
+          <span class="price-note-unit">a story</span>
+        </p>
+      </aside>
 
       <div id="library-section" class="library hidden">
         <div id="library-spotlight" class="library-spotlight hidden" aria-live="polite">

@@ -253,6 +253,82 @@ main { width: 100%; max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4r
 .worlds-heading { order: 2; }
 #scenario-grid { order: 3; }
 #activation-shortcut { order: 4; }
+#price-note { order: 5; }
+
+/* ---------- what a story costs ---------- */
+
+/* A price set the way a jacket flap sets one: the figure alone behind a
+   hairline, the terms in prose beside it. Same plate treatment as the library
+   spotlight so the shelf reads as one surface. */
+.price-note {
+  align-items: center;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--gold) 9%, var(--page)), var(--page) 60%);
+  border: 1px solid var(--gold-line);
+  border-left: 3px solid var(--gold);
+  display: flex;
+  gap: 1.75rem;
+  justify-content: space-between;
+  margin-top: 1.75rem;
+  padding: 1.15rem 1.35rem;
+}
+.price-note-copy { flex: 1 1 auto; }
+.price-note-title {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 72, "SOFT" 30;
+  font-optical-sizing: none;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  line-height: 1.25;
+  margin: 0.15rem 0 0.35rem;
+}
+.price-note-body {
+  color: var(--muted);
+  font-family: var(--prose);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 48ch;
+}
+.price-note-plate {
+  border-left: 1px solid var(--hairline);
+  flex: 0 0 auto;
+  line-height: 1.05;
+  padding-left: 1.75rem;
+  text-align: center;
+}
+.price-note-figure {
+  color: var(--gold);
+  display: block;
+  font-family: var(--display);
+  font-variation-settings: "opsz" 144, "SOFT" 30;
+  font-optical-sizing: none;
+  font-size: 2.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.price-note-unit {
+  color: var(--muted);
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  margin-top: 0.35rem;
+  text-transform: uppercase;
+}
+/* Stacked, the figure turns from a plate into a footing rule. */
+@media (max-width: 620px) {
+  .price-note {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .price-note-plate {
+    border-left: 0;
+    border-top: 1px solid var(--hairline);
+    padding: 0.8rem 0 0;
+    text-align: left;
+    width: 100%;
+  }
+}
 
 .journey-progress {
   display: grid;
