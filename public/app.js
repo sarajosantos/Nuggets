@@ -2465,6 +2465,7 @@ function renderPriceNote() {
   $("price-note-title").textContent = welcomeUnspent
     ? "Your first story is on the house."
     : "A complete story, start to finish.";
+  $("price-note-free").classList.toggle("hidden", !welcomeUnspent);
   $("price-note-body").textContent =
     (welcomeUnspent
       ? `After that, a complete story is ${each(single)}`
