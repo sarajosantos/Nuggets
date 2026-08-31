@@ -3044,6 +3044,8 @@ async function cloudDeleteStory(id) {
 function wirePayments() {
   const buy = $("buy-btn");
   if (buy) buy.addEventListener("click", openBuyModal);
+  const priceNoteBuy = $("price-note-buy");
+  if (priceNoteBuy) priceNoteBuy.addEventListener("click", openBuyModal);
   const pill = $("credits-pill");
   if (pill) pill.addEventListener("click", openBuyModal);
   const close = $("buy-close");

@@ -67,6 +67,8 @@ test("sandbox checkout is explicit, visibly labeled, and cannot use live credent
 
 test("the reader counter and staff ledger are wired into the product", () => {
   assert.match(html, /id="credits-pill"/);
+  assert.match(html, /id="price-note-buy"[^>]*>Buy story credits/);
+  assert.match(app, /priceNoteBuy\.addEventListener\("click", openBuyModal\)/);
   assert.match(html, /id="screen-admin"/);
   assert.match(html, /id="admin-reconciliation"/);
   assert.match(app, /class="balance-number"/);
