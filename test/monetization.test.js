@@ -56,7 +56,8 @@ test("sandbox checkout is explicit, visibly labeled, and cannot use live credent
   assert.match(server, /cannot be combined with STORY_CREDITS_ENABLED=1/);
   assert.match(server, /if \(!PAYMENTS_ENABLED\) return res\.status\(503\)/);
   assert.match(server, /admin && !SANDBOX_CHECKOUT_ENABLED/);
-  assert.match(html, /Sandbox test · no real charges/);
+  assert.doesNotMatch(html, />Sandbox test · no real charges</);
+  assert.match(app, /buy-mode-note"\)\.textContent = testMode \? "Sandbox test · no real charges" : ""/);
   assert.match(app, /Stripe sandbox checkout\. Test cards only; no real charge will be made\./);
   assert.match(server, /STRIPE_WEBHOOK_FAIL_EVENT_ID && event\.id === STRIPE_WEBHOOK_FAIL_EVENT_ID/);
   assert.ok(
@@ -73,6 +74,9 @@ test("the reader counter and staff ledger are wired into the product", () => {
   assert.match(app, /priceNoteBuy\.addEventListener\("click", openBuyModal\)/);
   assert.match(html, /id="screen-admin"/);
   assert.match(html, /id="admin-reconciliation"/);
+  assert.match(server, /app\.get\("\/api\/admin\/ui"/);
+  assert.match(server, /if \(!isAdmin\(user\)\) return res\.status\(403\)/);
+  assert.match(app, /fetch\("\/api\/admin\/ui", \{ headers: await authHeader\(\) \}\)/);
   assert.match(app, /class="balance-number"/);
   assert.match(app, /ledgerStatus === "verified"/);
   assert.match(app, /\/api\/admin\/monetization/);
@@ -87,6 +91,7 @@ test("the reader counter and staff ledger are wired into the product", () => {
   assert.match(schema, /create table if not exists public\.pilot_feedback/);
   assert.match(server, /app\.post\("\/api\/pilot\/feedback"/);
   assert.match(html, /id="pilot-feedback-modal"/);
+  assert.match(app, /fetch\("\/api\/pilot\/ui"\)/);
 });
 
 test("funnel analytics store bounded identifiers rather than story text", () => {

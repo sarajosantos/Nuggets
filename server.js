@@ -75,6 +75,16 @@ const OPS_REALTIME_ALERT_EVENTS = new Set([
 const DEMO_MODE =
   process.env.DEMO_MODE === "1" ||
   (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN);
+if (
+  process.env.NODE_ENV === "production" &&
+  DEMO_MODE &&
+  process.env.ALLOW_DEMO_IN_PRODUCTION !== "1"
+) {
+  throw new Error(
+    "Live story generation is not configured. Refusing to start production in demo mode. " +
+    "Set an Anthropic credential, or explicitly set ALLOW_DEMO_IN_PRODUCTION=1 for a non-charging preview deployment.",
+  );
+}
 
 const app = express();
 // Behind a reverse proxy (Railway, Render, Fly, etc.) req.ip is otherwise the
@@ -249,7 +259,81 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "512kb" }));
-app.use(express.static(path.join(__dirname, "public")));
+
+const homeTemplate = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+function extractPrivateFragment(template, startMarker, endMarker) {
+  const start = template.indexOf(startMarker);
+  const end = template.indexOf(endMarker);
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error(`Missing private UI markers: ${startMarker} / ${endMarker}`);
+  }
+  return {
+    fragment: template.slice(start + startMarker.length, end).trim(),
+    publicTemplate:
+      template.slice(0, start) +
+      template.slice(end + endMarker.length),
+  };
+}
+
+const adminUi = extractPrivateFragment(
+  homeTemplate,
+  "<!-- PRIVATE_ADMIN_UI_START -->",
+  "<!-- PRIVATE_ADMIN_UI_END -->",
+);
+const pilotUi = extractPrivateFragment(
+  adminUi.publicTemplate,
+  "<!-- PILOT_UI_START -->",
+  "<!-- PILOT_UI_END -->",
+);
+const publicHomeTemplate = pilotUi.publicTemplate;
+
+function displayPrice(cents) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: CURRENCY.toUpperCase(),
+    maximumFractionDigits: 2,
+  }).format((Number(cents) || 0) / 100);
+}
+
+function renderPublicHome() {
+  const single = CREDIT_PACKS.single;
+  const reader = CREDIT_PACKS.reader;
+  const showPrice = PAYMENTS_ENABLED;
+  const singlePrice = displayPrice(single.price);
+  const readerEach = reader ? displayPrice(reader.price / reader.credits) : null;
+  const priceBody = showPrice
+    ? `After that, a complete story is ${singlePrice}` +
+      (readerEach ? ` — ${readerEach} each in the ${reader.credits}-story pack` : "") +
+      (SANDBOX_CHECKOUT_ENABLED
+        ? ". Payments are in testing; no charge will be made."
+        : ". No subscription, nothing to cancel, and purchased stories never expire.")
+    : "";
+  return publicHomeTemplate
+    .replaceAll("{{PRICE_NOTE_HIDDEN}}", showPrice ? "" : "hidden")
+    .replaceAll("{{PRICE_NOTE_TITLE}}", showPrice ? "Your first story is on the house." : "")
+    .replaceAll("{{PRICE_NOTE_BODY}}", priceBody)
+    .replaceAll("{{PRICE_NOTE_FIGURE}}", showPrice ? singlePrice : "");
+}
+
+app.get(["/", "/index.html"], (_req, res) => {
+  res.type("html").send(renderPublicHome());
+});
+
+app.get("/api/admin/ui", async (req, res) => {
+  if (!supabaseAdmin) return res.status(501).json({ error: "Staff tools aren't configured." });
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ error: "Please sign in first." });
+  if (!isAdmin(user)) return res.status(403).json({ error: "forbidden" });
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").send(adminUi.fragment);
+});
+
+app.get("/api/pilot/ui", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").send(pilotUi.fragment);
+});
+
+app.use(express.static(path.join(__dirname, "public"), { index: false }));
 
 // Resolve the signed-in user from a Bearer token, if any.
 async function userFromReq(req) {
@@ -1783,6 +1867,7 @@ async function resolveStripeBalanceTransaction(value) {
 
 const DATA_DIR = path.join(__dirname, "data");
 const SHARE_FILE = path.join(DATA_DIR, "stories.json");
+const SHARE_TEMPLATE = fs.readFileSync(path.join(__dirname, "public", "share.html"), "utf8");
 let sharedStories = {};
 try {
   sharedStories = JSON.parse(fs.readFileSync(SHARE_FILE, "utf8"));
@@ -1791,6 +1876,34 @@ try {
 function persistShares() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(SHARE_FILE, JSON.stringify(sharedStories));
+}
+
+async function sharedStoryById(id) {
+  if (supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from("shared_stories")
+      .select("data")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? data.data : null;
+  }
+  return sharedStories[id] || null;
+}
+
+function metaText(value, maxLength = 240) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength)
+    .replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    })[character]);
 }
 
 app.post("/api/share", async (req, res) => {
@@ -1896,23 +2009,47 @@ app.post("/api/share/:id/report", async (req, res) => {
 });
 
 app.get("/api/share/:id", async (req, res) => {
-  if (supabaseAdmin) {
-    const { data, error } = await supabaseAdmin
-      .from("shared_stories")
-      .select("data")
-      .eq("id", req.params.id)
-      .maybeSingle();
-    if (error) return res.status(500).json({ error: "couldn't load the story" });
-    if (!data) return res.status(404).json({ error: "story not found" });
-    return res.json(data.data);
+  try {
+    const story = await sharedStoryById(req.params.id);
+    if (!story) return res.status(404).json({ error: "story not found" });
+    res.json(story);
+  } catch {
+    res.status(500).json({ error: "couldn't load the story" });
   }
-  const story = sharedStories[req.params.id];
-  if (!story) return res.status(404).json({ error: "story not found" });
-  res.json(story);
 });
 
-app.get("/s/:id", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "share.html"));
+app.get("/s/:id/card.png", async (req, res) => {
+  try {
+    const story = await sharedStoryById(req.params.id);
+    if (!story) return res.status(404).end();
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    return res.sendFile(path.join(__dirname, "public", "social-card.png"));
+  } catch {
+    return res.status(500).end();
+  }
+});
+
+app.get("/s/:id", async (req, res) => {
+  try {
+    const story = await sharedStoryById(req.params.id);
+    if (!story) return res.status(404).send("Story not found.");
+    const origin = PUBLIC_APP_URL || `${req.protocol}://${req.get("host")}`;
+    const shareUrl = `${origin}/s/${encodeURIComponent(req.params.id)}`;
+    const title = metaText(`${story.title || "A story"} — Larkspin`, 180);
+    const opening = story.chapters && story.chapters[0] && story.chapters[0].prose;
+    const description = metaText(
+      opening || `An interactive ${story.scenario?.title || "story"} lived by ${story.character?.name || "a Larkspin reader"}.`,
+      200,
+    );
+    const html = SHARE_TEMPLATE
+      .replaceAll("{{SHARE_TITLE}}", title)
+      .replaceAll("{{SHARE_DESCRIPTION}}", description)
+      .replaceAll("{{SHARE_URL}}", metaText(shareUrl, 500))
+      .replaceAll("{{SHARE_IMAGE}}", metaText(`${shareUrl}/card.png`, 500));
+    res.type("html").send(html);
+  } catch {
+    res.status(500).send("The story could not be opened.");
+  }
 });
 
 app.get("/api/account/export", async (req, res) => {

@@ -11,6 +11,9 @@ const shareHtml = fs.readFileSync(path.join(__dirname, "..", "public", "share.ht
 test("the public terms contain no drafting placeholders", () => {
   assert.doesNotMatch(html, /Draft for legal review|Counsel to|\[OPERATOR|\[MINIMUM|\[GOVERNING|\[VENUE|\[TIME PERIOD|\[AMOUNT|\[SUPPORT/);
   assert.match(html, /Closed-beta terms/);
+  assert.match(html, /Larkspin LLC, a Colorado limited liability company/);
+  assert.match(html, /governed by Colorado law/);
+  assert.match(html, /court located in Denver, Colorado/);
 });
 
 test("the terms make the adult-only rule unambiguous", () => {

@@ -20,11 +20,9 @@ test("first-time readers get a concise orientation before the story shelf", () =
 test("the home page clearly sets beta expectations", () => {
   assert.match(html, /id="beta-notice"/);
   assert.match(html, /Founding reader beta/);
-  assert.match(html, /for readers 18 and older/);
-  assert.match(html, /Purchasing stories is optional/);
-  assert.match(html, /complete stories to read now/);
-  assert.match(html, /AI-generated stories can still surprise/);
-  assert.match(html, /don’t include sensitive personal information/);
+  assert.match(html, /For readers 18\+/);
+  assert.match(html, /The stories are ready; the product around them is still evolving/);
+  assert.match(html, /What to know before you begin/);
   assert.ok(html.indexOf('id="beta-notice"') < html.indexOf('id="scenario-grid"'));
 });
 

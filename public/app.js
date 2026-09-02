@@ -489,6 +489,8 @@ let appConfig = {}; // /api/config result (creditsEnforced, payments, …)
 let credits = null; // current credit balance (null = unknown / not enforced)
 let creditAccount = null; // verified balance metadata from the server
 let currentUserAdmin = false;
+let adminUiLoaded = false;
+let adminUiWired = false;
 let adminDays = 30;
 let studioCatalog = [];
 let studioSelectedId = null;
@@ -517,8 +519,8 @@ let pageTotal = 1;
 const $ = (id) => document.getElementById(id);
 const screens = {
   scenario: $("screen-scenario"),
-  admin: $("screen-admin"),
-  studio: $("screen-studio"),
+  admin: null,
+  studio: null,
   custom: $("screen-custom"),
   character: $("screen-character"),
   story: $("screen-story"),
@@ -575,7 +577,9 @@ async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
 }
 
 function showScreen(name) {
-  Object.entries(screens).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
+  Object.entries(screens).forEach(([k, el]) => {
+    if (el) el.classList.toggle("hidden", k !== name);
+  });
   window.scrollTo({ top: 0 });
   if (name !== "story") hideJump();
   document.body.classList.toggle("paged-reading", paged && name === "story");
@@ -2055,8 +2059,11 @@ function wireAuthEvents() {
   $("change-email-btn").addEventListener("click", changeAccountEmail);
   $("account-reset-password-btn").addEventListener("click", () => requestPasswordReset(user && user.email));
   $("delete-account-btn").addEventListener("click", deleteAccount);
-  $("admin-btn").addEventListener("click", openAdminDashboard);
-  $("studio-btn").addEventListener("click", openStoryStudio);
+}
+
+function wireAdminUi() {
+  if (adminUiWired) return;
+  adminUiWired = true;
   $("studio-world-select").addEventListener("change", (event) => {
     studioSelectedId = event.target.value;
     const entry = studioCatalog.find((candidate) => candidate.id === studioSelectedId);
@@ -2368,9 +2375,7 @@ function setUser(u) {
   const previousUser = user;
   const changed = (u && u.id) !== (previousUser && previousUser.id);
   if (changed) {
-    currentUserAdmin = false;
-    $("admin-btn").classList.add("hidden");
-    $("studio-btn").classList.add("hidden");
+    setAdminAccess(false);
     saveLibrary();
     user = u;
     if (u) {
@@ -2408,9 +2413,7 @@ function setUser(u) {
     buyBtn.classList.toggle("hidden", !(u && appConfig.payments));
   }
   if (!u) {
-    currentUserAdmin = false;
-    $("admin-btn").classList.add("hidden");
-    $("studio-btn").classList.add("hidden");
+    setAdminAccess(false);
   }
 
   // Credits follow the signed-in user.
@@ -2511,7 +2514,7 @@ function setCredits(n, account = creditAccount) {
 }
 
 async function refreshCredits() {
-  if ((!appConfig.creditsEnforced && !appConfig.payments?.testMode) || !user) {
+  if (!appConfig.creditSystem || !user) {
     setCredits(null);
     return;
   }
@@ -2523,11 +2526,53 @@ async function refreshCredits() {
       return;
     }
     const body = await res.json();
-    currentUserAdmin = !!body.admin;
-    $("admin-btn").classList.toggle("hidden", !currentUserAdmin);
-    $("studio-btn").classList.toggle("hidden", !currentUserAdmin);
+    setAdminAccess(!!body.admin);
     setCredits(body.credits, body);
   } catch { /* leave as-is */ }
+}
+
+function setAdminAccess(allowed) {
+  currentUserAdmin = !!allowed;
+  const host = $("admin-tools");
+  if (!host) return;
+  if (!currentUserAdmin) {
+    host.replaceChildren();
+    if (adminUiLoaded) {
+      showScreen("scenario");
+      $("private-tools-root")?.remove();
+      screens.admin = null;
+      screens.studio = null;
+      adminUiLoaded = false;
+      adminUiWired = false;
+    }
+    return;
+  }
+  if ($("admin-btn")) return;
+  host.innerHTML =
+    '<button id="admin-btn" class="tool-btn">Publisher’s ledger</button>' +
+    '<button id="studio-btn" class="tool-btn">Story Studio</button>';
+  $("admin-btn").addEventListener("click", openAdminDashboard);
+  $("studio-btn").addEventListener("click", openStoryStudio);
+}
+
+async function ensureAdminUi() {
+  if (adminUiLoaded) return true;
+  try {
+    const res = await fetch("/api/admin/ui", { headers: await authHeader() });
+    if (!res.ok) throw new Error("Staff tools are unavailable.");
+    const host = document.createElement("div");
+    host.id = "private-tools-root";
+    host.innerHTML = await res.text();
+    document.querySelector("main").appendChild(host);
+    screens.admin = $("screen-admin");
+    screens.studio = $("screen-studio");
+    wireAdminUi();
+    adminUiLoaded = true;
+    return true;
+  } catch (error) {
+    toast(error.message || "Staff tools are unavailable.");
+    return false;
+  }
 }
 
 function dashboardMoney(cents, currency = "usd") {
@@ -2546,14 +2591,16 @@ function dashboardCost(micros, currency = "usd") {
   }).format((Number(micros) || 0) / 1_000_000);
 }
 
-function openAdminDashboard() {
+async function openAdminDashboard() {
   if (!currentUserAdmin) return;
+  if (!await ensureAdminUi()) return;
   showScreen("admin");
   loadAdminDashboard();
 }
 
-function openStoryStudio() {
+async function openStoryStudio() {
   if (!currentUserAdmin) return;
+  if (!await ensureAdminUi()) return;
   showScreen("studio");
   loadStudioCatalog();
 }
@@ -3056,12 +3103,23 @@ function wirePayments() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeBuyModal(); });
 }
 
-function wirePilotFeedback() {
+async function wirePilotFeedback() {
   const cohort = pilotCohort();
+  if (!cohort) return;
+  try {
+    const res = await fetch("/api/pilot/ui");
+    if (!res.ok) return;
+    const host = document.createElement("div");
+    host.id = "pilot-ui-root";
+    host.innerHTML = await res.text();
+    document.body.appendChild(host);
+  } catch {
+    return;
+  }
+  const tools = $("pilot-tools");
+  tools.innerHTML = '<button id="pilot-feedback-btn" class="tool-btn">Pilot feedback</button>';
   const button = $("pilot-feedback-btn");
-  if (!button) return;
-  button.classList.toggle("hidden", !cohort);
-  if (cohort) $("account-bar").classList.remove("hidden");
+  $("account-bar").classList.remove("hidden");
   button.addEventListener("click", () => {
     if (!cohort) return;
     const completion = $("pilot-completion");
@@ -3138,6 +3196,7 @@ function openBuyModal() {
   if (!user) { pendingStart = false; openAuthModal(); return; }
   const testMode = !!appConfig.payments.testMode;
   $("buy-title").textContent = testMode ? "Test story packs" : "Story Packs";
+  $("buy-mode-note").textContent = testMode ? "Sandbox test · no real charges" : "";
   $("buy-mode-note").classList.toggle("hidden", !testMode);
   $("buy-fineprint").textContent = testMode
     ? "Stripe sandbox checkout. Test cards only; no real charge will be made."

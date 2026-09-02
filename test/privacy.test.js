@@ -10,6 +10,7 @@ const html = fs.readFileSync(path.join(__dirname, "..", "public", "privacy.html"
 test("the public privacy policy contains no drafting placeholders", () => {
   assert.doesNotMatch(html, /Draft for legal review|Counsel to|\[PRIVACY|\[OPERATOR|\[MINIMUM AGE/);
   assert.match(html, /Beta privacy note/);
+  assert.match(html, /Larkspin LLC, a Colorado limited liability company/);
 });
 
 test("the privacy policy accurately describes story generation and reader controls", () => {

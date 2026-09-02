@@ -1,6 +1,6 @@
 # Larkspin paid-reader support runbook
 
-Support address: **readlarkspin@gmail.com**
+Support address: **support@larkspin.com**
 
 Never ask a reader for a password, full card number, Stripe secret, or Supabase
 token. Ask for the account email, approximate purchase time, pack, and the last
