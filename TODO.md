@@ -66,10 +66,13 @@ P0 item is deployed and tested in the production environment.
       jurisdiction. These edits do not constitute qualified legal review.
 - [x] Set conservative, documented retention periods for operational data;
       financial reconciliation records remain immutable.
-- [ ] Schedule the provided `npm run maintenance` job after applying the launch
-      operations migration.
-- [ ] Connect the provided `npm run ops:check` report to a private alert
-      destination and schedule it daily.
+- [x] Schedule the provided `npm run maintenance` job after applying the launch
+      operations migration. Railway runs it daily at 13:15 UTC as of 2026-09-13.
+- [x] Schedule the provided `npm run ops:check` report daily. Railway runs it at
+      13:00 UTC as of 2026-09-13.
+- [ ] Connect `npm run ops:check` to a private alert destination by setting
+      `OPS_ALERT_WEBHOOK_URL`; the scheduled report currently writes to Railway
+      logs only.
 - [x] Add a support runbook for paid-but-not-credited purchases and story loss.
 - [x] Add password reset and email change; stronger new-account UX can follow
       measured reader feedback.
