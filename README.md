@@ -57,13 +57,13 @@ Selling credits needs Stripe on top of Supabase:
 2. **Developers → API keys** → create a restricted key with only the Checkout access this service needs, then store it as `STRIPE_SECRET_KEY`.
 3. **Developers → Webhooks → Add endpoint**:
    - URL: `https://YOUR-DOMAIN/api/stripe/webhook`
-   - Events: **`checkout.session.completed`**, **`checkout.session.async_payment_succeeded`**, and **`checkout.session.async_payment_failed`**
+   - Events: **`checkout.session.completed`**, **`checkout.session.async_payment_succeeded`**, **`checkout.session.async_payment_failed`**, and **`charge.refunded`**
    - After creating it, copy the endpoint's **Signing secret** into `.env` as `STRIPE_WEBHOOK_SECRET`.
 4. Restart. The “Get more stories” button appears for signed-in users.
 5. Set `PUBLIC_APP_URL`, run the payment test matrix in [`TODO.md`](TODO.md), then set `STORY_CREDITS_ENABLED=1`.
 6. Prefer a restricted Stripe key (`rk_…`) with only the permissions this service needs. Use separate test and live credentials and restrict their network access in Stripe.
 
-The launch pack hypotheses live in `CREDIT_PACKS` near the top of `server.js`: one story for $3.99, five for $15, or fifteen for $36. Prices are server-owned; the browser cannot change them. Revisit them after the publisher’s ledger has enough completion, purchase, and true model-cost data.
+The launch packs live in `CREDIT_PACKS` near the top of `server.js`: one story for $3.99 or five for $15. Prices are server-owned; the browser cannot change them. Revisit them after the publisher’s ledger has enough completion, purchase, and true model-cost data.
 
 ## Configuration
 
@@ -80,7 +80,7 @@ The launch pack hypotheses live in `CREDIT_PACKS` near the top of `server.js`: o
 | `REQUIRE_AUTH_FOR_LIVE` | `1` with Supabase | Requires accounts for live generation |
 | `AI_COVERS` | `0` | Enables authenticated, quota-limited model-generated SVG covers |
 | `REPORT_HASH_SALT` | — | Salt used to pseudonymize share reporters' IPs |
-| `MODEL_INPUT_USD_PER_MILLION` / `MODEL_OUTPUT_USD_PER_MILLION` | `0` | Exact provider rates used for publisher-ledger cost estimates |
+| `MODEL_INPUT_USD_PER_MILLION` / `MODEL_OUTPUT_USD_PER_MILLION` | `0` if unset; `.env.example` supplies `5` / `25` | Rates per million tokens for cost estimates; set explicitly in production and verify against the configured model's pricing |
 | `ADMIN_EMAILS` | — | Comma-separated emails that get unlimited stories (testing/staff) |
 | `STORY_MODEL` | `claude-opus-4-8` | Which Claude model narrates |
 | `TARGET_CHAPTERS` | `10` | Target story length; finale forced by target + 4 |

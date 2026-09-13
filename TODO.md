@@ -47,7 +47,10 @@ P0 item is deployed and tested in the production environment.
       Stripe-hosted sandbox Checkout on 2026-08-07. An exact signed Checkout
       event was forced to `503`, then replayed to `200` after recovery on
       2026-08-07; the failpoint was removed and no duplicate stories were granted.
-- [ ] Enable `STORY_CREDITS_ENABLED=1` only after the payment matrix passes.
+- [x] Production credit enforcement is enabled: `/api/config` reported
+      `creditsEnforced: true` and `payments.testMode: false` on 2026-09-13.
+      This confirms configuration only; payment-matrix verification above
+      remains open until its remaining scenarios have recorded results.
 
 ## P1 — operations and trust
 
@@ -58,10 +61,9 @@ P0 item is deployed and tested in the production environment.
 - [x] Add share revocation and reader reporting.
 - [x] Add initial privacy, terms, AI-content, and public-sharing disclosures.
 - [ ] Have qualified counsel replace/review the privacy policy and terms.
-      (Drafts expanded to describe the real stack and data flows, with
-      bracketed placeholders for operator identity, jurisdiction, age,
-      retention, refund/consumer rights, and liability cap — awaiting an
-      attorney to finalize.)
+      The policies describe the stack and data flows without drafting
+      placeholders. The hardening release names Larkspin LLC and Colorado
+      jurisdiction. These edits do not constitute qualified legal review.
 - [x] Set conservative, documented retention periods for operational data;
       financial reconciliation records remain immutable.
 - [ ] Schedule the provided `npm run maintenance` job after applying the launch
