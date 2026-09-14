@@ -196,9 +196,31 @@ if (
   );
 }
 
-// Admin accounts (comma-separated emails) get unlimited stories and are never
-// charged — for story testing and staff use. Matching is case-insensitive.
-// These emails still sign in normally; they simply bypass the credit gate.
+// Admin accounts get unlimited stories, are never charged, and reach Story
+// Studio and the publisher's ledger. Staff identity is bound to the Supabase
+// user id, because an email address is claimable: with "Confirm email" turned
+// off — which this project's own Supabase setup notes offer as an option for
+// instant signups — GoTrue stamps email_confirmed_at at registration, so
+// whoever registers a staff address first would be handed staff powers. A user
+// id cannot be registered.
+//
+// ADMIN_EMAILS still works for deployments that predate ADMIN_USER_IDS and now
+// additionally requires a confirmed address, but it is never stronger than the
+// project's confirmation setting. Prefer ids; `npm run preflight` fails on
+// emails alone. Copy an id from Supabase → Authentication → Users.
+const ADMIN_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ADMIN_USER_IDS = new Set(
+  (process.env.ADMIN_USER_IDS || "")
+    .split(",")
+    .map((id) => id.trim().toLowerCase())
+    .filter(Boolean)
+    .filter((id) => {
+      if (ADMIN_ID_RE.test(id)) return true;
+      // Fail closed but say so: a typo would otherwise just never match.
+      console.warn(`Ignoring malformed ADMIN_USER_IDS entry: ${id}`);
+      return false;
+    }),
+);
 const ADMIN_EMAILS = new Set(
   (process.env.ADMIN_EMAILS || "")
     .split(",")
@@ -206,7 +228,20 @@ const ADMIN_EMAILS = new Set(
     .filter(Boolean),
 );
 function isAdmin(user) {
-  return !!(user && user.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
+  if (!user) return false;
+  if (user.id && ADMIN_USER_IDS.has(String(user.id).toLowerCase())) return true;
+  // GoTrue returns email_confirmed_at; confirmed_at is its older alias. Accept
+  // either, so an existing staff account never silently loses access over a
+  // field name.
+  if (!user.email || !(user.email_confirmed_at || user.confirmed_at)) return false;
+  return ADMIN_EMAILS.has(user.email.toLowerCase());
+}
+if (ADMIN_EMAILS.size && !ADMIN_USER_IDS.size) {
+  console.warn(
+    "ADMIN_EMAILS is set without ADMIN_USER_IDS. Staff access is bound to an email " +
+    "address, which anyone can register while Supabase email confirmation is off. " +
+    "Set ADMIN_USER_IDS to the Supabase user ids of your staff accounts.",
+  );
 }
 
 // The Stripe webhook must read the RAW request body to verify the signature,
@@ -260,7 +295,16 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: "512kb" }));
 
-const homeTemplate = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+// Server-rendered templates live in views/, NOT in public/. Both carry content
+// the public page must never receive: index.html holds the private admin and
+// pilot UI between its markers, and both hold {{PLACEHOLDER}} tokens that only
+// mean anything after substitution. Anything under public/ is reachable through
+// express.static under every spelling of its path — /index%2Ehtml and
+// //index.html both miss the routes below and fall through to the static
+// handler — so keeping these two files out of that directory, rather than
+// blocking the spellings one at a time, is what makes the private markup
+// unreachable.
+const homeTemplate = fs.readFileSync(path.join(__dirname, "views", "index.html"), "utf8");
 function extractPrivateFragment(template, startMarker, endMarker) {
   const start = template.indexOf(startMarker);
   const end = template.indexOf(endMarker);
@@ -708,15 +752,19 @@ async function teaserAllowed(req, { user, storyId, history, worldId, scenarioHas
   // travelling with it, so the scenario itself has to be one of ours.
   if (!isBuiltinScenario(worldId, scenarioHash)) return false;
 
-  // Global ceiling first: when the day's budget is gone, don't consume a
-  // visitor's single allowance on a teaser they cannot have.
-  if (await consumeLimit(req, {
-    key: "teaser:global",
-    limit: TEASER_DAILY_LIMIT,
-    windowSeconds: DAY_SECONDS,
-    scope: "teaser-global",
-  })) return false;
-
+  // Narrowest bucket first, global last. Every consumeLimit call spends a unit
+  // whether or not it allows the request, so checking the global ceiling first
+  // would let one client burn the whole day's budget with refused requests —
+  // TEASER_DAILY_LIMIT unauthenticated POSTs, no account and no API spend, and
+  // the anonymous funnel is off for everyone until the window rolls. Spending
+  // the per-visitor and per-IP allowances first puts the IP backstop in front
+  // of the global counter, so exhausting the budget now takes
+  // TEASER_DAILY_LIMIT / TEASER_PER_IP_PER_DAY distinct addresses.
+  //
+  // The reverse worry — burning a visitor's one allowance on a day whose budget
+  // is already gone — costs nothing: all three buckets share DAY_SECONDS and the
+  // same window boundary, so they roll over together, and while the global
+  // ceiling is spent no visitor gets a teaser regardless.
   if (await consumeLimit(req, {
     key: `teaser:visitor:${teaserVisitorKey(sessionId)}`,
     limit: TEASER_PER_VISITOR_PER_DAY,
@@ -729,6 +777,13 @@ async function teaserAllowed(req, { user, storyId, history, worldId, scenarioHas
     limit: TEASER_PER_IP_PER_DAY,
     windowSeconds: DAY_SECONDS,
     scope: "teaser-ip",
+  })) return false;
+
+  if (await consumeLimit(req, {
+    key: "teaser:global",
+    limit: TEASER_DAILY_LIMIT,
+    windowSeconds: DAY_SECONDS,
+    scope: "teaser-global",
   })) return false;
 
   return true;
@@ -1867,7 +1922,7 @@ async function resolveStripeBalanceTransaction(value) {
 
 const DATA_DIR = path.join(__dirname, "data");
 const SHARE_FILE = path.join(DATA_DIR, "stories.json");
-const SHARE_TEMPLATE = fs.readFileSync(path.join(__dirname, "public", "share.html"), "utf8");
+const SHARE_TEMPLATE = fs.readFileSync(path.join(__dirname, "views", "share.html"), "utf8");
 let sharedStories = {};
 try {
   sharedStories = JSON.parse(fs.readFileSync(SHARE_FILE, "utf8"));
@@ -2289,4 +2344,4 @@ if (require.main === module) app.listen(PORT, () => {
   });
 });
 
-module.exports = { app, catalogLimitError, cleanCatalogWorld };
+module.exports = { app, catalogLimitError, cleanCatalogWorld, isAdmin };

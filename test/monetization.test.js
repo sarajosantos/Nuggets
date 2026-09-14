@@ -8,7 +8,7 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const schema = fs.readFileSync(path.join(root, "supabase", "schema.sql"), "utf8");
 const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
-const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
+const html = fs.readFileSync(path.join(root, "views", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
 
 test("new accounts receive exactly one ledger-backed welcome story", () => {

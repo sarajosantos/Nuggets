@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "public", "terms.html"), "utf8");
-const shareHtml = fs.readFileSync(path.join(__dirname, "..", "public", "share.html"), "utf8");
+const shareHtml = fs.readFileSync(path.join(__dirname, "..", "views", "share.html"), "utf8");
 
 test("the public terms contain no drafting placeholders", () => {
   assert.doesNotMatch(html, /Draft for legal review|Counsel to|\[OPERATOR|\[MINIMUM|\[GOVERNING|\[VENUE|\[TIME PERIOD|\[AMOUNT|\[SUPPORT/);

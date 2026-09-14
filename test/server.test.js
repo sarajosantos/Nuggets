@@ -52,6 +52,40 @@ test("does not serve staff UI without server authorization", async () => {
   assert.notEqual(response.status, 200);
 });
 
+test("no spelling of a template path reaches the unrendered file", async () => {
+  // The homepage route matches "/" and "/index.html", but express.static served
+  // anything left in public/ under every other spelling of the same file:
+  // /index%2Ehtml and //index.html both missed the route and returned the raw
+  // 31KB template — private admin and pilot markup included, price placeholders
+  // unsubstituted. Both templates now live in views/, outside the static root,
+  // so there is no spelling left to find rather than a list of blocked ones.
+  for (const suspect of [
+    "/index%2Ehtml",
+    "//index.html",
+    "/./index.html",
+    "/%2Findex.html",
+    "/share.html",
+    "/share%2Ehtml",
+    "/views/index.html",
+    "/../views/index.html",
+  ]) {
+    const response = await fetch(`${base}${suspect}`, { redirect: "manual" });
+    const body = response.ok ? await response.text() : "";
+    assert.doesNotMatch(body, /PRIVATE_ADMIN_UI_START|PILOT_UI_START/, `${suspect} leaked private markup`);
+    assert.doesNotMatch(body, /\{\{(?:PRICE_NOTE|SHARE)_/, `${suspect} leaked an unrendered template`);
+  }
+});
+
+test("the rendered homepage is the only thing served from either route", async () => {
+  for (const spelling of ["/", "/index.html"]) {
+    const response = await fetch(`${base}${spelling}`);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.doesNotMatch(html, /PRIVATE_ADMIN_UI_START|PILOT_UI_START/);
+    assert.doesNotMatch(html, /\{\{PRICE_NOTE_/);
+  }
+});
+
 test("reports safe demo configuration", async () => {
   const response = await fetch(`${base}/api/config`);
   const config = await response.json();

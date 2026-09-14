@@ -1,0 +1,61 @@
+-- Pre-open-beta hardening.
+--
+-- Two changes, both idempotent, both safe to run against a live database:
+--   1. Stop publishing every shared story to the anon key.
+--   2. Remove two dead grant_stripe_credits overloads.
+--
+-- Neither touches a row. No story, ledger entry, purchase, or refund is read,
+-- written, or deleted here.
+
+-- ---------------------------------------------------------------------------
+-- 1. shared_stories is server-only again
+-- ---------------------------------------------------------------------------
+-- The table carried `for select using (true)`, so anyone holding the browser's
+-- publishable anon key could page the whole table straight off PostgREST:
+--
+--   GET /rest/v1/shared_stories?select=*
+--
+-- That returns every published story's full text along with its author's
+-- user_id, which makes one reader's separate shares linkable to each other.
+-- "Anyone with the link may read this story" is the promise the Terms make;
+-- "anyone may enumerate every story ever published" is not.
+--
+-- Nothing in the product reads this table with the anon key. The browser
+-- fetches a share through the server (`/api/share/:id`, and `/s/:id` for the
+-- reader page), which queries with the service-role key and so bypasses RLS.
+-- Dropping the policy leaves the table with no policies at all: RLS is on,
+-- anon and authenticated match nothing, the server is unaffected.
+drop policy if exists "anyone can read shares" on public.shared_stories;
+
+-- ---------------------------------------------------------------------------
+-- 2. Retire the superseded grant_stripe_credits overloads
+-- ---------------------------------------------------------------------------
+-- Three overloads accumulated across migrations: the original (3 args), a
+-- rolling-deploy shim (5 args), and the current one (8 args, which also records
+-- session, payment intent, amount and currency for the publisher's ledger).
+-- PostgREST resolves by argument names, and the server has sent all eight since
+-- 20260808001500_stripe_financial_reporting.sql, so the older two have had no
+-- caller for over a month. Left in place they stay callable and would record a
+-- purchase with no financial detail, quietly breaking revenue reconciliation.
+--
+-- Signatures are spelled out so only the dead overloads are dropped; the 8-arg
+-- function the webhook actually calls is untouched.
+drop function if exists public.grant_stripe_credits(text, uuid, integer);
+drop function if exists public.grant_stripe_credits(text, uuid, integer, text, text);
+
+-- ---------------------------------------------------------------------------
+-- Verification
+-- ---------------------------------------------------------------------------
+-- Exactly one grant_stripe_credits should remain, taking eight arguments:
+--
+--   select p.oid::regprocedure
+--     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--    where n.nspname = 'public' and p.proname = 'grant_stripe_credits';
+--
+-- and shared_stories should report zero policies:
+--
+--   select count(*) from pg_policies
+--    where schemaname = 'public' and tablename = 'shared_stories';
+--
+-- Then confirm the reader path still works end to end: open an existing
+-- /s/:id link signed out. It is served by the server, so it must still render.
