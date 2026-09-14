@@ -18,6 +18,7 @@ const {
   cleanStoryInputs,
   hashValue,
   normalizePublicOrigin,
+  normalizeSource,
   sanitizeSvg,
   signTeaser: signTeaserWith,
   stripeRefund,
@@ -600,6 +601,11 @@ async function recordProductEvent({
     if (boundedId(metadata.pilotCohort, 80)) {
       safeMetadata.pilotCohort = boundedId(metadata.pilotCohort, 80);
     }
+    // Where the reader came from. A malformed value is dropped rather than
+    // stored: an unattributed event is a gap in a chart, while an unvalidated
+    // one is arbitrary browser-supplied text in the publisher's ledger.
+    const source = normalizeSource(metadata.source);
+    if (source) safeMetadata.source = source;
   }
   const { error } = await supabaseAdmin.from("product_events").insert({
     id,

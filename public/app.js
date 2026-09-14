@@ -529,6 +529,13 @@ const screens = {
 // Frozen — see the storage-key note above.
 const PRODUCT_SESSION_KEY = "plotwick-product-session-v1";
 const PILOT_COHORT_KEY = "plotwick-pilot-cohort-v1";
+// New in the attribution change, so it carries the current name.
+const READER_SOURCE_KEY = "larkspin-reader-source-v1";
+
+// Must stay identical to SOURCE_PATTERN in lib/core.js, which is the authority.
+// There is no build step here, so the two cannot share a module;
+// test/attribution.test.js fails if they drift.
+const SOURCE_PATTERN = /^(?:direct|(?:tag|via):[a-z0-9][a-z0-9._-]{0,47})$/;
 
 function pilotCohort() {
   try {
@@ -541,6 +548,65 @@ function pilotCohort() {
     return saved && /^[a-zA-Z0-9:_-]{1,80}$/.test(saved) ? saved : null;
   } catch {
     return null;
+  }
+}
+
+// A campaign tag we authored, e.g. ?ref=booktok-sept. Trimmed and lowercased,
+// because ?ref=BookTok-Sept is plainly the same channel — but nothing beyond
+// that. Substituting the characters we don't like would turn any crafted link
+// into a plausible-looking row in the publisher's ledger, so a tag that doesn't
+// already fit is dropped. A campaign of ours that reports no readers is a
+// visibly broken link we can fix; an invented channel is a number staff would
+// have no way to disbelieve.
+function normalizeTag(value) {
+  if (typeof value !== "string") return null;
+  const clean = value.trim().toLowerCase();
+  return SOURCE_PATTERN.test(`tag:${clean}`) ? clean : null;
+}
+
+function referrerSource() {
+  if (!document.referrer) return null;
+  try {
+    const url = new URL(document.referrer);
+    // Our own pages are not a channel. A reader moving from the terms page back
+    // to the shelf keeps whatever brought them here in the first place.
+    if (url.hostname === window.location.hostname) return null;
+    const candidate = `via:${url.hostname.toLowerCase().replace(/^www\./, "")}`;
+    return SOURCE_PATTERN.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
+function firstTouchSource() {
+  const params = new URLSearchParams(window.location.search);
+  // Each candidate is tried in turn rather than taking the first one present:
+  // a malformed ?ref should not also discard a perfectly good ?utm_source.
+  for (const key of ["ref", "utm_source"]) {
+    const tagged = normalizeTag(params.get(key));
+    if (tagged) return `tag:${tagged}`;
+  }
+  // Coming back from Stripe is not a discovery. The referrer on that leg is the
+  // payment page, and recording it would invent a channel we never used.
+  if (params.has("checkout")) return "direct";
+  return referrerSource() || "direct";
+}
+
+// Where this reader came from, decided once and then held for the session.
+// Storage is read before the URL — the opposite of pilotCohort() above, where a
+// freshly clicked pilot link should take over. Here first touch wins: the
+// question this answers is what brought someone to Larkspin, not what they
+// clicked most recently.
+function readerSource() {
+  try {
+    const saved = sessionStorage.getItem(READER_SOURCE_KEY);
+    if (saved && SOURCE_PATTERN.test(saved)) return saved;
+    const source = firstTouchSource();
+    sessionStorage.setItem(READER_SOURCE_KEY, source);
+    return source;
+  } catch {
+    // Storage blocked. Attribution degrades to per-request rather than failing.
+    return firstTouchSource();
   }
 }
 
@@ -560,6 +626,7 @@ function productSessionId() {
 async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
   try {
     const cohort = pilotCohort();
+    const source = readerSource();
     await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
@@ -569,7 +636,11 @@ async function trackProductEvent(event, { worldId, storyId, metadata } = {}) {
         sessionId: productSessionId(),
         worldId: worldId || null,
         storyId: storyId || null,
-        metadata: { ...(metadata || {}), ...(cohort ? { pilotCohort: cohort } : {}) },
+        metadata: {
+          ...(metadata || {}),
+          ...(cohort ? { pilotCohort: cohort } : {}),
+          ...(source ? { source } : {}),
+        },
       }),
       keepalive: true,
     });
@@ -621,6 +692,10 @@ function escapeHtml(s) {
 init();
 
 async function init() {
+  // Settle the source synchronously, before the first await and well before
+  // handleCheckoutReturn() below strips the query string off the URL.
+  readerSource();
+
   try {
     appConfig = await fetch("/api/config").then((r) => r.json());
     if (appConfig.demo) $("demo-banner").classList.remove("hidden");
@@ -2943,6 +3018,32 @@ function renderAdminDashboard(data) {
       `<span class="funnel-track"><span class="funnel-fill" style="--funnel-width:${width}%"></span></span>` +
       `<span class="funnel-value">${readers}</span></div>`;
   }).join("");
+
+  // A long tail of one-reader referrers would bury the channels worth reading.
+  // The API keeps them all; the page shows the top of the list and says how
+  // many it left out.
+  const allSources = data.sources || [];
+  const shownSources = allSources.slice(0, 12);
+  const sourceRows = shownSources.map((entry) => {
+    const sourceFunnel = entry.funnel || {};
+    const selected = Number(sourceFunnel.world_selected) || 0;
+    const started = Number(sourceFunnel.story_started) || 0;
+    const finished = Number(sourceFunnel.story_completed) || 0;
+    const bought = Number(sourceFunnel.purchase_completed) || 0;
+    // Stored as tag:booktok-sept / via:reddit.com / direct. The prefix says
+    // whether we placed the number or inferred it; readers of the ledger get it
+    // in words rather than punctuation.
+    const name = entry.source === "direct" ? "Typed or untagged" : entry.source.slice(entry.source.indexOf(":") + 1);
+    const kind = entry.kind === "tag" ? "tagged link" : entry.kind === "via" ? "referrer" : "no source";
+    return `<div class="ledger-row"><strong>${escapeHtml(name)}</strong>` +
+      `<span>${kind} · ${entry.readers || 0} readers · ${selected} selected · ${started} started · ${finished} finished · ${bought} bought</span></div>`;
+  }).join("");
+  const hiddenSources = allSources.length - shownSources.length;
+  $("admin-sources").innerHTML = sourceRows
+    ? sourceRows + (hiddenSources > 0
+      ? `<p class="ledger-empty">and ${hiddenSources} more with fewer readers</p>`
+      : "")
+    : '<p class="ledger-empty">No attributed arrivals in this period.</p>';
 
   const pilotRows = (data.pilots || []).map((pilot) => {
     const pilotFunnel = pilot.funnel || {};

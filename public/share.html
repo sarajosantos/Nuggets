@@ -38,7 +38,7 @@
     <p class="header-rule" aria-hidden="true">
       <svg class="mark" viewBox="0 0 100 100"><use href="#larkspin-mark"/></svg>
     </p>
-    <h1 class="logo"><a href="/">Larkspin</a></h1>
+    <h1 class="logo"><a href="/?ref=share">Larkspin</a></h1>
     <p class="tagline">a story someone lived</p>
   </header>
 
@@ -46,7 +46,10 @@
     <div id="reader">
       <p class="screen-sub">Fetching the manuscript…</p>
     </div>
-    <p class="share-footer-note">For readers 18+ · Spun on <a href="/">Larkspin</a> — begin your own story</p>
+    <!-- Tagged so a reader arriving from a shared story is attributable. Without
+         it the referrer is our own host, which is deliberately ignored, and the
+         arrival lands in "direct" alongside everyone who typed the address. -->
+    <p class="share-footer-note">For readers 18+ · Spun on <a href="/?ref=share">Larkspin</a> — begin your own story</p>
     <p class="share-footer-note"><button id="report-story" class="back-link hidden">Report this story</button></p>
   </main>
 
