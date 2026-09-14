@@ -89,6 +89,21 @@ test("teasers are bounded per visitor, per IP, and globally", () => {
   assert.match(server, /TEASER_PER_IP_PER_DAY = Number\(process\.env\.TEASER_PER_IP_PER_DAY\) \|\| 5/);
 });
 
+test("the global teaser budget is spent last, behind the per-IP backstop", () => {
+  // consume_rate_limit increments whether or not it allows the call, so
+  // whichever bucket is checked first is spent by refused requests too.
+  // Checking the global ceiling first let one client burn the entire day's
+  // budget with TEASER_DAILY_LIMIT unauthenticated POSTs — no account, no API
+  // spend — and close the anonymous funnel for everyone until the window
+  // rolled. Narrowest bucket first keeps the per-IP ceiling in front of it.
+  const body = server.slice(
+    server.indexOf("async function teaserAllowed("),
+    server.indexOf("app.get(\"/api/config\""),
+  );
+  const order = [...body.matchAll(/scope: "(teaser-[a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(order, ["teaser-visitor", "teaser-ip", "teaser-global"]);
+});
+
 test("the teaser path opens no session and charges nothing", () => {
   // The teaser branch must bypass beginOrClaimStory entirely — that function is
   // the only thing that can take a story at story start.

@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
-const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
+const html = fs.readFileSync(path.join(root, "views", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "public", "style.css"), "utf8");
 const share = fs.readFileSync(path.join(root, "public", "share.js"), "utf8");

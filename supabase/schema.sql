@@ -63,12 +63,13 @@ create table if not exists public.shared_stories (
 
 alter table public.shared_stories enable row level security;
 
+-- Server-only: no policies at all, so anon and authenticated clients get
+-- nothing from PostgREST. A published story is public through /s/:id and
+-- /api/share/:id, which the server serves with the service-role key. It is NOT
+-- world-readable at the table, because "anyone with the link" and "anyone may
+-- list every story ever published, grouped by author user_id" are different
+-- promises, and only the first is the one readers are given.
 drop policy if exists "anyone can read shares" on public.shared_stories;
-create policy "anyone can read shares" on public.shared_stories
-  for select
-  using (true);
--- No insert/update/delete policies: only the service-role key (which bypasses
--- RLS) can write, i.e. the Larkspin server.
 
 -- ---------------------------------------------------------------------------
 -- Profiles & story credits
@@ -369,58 +370,11 @@ create table if not exists public.stripe_events (
 alter table public.stripe_events enable row level security;
 -- Server-only (service role) access; no policies.
 
--- Grant credits for a paid Stripe event, exactly once. If the event id was
--- already processed, this is a no-op. Returns the new balance.
-create or replace function public.grant_stripe_credits(
-  p_event_id text, p_user_id uuid, p_credits integer)
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_new_event integer;
-  v_credits integer;
-begin
-  perform public.assert_credit_ledger_balance(p_user_id);
-  insert into public.stripe_events (id, user_id, credits_granted)
-  values (p_event_id, p_user_id, p_credits)
-  on conflict (id) do nothing;
-  get diagnostics v_new_event = row_count;
-
-  if v_new_event = 0 then
-    -- Already processed this event; return current balance unchanged.
-    select credits into v_credits from public.profiles where id = p_user_id;
-    return coalesce(v_credits, 0);
-  end if;
-
-  insert into public.profiles (id, credits) values (p_user_id, p_credits)
-  on conflict (id) do update set credits = public.profiles.credits + p_credits
-  returning credits into v_credits;
-
-  insert into public.credit_ledger (
-    user_id, delta, balance_after, reason, idempotency_key,
-    stripe_event_id, metadata
-  ) values (
-    p_user_id,
-    p_credits,
-    v_credits,
-    'stripe_purchase',
-    'stripe:' || p_event_id,
-    p_event_id,
-    jsonb_build_object('legacy_grant', true)
-  );
-
-  return v_credits;
-end;
-$$;
-
--- Lock all three money functions down: they run as SECURITY DEFINER, so make
--- sure end users (anon / authenticated) can NEVER call them directly. Only the
+-- Lock the money functions down: they run as SECURITY DEFINER, so make sure
+-- end users (anon / authenticated) can NEVER call them directly. Only the
 -- server's service-role key (which bypasses these grants) may invoke them.
 revoke all on function public.start_story(uuid, text) from public, anon, authenticated;
 revoke all on function public.refund_story(uuid, text) from public, anon, authenticated;
-revoke all on function public.grant_stripe_credits(text, uuid, integer) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Authoritative story sessions
@@ -1137,66 +1091,6 @@ end;
 $$;
 revoke all on function public.refund_stripe_credits(
   text, text, integer, text
-)
-  from public, anon, authenticated;
-
--- Rolling-deploy compatibility: an older server may briefly call the previous
--- five-argument RPC after this schema is installed. It still receives the same
--- idempotency and ledger guarantees; only revenue metadata is unavailable.
-create or replace function public.grant_stripe_credits(
-  p_event_id text,
-  p_user_id uuid,
-  p_credits integer,
-  p_session_id text,
-  p_pack_id text
-)
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_new_event integer;
-  v_credits integer;
-begin
-  if p_credits <= 0 then raise exception 'invalid credit grant'; end if;
-  perform public.assert_credit_ledger_balance(p_user_id);
-  insert into public.stripe_events (
-    id, user_id, credits_granted, session_id, pack_id
-  ) values (
-    p_event_id, p_user_id, p_credits, p_session_id, p_pack_id
-  ) on conflict (id) do nothing;
-  get diagnostics v_new_event = row_count;
-  if v_new_event = 0 then
-    select profiles.credits into v_credits
-      from public.profiles where id = p_user_id;
-    return coalesce(v_credits, 0);
-  end if;
-  insert into public.profiles (id, credits) values (p_user_id, p_credits)
-  on conflict (id) do update
-    set credits = public.profiles.credits + p_credits
-  returning profiles.credits into v_credits;
-  insert into public.credit_ledger (
-    user_id, delta, balance_after, reason, idempotency_key,
-    stripe_event_id, metadata
-  ) values (
-    p_user_id,
-    p_credits,
-    v_credits,
-    'stripe_purchase',
-    'stripe:' || p_event_id,
-    p_event_id,
-    jsonb_build_object(
-      'session_id', p_session_id,
-      'pack_id', p_pack_id,
-      'rolling_deploy_compatibility', true
-    )
-  );
-  return v_credits;
-end;
-$$;
-revoke all on function public.grant_stripe_credits(
-  text, uuid, integer, text, text
 )
   from public, anon, authenticated;
 

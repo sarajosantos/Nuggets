@@ -41,6 +41,10 @@ npm start              # http://localhost:3000
    - `SUPABASE_URL` and `SUPABASE_ANON_KEY` — enables sign-in and the cloud library
    - `SUPABASE_SERVICE_ROLE_KEY` (server-only secret; never expose it to the browser) — moves published share links into Postgres too
 4. Optional: under **Authentication → Providers → Email**, turn off "Confirm email" for instant signups, or configure SMTP so confirmation emails deliver.
+   Turning confirmation off means Supabase auto-confirms every signup, so an
+   email address proves nothing about who owns it. Grant staff access with
+   `ADMIN_USER_IDS` (Supabase user ids) rather than `ADMIN_EMAILS`, or someone
+   can register a staff address and take Story Studio and the ledger with it.
 5. Under **Authentication → URL Configuration**, set the site URL to
    `https://larkspin.com` and allow `https://larkspin.com/?account=recovery` as
    a redirect URL. Password recovery depends on this allowlist entry.
@@ -81,7 +85,12 @@ The launch packs live in `CREDIT_PACKS` near the top of `server.js`: one story f
 | `AI_COVERS` | `0` | Enables authenticated, quota-limited model-generated SVG covers |
 | `REPORT_HASH_SALT` | — | Salt used to pseudonymize share reporters' IPs |
 | `MODEL_INPUT_USD_PER_MILLION` / `MODEL_OUTPUT_USD_PER_MILLION` | `0` if unset; `.env.example` supplies `5` / `25` | Rates per million tokens for cost estimates; set explicitly in production and verify against the configured model's pricing |
-| `ADMIN_EMAILS` | — | Comma-separated emails that get unlimited stories (testing/staff) |
+| `ADMIN_USER_IDS` | — | Comma-separated Supabase user ids with staff access: unlimited stories, Story Studio, the publisher's ledger. The way to grant staff access |
+| `ADMIN_EMAILS` | — | Legacy staff list, by email. Requires a confirmed address, but an email can be registered by anyone while Supabase email confirmation is off — prefer `ADMIN_USER_IDS`, which preflight requires alongside it |
+| `TEASER_ENABLED` | `0` | One free live first chapter for signed-out visitors ([rollout](docs/TEASER_ROLLOUT.md)) |
+| `TEASER_SECRET` | random per boot | Signs teaser chapters for later redemption. Set it wherever teasers are enabled, or a redeploy voids outstanding ones |
+| `TEASER_PER_VISITOR_PER_DAY` / `TEASER_PER_IP_PER_DAY` / `TEASER_DAILY_LIMIT` | `1` / `5` / `200` | Per-visitor, per-address, and global daily teaser ceilings |
+| `OPS_ALERT_WEBHOOK_URL` | — | HTTPS destination for `ops:check` reports and critical events. Unset, ledger mismatches reach only the logs |
 | `STORY_MODEL` | `claude-opus-4-8` | Which Claude model narrates |
 | `TARGET_CHAPTERS` | `10` | Target story length; finale forced by target + 4 |
 | `RATE_LIMIT_PER_HOUR` | `40` | Max chapters per IP per hour |
