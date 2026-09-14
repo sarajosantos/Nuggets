@@ -19,11 +19,11 @@ test("first-time readers get a concise orientation before the story shelf", () =
 
 test("the home page clearly sets beta expectations", () => {
   assert.match(html, /id="beta-notice"/);
-  assert.match(html, /Founding reader beta/);
+  assert.match(html, /Larkspin is in beta/);
   assert.match(html, /For readers 18\+/);
-  assert.match(html, /The stories are ready; the product around them is still evolving/);
-  assert.match(html, /What to know before you begin/);
-  assert.ok(html.indexOf('id="beta-notice"') < html.indexOf('id="scenario-grid"'));
+  assert.match(html, /Accounts, purchases, and the reading experience are still being refined/);
+  assert.match(html, /Read the beta notes/);
+  assert.ok(html.indexOf('id="beta-notice"') < html.indexOf('class="site-header"'));
 });
 
 test("account and purchase copy repeats the adult-only requirement", () => {
