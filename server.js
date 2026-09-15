@@ -205,10 +205,8 @@ if (
 // whoever registers a staff address first would be handed staff powers. A user
 // id cannot be registered.
 //
-// ADMIN_EMAILS still works for deployments that predate ADMIN_USER_IDS and now
-// additionally requires a confirmed address, but it is never stronger than the
-// project's confirmation setting. Prefer ids; `npm run preflight` fails on
-// emails alone. Copy an id from Supabase → Authentication → Users.
+// ADMIN_EMAILS is deprecated and never grants access, even for confirmed email.
+// Configure verified Supabase user IDs before deploying this release.
 const ADMIN_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ADMIN_USER_IDS = new Set(
   (process.env.ADMIN_USER_IDS || "")
@@ -229,19 +227,12 @@ const ADMIN_EMAILS = new Set(
     .filter(Boolean),
 );
 function isAdmin(user) {
-  if (!user) return false;
-  if (user.id && ADMIN_USER_IDS.has(String(user.id).toLowerCase())) return true;
-  // GoTrue returns email_confirmed_at; confirmed_at is its older alias. Accept
-  // either, so an existing staff account never silently loses access over a
-  // field name.
-  if (!user.email || !(user.email_confirmed_at || user.confirmed_at)) return false;
-  return ADMIN_EMAILS.has(user.email.toLowerCase());
+  return !!(user && user.id && ADMIN_USER_IDS.has(String(user.id).toLowerCase()));
 }
-if (ADMIN_EMAILS.size && !ADMIN_USER_IDS.size) {
+
+if (ADMIN_EMAILS.size) {
   console.warn(
-    "ADMIN_EMAILS is set without ADMIN_USER_IDS. Staff access is bound to an email " +
-    "address, which anyone can register while Supabase email confirmation is off. " +
-    "Set ADMIN_USER_IDS to the Supabase user ids of your staff accounts.",
+    "ADMIN_EMAILS no longer grants staff access. Set ADMIN_USER_IDS to verified Supabase staff user ids.",
   );
 }
 
@@ -1185,56 +1176,29 @@ async function beginOrClaimStory({ user, storyId, startToken, requestId, scenari
       firstChapter: !storyId,
     };
   }
-  const scenarioHash = hashValue(scenario);
-  const characterHash = hashValue(character);
-  if (!storyId) {
-    if (
-      startToken &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(startToken)
-    ) {
-      return { ok: false, invalid: true };
-    }
-    const newStoryId = crypto.randomUUID();
-    const { data, error } = await supabaseAdmin.rpc("begin_story_session_v2", {
-      p_user_id: user.id,
-      p_story_id: newStoryId,
-      p_scenario_hash: scenarioHash,
-      p_character_hash: characterHash,
-      p_request_id: requestId,
-      p_start_token: startToken || crypto.randomUUID(),
-      p_charge: CREDITS_ENFORCED && !admin,
-    });
-    if (error) throw new Error(`begin_story_session_v2: ${error.message}`);
-    const row = Array.isArray(data) ? data[0] : data;
-    return {
-      ok: !!(row && row.ok),
-      storyId: newStoryId,
-      credits: row && row.credits,
-      charged: !!(row && row.charged),
-      firstChapter: true,
-      conflict: !!(row && row.conflict),
-    };
-  }
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storyId)) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if ((storyId && !uuid.test(storyId)) || (startToken && !uuid.test(startToken))) {
     return { ok: false, invalid: true };
   }
-  const priorHistoryHash = hashValue(history.slice(0, -1));
-  const { data, error } = await supabaseAdmin.rpc("claim_story_chapter", {
+  const firstChapter = history.length === 1;
+  const { data, error } = await supabaseAdmin.rpc("prepare_story_chapter", {
     p_user_id: user.id,
-    p_story_id: storyId,
-    p_scenario_hash: scenarioHash,
-    p_character_hash: characterHash,
-    p_prior_history_hash: priorHistoryHash,
+    p_story_id: storyId || null,
+    p_start_token: startToken || (firstChapter ? crypto.randomUUID() : null),
+    p_scenario_hash: hashValue(scenario),
+    p_character_hash: hashValue(character),
+    p_prior_history_hash: hashValue(history.slice(0, -1)),
+    p_request_hash: hashValue(history),
     p_request_id: requestId,
+    p_charge: CREDITS_ENFORCED && !admin,
+    p_first: firstChapter,
   });
-  if (error) throw new Error(`claim_story_chapter: ${error.message}`);
+  if (error) throw new Error(`prepare_story_chapter: ${error.message}`);
   const row = Array.isArray(data) ? data[0] : data;
   return {
-    ok: !!(row && row.ok),
-    storyId,
-    credits: row && row.credits,
-    firstChapter: false,
-    conflict: !!(row && row.conflict),
+    ok: !!row?.ok, storyId: row?.story_id,
+    credits: row?.credits, firstChapter: !!row?.first_chapter,
+    conflict: !!row?.conflict, replay: row?.replay,
   };
 }
 
@@ -1340,6 +1304,12 @@ app.post("/api/story", async (req, res) => {
     sseSend(res, { type: "credits", credits: session.credits });
   }
 
+  if (session.replay) {
+    sseSend(res, { type: "text", text: session.replay });
+    sseSend(res, { type: "done" });
+    return res.end();
+  }
+
   let streamedText = "";
   let finalUsage = null;
   let stream = null;
@@ -1377,7 +1347,7 @@ app.post("/api/story", async (req, res) => {
           type: "error",
           error: "The storyteller declined to continue this scene. Try a different action.",
         });
-      } else if (final.stop_reason === "max_tokens") {
+      } else if (final.stop_reason === "max_tokens" || streamedText.length > 20000) {
         const failed = await failStorySession({
           user, storyId: session.storyId, requestId,
         });
@@ -1406,12 +1376,13 @@ app.post("/api/story", async (req, res) => {
             ...history,
             { role: "assistant", content: streamedText },
           ]);
-          const { data, error } = await supabaseAdmin.rpc("complete_story_chapter", {
+          const { data, error } = await supabaseAdmin.rpc("complete_story_chapter_v2", {
             p_user_id: user.id,
             p_story_id: session.storyId,
             p_request_id: requestId,
             p_history_hash: completedHistoryHash,
             p_chapter_count: chapterNum,
+            p_output: streamedText,
           });
           const row = Array.isArray(data) ? data[0] : data;
           if (error || !row || !row.ok) {
@@ -1439,6 +1410,11 @@ app.post("/api/story", async (req, res) => {
       userId: user && user.id,
       storyId: session.storyId,
       error: err.message,
+    });
+    await recordUsage({
+      req, user, kind: teaser ? "teaser" : "chapter",
+      storyId: session.storyId, usage: finalUsage, status: "failed",
+      metadata: { chapter: chapterNum },
     });
     const failed = await failStorySession({
       user, storyId: session.storyId, requestId,

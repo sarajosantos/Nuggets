@@ -71,8 +71,8 @@ test("staff access is bound to a user id, not a claimable email address", () => 
   for (const confirmed of [{ email_confirmed_at: "2026-09-01T00:00:00Z" }, { confirmed_at: "2026-09-01T00:00:00Z" }]) {
     assert.equal(
       isAdmin({ id: "11111111-1111-4111-8111-111111111111", email: "staff@larkspin.com", ...confirmed }),
-      true,
-      `a confirmed staff address is staff (${Object.keys(confirmed)[0]})`,
+      false,
+      `a confirmed email cannot grant staff access (${Object.keys(confirmed)[0]})`,
     );
   }
   assert.equal(isAdmin(null), false);
@@ -80,8 +80,8 @@ test("staff access is bound to a user id, not a claimable email address", () => 
 });
 
 test("the staff list warns when it is bound to email addresses alone", () => {
-  assert.match(server, /ADMIN_EMAILS\.size && !ADMIN_USER_IDS\.size/);
-  assert.match(server, /email_confirmed_at/);
+  assert.match(server, /ADMIN_EMAILS\.size/);
+  assert.match(server, /ADMIN_EMAILS no longer grants staff access/);
 });
 
 test("crawler-visible pages include descriptions and sharing metadata", () => {

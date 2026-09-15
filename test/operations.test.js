@@ -39,7 +39,7 @@ test("launch preflight refuses staff access bound only to an email address", () 
   assert.ok(emailsOnly.some((check) => check.name === "Staff bound to user ids" && check.status === "fail"));
 
   const withIds = launchConfiguration({
-    ...base,
+    ADMIN_EMAILS: "",
     ADMIN_USER_IDS: "6f1b1d4e-8a2c-4f6e-9b21-2f0a1c7d3e55",
   });
   assert.ok(withIds.some((check) => check.name === "Staff bound to user ids" && check.status === "pass"));

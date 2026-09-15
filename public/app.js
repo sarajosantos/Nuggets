@@ -1267,7 +1267,8 @@ function openStory(id) {
   } else {
     const last = [...story.history].reverse().find((m) => m.role === "assistant");
     const choices = last ? parseChoices(last.content) : null;
-    if (last) showChoices(choices);
+    if (story.history.at(-1)?.role === "user") requestChapter();
+    else if (last) showChoices(choices);
     else requestChapter();
   }
 }
@@ -1295,6 +1296,7 @@ function openStoryScreen() {
 }
 
 function chooseAction(action, isCustom) {
+  if (generating || !story) return;
   $("custom-action").value = "";
   hideChoices();
   appendPlayerAction(action);
@@ -1308,7 +1310,18 @@ function chooseAction(action, isCustom) {
   requestChapter();
 }
 
+let accountEpoch = 0;
+let activeChapterController = null;
+
 async function requestChapter() {
+  if (generating || !story) return;
+  const activeStory = story;
+  const epoch = accountEpoch;
+  const controller = new AbortController();
+  activeChapterController = controller;
+  const current = () => accountEpoch === epoch && story === activeStory;
+  // Save the pending action before the network request, including on reload.
+  persistStory(activeStory);
   generating = true;
   $("typing-indicator").classList.remove("hidden");
   $("error-area").classList.add("hidden");
@@ -1320,28 +1333,34 @@ async function requestChapter() {
 
   let fullText = "";
   let failed = null;
+  let receivedDone = false;
 
   try {
+    const headers = await authHeader();
+    if (!current()) return;
     const res = await fetch("/api/story", {
+      signal: controller.signal,
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({
-        storyId: story.serverId || null,
-        startToken: story.serverId ? null : (story.startToken ||= crypto.randomUUID()),
+        storyId: activeStory.serverId || null,
+        startToken: (activeStory.startToken ||= crypto.randomUUID()),
         sessionId: productSessionId(),
-        worldId: story.scenario.id,
+        worldId: activeStory.scenario.id,
         scenario: {
-          title: story.scenario.title,
-          premise: story.scenario.premise,
-          tone: story.scenario.tone,
+          title: activeStory.scenario.title,
+          premise: activeStory.scenario.premise,
+          tone: activeStory.scenario.tone,
         },
-        character: story.character,
-        history: story.history,
+        character: activeStory.character,
+        history: activeStory.history,
       }),
     });
+    if (!current()) return;
     if (res.status === 402) {
       // Out of credits — offer to buy more.
       const body = await res.json().catch(() => ({}));
+      if (!current()) return;
       setCredits(0);
       generating = false;
       $("typing-indicator").classList.add("hidden");
@@ -1375,6 +1394,7 @@ async function requestChapter() {
 
     while (true) {
       const { done, value } = await reader.read();
+      if (!current()) return;
       if (done) break;
       buf += decoder.decode(value, { stream: true });
       let idx;
@@ -1390,19 +1410,21 @@ async function requestChapter() {
         } else if (evt.type === "credits") {
           setCredits(evt.credits);
         } else if (evt.type === "story") {
-          story.serverId = evt.storyId;
-          persistStory(story);
+          activeStory.serverId = evt.storyId;
+          persistStory(activeStory);
         } else if (evt.type === "teaser") {
           // A free, unowned chapter. The throwaway id the server sent with it
           // is not a real session, so drop it — keeping it would make the next
           // request look like a continuation and 409.
-          story.serverId = null;
-          story.teaserPending = true;
-          story.teaserToken = evt.token;
-          persistStory(story);
+          activeStory.serverId = null;
+          activeStory.teaserPending = true;
+          activeStory.teaserToken = evt.token;
+          persistStory(activeStory);
         } else if (evt.type === "story-reset") {
-          story.serverId = null;
-          persistStory(story);
+          activeStory.serverId = null;
+          persistStory(activeStory);
+        } else if (evt.type === "done") {
+          receivedDone = true;
         } else if (evt.type === "error") {
           failed = evt.error;
         }
@@ -1413,11 +1435,14 @@ async function requestChapter() {
     failed = err.userMessage || "Couldn't reach the storyteller. Check your connection and try again.";
   }
 
+  if (!current()) return;
+  activeChapterController = null;
   generating = false;
   $("typing-indicator").classList.add("hidden");
   releaseReserve(); // the chapter is written; hand the reserved height back
   hideJump(); // showChoices/finishStory will re-offer it if anything waits below
 
+  if (!receivedDone && !failed) failed = "The connection ended before the chapter was saved. Retry to recover it.";
   if (failed || !fullText.trim()) {
     proseEl.remove();
     showError(failed || "The storyteller returned an empty page. Try again.");
@@ -1427,24 +1452,24 @@ async function requestChapter() {
 
   // Commit the chapter.
   const prose = visiblePart(fullText);
-  story.history.push({ role: "assistant", content: fullText });
-  story.chapters.push({ prose, action: pendingAction });
+  activeStory.history.push({ role: "assistant", content: fullText });
+  activeStory.chapters.push({ prose, action: pendingAction });
   pendingAction = null;
 
   const ledger = parseLedger(fullText);
   if (ledger) {
-    story.state = ledger;
+    activeStory.state = ledger;
     if (ledger.title) {
-      const firstTime = !story.title;
-      story.title = ledger.title;
+      const firstTime = !activeStory.title;
+      activeStory.title = ledger.title;
       if (firstTime) fetchCover(); // async; fills in when ready
     }
-    $("story-title").textContent = story.title || $("story-title").textContent;
+    $("story-title").textContent = activeStory.title || $("story-title").textContent;
     updateJournal(ledger);
   }
 
-  story.updatedAt = Date.now();
-  persistStory(story);
+  activeStory.updatedAt = Date.now();
+  persistStory(activeStory);
   updateChapterCount();
 
   showChoices(parseChoices(fullText));
@@ -1553,6 +1578,9 @@ function isTeaserWalled() {
 // On success the story is ordinary, and every later chapter goes through the
 // normal path.
 async function adoptTeaser() {
+  const epoch = accountEpoch;
+  const ownerStory = story;
+  const current = () => epoch === accountEpoch && story === ownerStory;
   if (!story || !story.teaserPending || !user) return true;
   const opening = story.history[0] && story.history[0].content;
   const chapter = story.history[1] && story.history[1].content;
@@ -1562,9 +1590,11 @@ async function adoptTeaser() {
     story.teaserToken = null;
     return true;
   }
+  const headers = await authHeader();
+  if (!current()) return false;
   const res = await fetch("/api/story/adopt", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({
       scenario: {
         title: story.scenario.title,
@@ -1580,12 +1610,14 @@ async function adoptTeaser() {
       worldId: story.scenario.id,
     }),
   });
+  if (!current()) return false;
   if (res.status === 402) {
     openBuyModal();
     return false;
   }
   if (res.status === 409) {
     const body = await res.json().catch(() => ({}));
+    if (!current()) return false;
     if (body.teaserInvalid) {
       // The signature no longer verifies — expired, or the saved chapter was
       // edited. Drop the preview and let them start the story for real.
@@ -1600,6 +1632,7 @@ async function adoptTeaser() {
   }
   if (!res.ok) return false;
   const body = await res.json();
+  if (!current()) return false;
   story.serverId = body.storyId;
   story.teaserPending = false;
   story.teaserToken = null;
@@ -1676,9 +1709,14 @@ function showError(msg) {
 
 // ----- sharing -----
 async function shareStory() {
+  const epoch = accountEpoch;
+  const ownerStory = story;
+  const current = () => epoch === accountEpoch && story === ownerStory;
   if (!story) return;
   $("share-btn").disabled = true;
   try {
+    const headers = await authHeader();
+    if (!current()) return;
     if (story.shareId) {
       if (!confirm("Unpublish this story? Its public link will stop working.")) {
         $("share-btn").disabled = false;
@@ -1686,8 +1724,9 @@ async function shareStory() {
       }
       const revoke = await fetch(`/api/share/${encodeURIComponent(story.shareId)}`, {
         method: "DELETE",
-        headers: await authHeader(),
+        headers,
       });
+      if (!current()) return;
       if (!revoke.ok) throw new Error(`HTTP ${revoke.status}`);
       story.shareId = null;
       story.updatedAt = Date.now();
@@ -1699,7 +1738,7 @@ async function shareStory() {
     }
     const res = await fetch("/api/share", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({
         title: story.title || story.scenario.title,
         scenario: { title: story.scenario.title },
@@ -1710,6 +1749,7 @@ async function shareStory() {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { id } = await res.json();
+    if (!current()) return;
     story.shareId = id;
     story.updatedAt = Date.now();
     persistStory(story);
@@ -1717,6 +1757,7 @@ async function shareStory() {
     $("share-result").classList.remove("hidden");
     updateShareControls();
   } catch (err) {
+    if (!current()) return;
     console.error(err);
     alert("Couldn't publish the story right now. Try again in a moment.");
   }
@@ -1734,12 +1775,17 @@ function updateShareControls() {
 
 // ----- cover art -----
 async function fetchCover() {
+  const epoch = accountEpoch;
+  const ownerStory = story;
+  const current = () => epoch === accountEpoch && story === ownerStory;
   if (!story || story.cover || !story.title) return;
   const forStory = story;
   try {
+    const headers = await authHeader();
+    if (!current()) return;
     const res = await fetch("/api/cover", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({
         title: forStory.title,
         scenario: { title: forStory.scenario.title, premise: forStory.scenario.premise },
@@ -1748,6 +1794,7 @@ async function fetchCover() {
       }),
     });
     const { svg } = await res.json();
+    if (epoch !== accountEpoch) return;
     if (svg) {
       forStory.cover = svg;
       forStory.updatedAt = Date.now();
@@ -2450,6 +2497,10 @@ function setUser(u) {
   const previousUser = user;
   const changed = (u && u.id) !== (previousUser && previousUser.id);
   if (changed) {
+    accountEpoch += 1;
+    activeChapterController?.abort();
+    activeChapterController = null;
+    generating = false;
     setAdminAccess(false);
     saveLibrary();
     user = u;
@@ -2470,6 +2521,19 @@ function setUser(u) {
       library = accountLibrary;
     } else {
       library = loadLibrary(ANON_LIB_KEY);
+    }
+    // Only carry an anonymous reader across sign-in if its import was accepted.
+    const importedStory = !previousUser && story && library.stories[story.id];
+    if (importedStory) {
+      story = importedStory;
+      openStoryScreen();
+      renderAllChapters();
+      updateJournal(story.state);
+    } else {
+      story = null;
+      pendingAction = null;
+      $("story-text").replaceChildren();
+      showScreen("scenario");
     }
     saveLibrary();
   } else {
@@ -2493,7 +2557,9 @@ function setUser(u) {
 
   // Credits follow the signed-in user.
   if (u) {
+    const epoch = accountEpoch;
     refreshCredits().then(async () => {
+      if (epoch !== accountEpoch) return;
       // A reader who signed in from the teaser wall already has a story open and
       // a chapter read. Claim it rather than starting over — losing the chapter
       // they just read to a fresh generation would waste the moment entirely.
@@ -2589,6 +2655,7 @@ function setCredits(n, account = creditAccount) {
 }
 
 async function refreshCredits() {
+  const epoch = accountEpoch;
   if (!appConfig.creditSystem || !user) {
     setCredits(null);
     return;
@@ -2601,6 +2668,7 @@ async function refreshCredits() {
       return;
     }
     const body = await res.json();
+    if (epoch !== accountEpoch) return;
     setAdminAccess(!!body.admin);
     setCredits(body.credits, body);
   } catch { /* leave as-is */ }
@@ -2631,13 +2699,16 @@ function setAdminAccess(allowed) {
 }
 
 async function ensureAdminUi() {
+  const epoch = accountEpoch;
   if (adminUiLoaded) return true;
   try {
     const res = await fetch("/api/admin/ui", { headers: await authHeader() });
     if (!res.ok) throw new Error("Staff tools are unavailable.");
     const host = document.createElement("div");
     host.id = "private-tools-root";
-    host.innerHTML = await res.text();
+    const html = await res.text();
+    if (epoch !== accountEpoch || !currentUserAdmin) return false;
+    host.innerHTML = html;
     document.querySelector("main").appendChild(host);
     screens.admin = $("screen-admin");
     screens.studio = $("screen-studio");
@@ -3105,8 +3176,12 @@ async function authHeader() {
 // dirty flag preserves offline edits without trusting the device clock.
 async function syncWithCloud() {
   if (!sb || !user) return;
+  const epoch = accountEpoch;
+  const ownerId = user.id;
+  const current = () => epoch === accountEpoch && user?.id === ownerId;
   try {
-    const { data: rows, error } = await sb.from("stories").select("id, data, updated_at");
+    const { data: rows, error } = await sb.from("stories").select("id, data, updated_at").eq("user_id", ownerId);
+    if (!current()) return;
     if (error) throw error;
     const cloud = new Map(rows.map((r) => [r.id, r]));
 
@@ -3118,6 +3193,7 @@ async function syncWithCloud() {
         library.stories[id] = { ...cloudStory, cloudUpdatedAt, dirty: false };
       } else if (local.dirty) {
         await cloudSaveStory(local);
+        if (!current()) return;
       } else if (
         cloudUpdatedAt > (local.cloudUpdatedAt || 0) ||
         (!local.cloudUpdatedAt && (cloudStory.updatedAt || 0) > (local.updatedAt || 0))
@@ -3128,6 +3204,7 @@ async function syncWithCloud() {
     for (const st of Object.values(library.stories)) {
       if (!cloud.has(st.id)) {
         await cloudSaveStory(st);
+        if (!current()) return;
       }
     }
     saveLibrary();
@@ -3138,6 +3215,7 @@ async function syncWithCloud() {
 }
 
 function persistStory(st) {
+  if (!st || library.stories[st.id] !== st) return;
   st.localRevision = (st.localRevision || 0) + 1;
   st.dirty = true;
   saveLibrary();
@@ -3146,28 +3224,33 @@ function persistStory(st) {
 
 function cloudSaveStory(st) {
   if (!sb || !user || !st) return Promise.resolve();
-  const previous = cloudSaveChains.get(st.id) || Promise.resolve();
-  const next = previous.catch(() => {}).then(() => performCloudSave(st));
-  cloudSaveChains.set(st.id, next);
+  const ownerId = user.id;
+  const epoch = accountEpoch;
+  const snapshot = JSON.parse(JSON.stringify(st));
+  const key = ownerId + ":" + st.id;
+  const previous = cloudSaveChains.get(key) || Promise.resolve();
+  const next = previous.catch(() => {}).then(() => performCloudSave(st, snapshot, ownerId, epoch));
+  cloudSaveChains.set(key, next);
   next.finally(() => {
-    if (cloudSaveChains.get(st.id) === next) cloudSaveChains.delete(st.id);
+    if (cloudSaveChains.get(key) === next) cloudSaveChains.delete(key);
   });
   return next;
 }
 
-async function performCloudSave(st) {
-  const revision = st.localRevision || 0;
+async function performCloudSave(st, snapshot, ownerId, epoch) {
+  if (epoch !== accountEpoch || user?.id !== ownerId) return;
+  const revision = snapshot.localRevision || 0;
   try {
     const { data, error } = await sb.from("stories").upsert({
       id: st.id,
-      user_id: user.id,
-      data: st,
+      user_id: ownerId,
+      data: snapshot,
       title: st.title || st.scenario.title,
       done: !!st.done,
       updated_at: new Date().toISOString(),
     }).select("updated_at").single();
     if (error) console.warn("cloud save failed:", error.message);
-    else if (data) {
+    else if (data && epoch === accountEpoch && user?.id === ownerId) {
       st.cloudUpdatedAt = Date.parse(data.updated_at) || Date.now();
       if ((st.localRevision || 0) === revision) st.dirty = false;
       saveLibrary();
@@ -3179,10 +3262,13 @@ async function performCloudSave(st) {
 
 async function cloudDeleteStory(id) {
   if (!sb || !user) return;
+  const ownerId = user.id;
+  const epoch = accountEpoch;
   try {
-    const pendingSave = cloudSaveChains.get(id);
+    const pendingSave = cloudSaveChains.get(ownerId + ":" + id);
     if (pendingSave) await pendingSave.catch(() => {});
-    await sb.from("stories").delete().eq("id", id);
+    if (epoch !== accountEpoch || user?.id !== ownerId) return;
+    await sb.from("stories").delete().eq("id", id).eq("user_id", ownerId);
   } catch (err) {
     console.warn("cloud delete failed:", err);
   }

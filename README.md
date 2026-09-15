@@ -22,7 +22,7 @@ A single story runs from its opening line to a real ending: a complete interacti
 ## How it works
 
 - **Frontend** (`public/`) — vanilla HTML/CSS/JS, no build step. A deliberate single dark theme ("first light"): Fraunces display, Crimson Pro book prose, and one warm first-light accent on a charcoal-indigo ground.
-- **Backend** (`server.js`) — Express. Keeps provider keys server-side and streams chapters from `claude-opus-4-8` (adaptive thinking). The client sends full history each turn, while Supabase stores compact integrity metadata so the server can reject forged or replayed continuations.
+- **Backend** (`server.js`) — Express. Keeps provider keys server-side and streams chapters from `claude-opus-4-8` (adaptive thinking). The client sends full history each turn, while Supabase stores integrity metadata and the most recent completed chapter for delivery recovery so the server can reject forged or replayed continuations.
 - **Story protocol** — each model response is `prose + <state>{...}</state> + <choices>[...]</choices>`. An empty choices array signals the ending. Pacing notes ride as mid-conversation system messages on `claude-opus-4-8` (merged into the user turn on other models).
 
 ## Running it
@@ -86,7 +86,7 @@ The launch packs live in `CREDIT_PACKS` near the top of `server.js`: one story f
 | `REPORT_HASH_SALT` | — | Salt used to pseudonymize share reporters' IPs |
 | `MODEL_INPUT_USD_PER_MILLION` / `MODEL_OUTPUT_USD_PER_MILLION` | `0` if unset; `.env.example` supplies `5` / `25` | Rates per million tokens for cost estimates; set explicitly in production and verify against the configured model's pricing |
 | `ADMIN_USER_IDS` | — | Comma-separated Supabase user ids with staff access: unlimited stories, Story Studio, the publisher's ledger. The way to grant staff access |
-| `ADMIN_EMAILS` | — | Legacy staff list, by email. Requires a confirmed address, but an email can be registered by anyone while Supabase email confirmation is off — prefer `ADMIN_USER_IDS`, which preflight requires alongside it |
+| `ADMIN_EMAILS` | — | Deprecated and ignored. Remove this setting; staff access requires verified `ADMIN_USER_IDS` |
 | `TEASER_ENABLED` | `0` | One free live first chapter for signed-out visitors ([rollout](docs/TEASER_ROLLOUT.md)) |
 | `TEASER_SECRET` | random per boot | Signs teaser chapters for later redemption. Set it wherever teasers are enabled, or a redeploy voids outstanding ones |
 | `TEASER_PER_VISITOR_PER_DAY` / `TEASER_PER_IP_PER_DAY` / `TEASER_DAILY_LIMIT` | `1` / `5` / `200` | Per-visitor, per-address, and global daily teaser ceilings |
