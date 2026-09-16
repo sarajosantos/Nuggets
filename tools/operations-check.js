@@ -4,6 +4,8 @@ require("dotenv").config();
 const { createClient } = require("@supabase/supabase-js");
 const { operationalAlerts } = require("../lib/operations");
 
+const { deliverOperationsReport } = require("../lib/operations-delivery");
+
 async function main() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
@@ -36,18 +38,19 @@ async function main() {
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 
-  if (process.env.OPS_ALERT_WEBHOOK_URL && report.alerts.length) {
-    const response = await fetch(process.env.OPS_ALERT_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(report),
-    });
-    if (!response.ok) throw new Error(`alert webhook returned HTTP ${response.status}`);
-  }
+  await deliverOperationsReport(report);
   if (report.alerts.some((alert) => alert.severity === "critical")) process.exitCode = 1;
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error("Operations check failed:", error.message);
   process.exitCode = 1;
+  try {
+    await deliverOperationsReport({
+      checkedAt: new Date().toISOString(),
+      alerts: [{ severity: "critical", code: "operations_check_failed", message: "The operations check could not complete. Inspect Railway logs." }],
+    });
+  } catch {
+    console.error("Operations failure notification could not be delivered.");
+  }
 });
