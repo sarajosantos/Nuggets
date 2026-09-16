@@ -197,9 +197,29 @@ if (
   );
 }
 
-// Admin accounts (comma-separated emails) get unlimited stories and are never
-// charged — for story testing and staff use. Matching is case-insensitive.
-// These emails still sign in normally; they simply bypass the credit gate.
+// Admin accounts get unlimited stories, are never charged, and reach Story
+// Studio and the publisher's ledger. Staff identity is bound to the Supabase
+// user id, because an email address is claimable: with "Confirm email" turned
+// off — which this project's own Supabase setup notes offer as an option for
+// instant signups — GoTrue stamps email_confirmed_at at registration, so
+// whoever registers a staff address first would be handed staff powers. A user
+// id cannot be registered.
+//
+// ADMIN_EMAILS is deprecated and never grants access, even for confirmed email.
+// Configure verified Supabase user IDs before deploying this release.
+const ADMIN_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ADMIN_USER_IDS = new Set(
+  (process.env.ADMIN_USER_IDS || "")
+    .split(",")
+    .map((id) => id.trim().toLowerCase())
+    .filter(Boolean)
+    .filter((id) => {
+      if (ADMIN_ID_RE.test(id)) return true;
+      // Fail closed but say so: a typo would otherwise just never match.
+      console.warn(`Ignoring malformed ADMIN_USER_IDS entry: ${id}`);
+      return false;
+    }),
+);
 const ADMIN_EMAILS = new Set(
   (process.env.ADMIN_EMAILS || "")
     .split(",")
@@ -207,7 +227,13 @@ const ADMIN_EMAILS = new Set(
     .filter(Boolean),
 );
 function isAdmin(user) {
-  return !!(user && user.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
+  return !!(user && user.id && ADMIN_USER_IDS.has(String(user.id).toLowerCase()));
+}
+
+if (ADMIN_EMAILS.size) {
+  console.warn(
+    "ADMIN_EMAILS no longer grants staff access. Set ADMIN_USER_IDS to verified Supabase staff user ids.",
+  );
 }
 
 // The Stripe webhook must read the RAW request body to verify the signature,
@@ -261,7 +287,16 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: "512kb" }));
 
-const homeTemplate = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+// Server-rendered templates live in views/, NOT in public/. Both carry content
+// the public page must never receive: index.html holds the private admin and
+// pilot UI between its markers, and both hold {{PLACEHOLDER}} tokens that only
+// mean anything after substitution. Anything under public/ is reachable through
+// express.static under every spelling of its path — /index%2Ehtml and
+// //index.html both miss the routes below and fall through to the static
+// handler — so keeping these two files out of that directory, rather than
+// blocking the spellings one at a time, is what makes the private markup
+// unreachable.
+const homeTemplate = fs.readFileSync(path.join(__dirname, "views", "index.html"), "utf8");
 function extractPrivateFragment(template, startMarker, endMarker) {
   const start = template.indexOf(startMarker);
   const end = template.indexOf(endMarker);
@@ -714,15 +749,19 @@ async function teaserAllowed(req, { user, storyId, history, worldId, scenarioHas
   // travelling with it, so the scenario itself has to be one of ours.
   if (!isBuiltinScenario(worldId, scenarioHash)) return false;
 
-  // Global ceiling first: when the day's budget is gone, don't consume a
-  // visitor's single allowance on a teaser they cannot have.
-  if (await consumeLimit(req, {
-    key: "teaser:global",
-    limit: TEASER_DAILY_LIMIT,
-    windowSeconds: DAY_SECONDS,
-    scope: "teaser-global",
-  })) return false;
-
+  // Narrowest bucket first, global last. Every consumeLimit call spends a unit
+  // whether or not it allows the request, so checking the global ceiling first
+  // would let one client burn the whole day's budget with refused requests —
+  // TEASER_DAILY_LIMIT unauthenticated POSTs, no account and no API spend, and
+  // the anonymous funnel is off for everyone until the window rolls. Spending
+  // the per-visitor and per-IP allowances first puts the IP backstop in front
+  // of the global counter, so exhausting the budget now takes
+  // TEASER_DAILY_LIMIT / TEASER_PER_IP_PER_DAY distinct addresses.
+  //
+  // The reverse worry — burning a visitor's one allowance on a day whose budget
+  // is already gone — costs nothing: all three buckets share DAY_SECONDS and the
+  // same window boundary, so they roll over together, and while the global
+  // ceiling is spent no visitor gets a teaser regardless.
   if (await consumeLimit(req, {
     key: `teaser:visitor:${teaserVisitorKey(sessionId)}`,
     limit: TEASER_PER_VISITOR_PER_DAY,
@@ -735,6 +774,13 @@ async function teaserAllowed(req, { user, storyId, history, worldId, scenarioHas
     limit: TEASER_PER_IP_PER_DAY,
     windowSeconds: DAY_SECONDS,
     scope: "teaser-ip",
+  })) return false;
+
+  if (await consumeLimit(req, {
+    key: "teaser:global",
+    limit: TEASER_DAILY_LIMIT,
+    windowSeconds: DAY_SECONDS,
+    scope: "teaser-global",
   })) return false;
 
   return true;
@@ -1130,56 +1176,29 @@ async function beginOrClaimStory({ user, storyId, startToken, requestId, scenari
       firstChapter: !storyId,
     };
   }
-  const scenarioHash = hashValue(scenario);
-  const characterHash = hashValue(character);
-  if (!storyId) {
-    if (
-      startToken &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(startToken)
-    ) {
-      return { ok: false, invalid: true };
-    }
-    const newStoryId = crypto.randomUUID();
-    const { data, error } = await supabaseAdmin.rpc("begin_story_session_v2", {
-      p_user_id: user.id,
-      p_story_id: newStoryId,
-      p_scenario_hash: scenarioHash,
-      p_character_hash: characterHash,
-      p_request_id: requestId,
-      p_start_token: startToken || crypto.randomUUID(),
-      p_charge: CREDITS_ENFORCED && !admin,
-    });
-    if (error) throw new Error(`begin_story_session_v2: ${error.message}`);
-    const row = Array.isArray(data) ? data[0] : data;
-    return {
-      ok: !!(row && row.ok),
-      storyId: newStoryId,
-      credits: row && row.credits,
-      charged: !!(row && row.charged),
-      firstChapter: true,
-      conflict: !!(row && row.conflict),
-    };
-  }
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storyId)) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if ((storyId && !uuid.test(storyId)) || (startToken && !uuid.test(startToken))) {
     return { ok: false, invalid: true };
   }
-  const priorHistoryHash = hashValue(history.slice(0, -1));
-  const { data, error } = await supabaseAdmin.rpc("claim_story_chapter", {
+  const firstChapter = history.length === 1;
+  const { data, error } = await supabaseAdmin.rpc("prepare_story_chapter", {
     p_user_id: user.id,
-    p_story_id: storyId,
-    p_scenario_hash: scenarioHash,
-    p_character_hash: characterHash,
-    p_prior_history_hash: priorHistoryHash,
+    p_story_id: storyId || null,
+    p_start_token: startToken || (firstChapter ? crypto.randomUUID() : null),
+    p_scenario_hash: hashValue(scenario),
+    p_character_hash: hashValue(character),
+    p_prior_history_hash: hashValue(history.slice(0, -1)),
+    p_request_hash: hashValue(history),
     p_request_id: requestId,
+    p_charge: CREDITS_ENFORCED && !admin,
+    p_first: firstChapter,
   });
-  if (error) throw new Error(`claim_story_chapter: ${error.message}`);
+  if (error) throw new Error(`prepare_story_chapter: ${error.message}`);
   const row = Array.isArray(data) ? data[0] : data;
   return {
-    ok: !!(row && row.ok),
-    storyId,
-    credits: row && row.credits,
-    firstChapter: false,
-    conflict: !!(row && row.conflict),
+    ok: !!row?.ok, storyId: row?.story_id,
+    credits: row?.credits, firstChapter: !!row?.first_chapter,
+    conflict: !!row?.conflict, replay: row?.replay,
   };
 }
 
@@ -1285,6 +1304,12 @@ app.post("/api/story", async (req, res) => {
     sseSend(res, { type: "credits", credits: session.credits });
   }
 
+  if (session.replay) {
+    sseSend(res, { type: "text", text: session.replay });
+    sseSend(res, { type: "done" });
+    return res.end();
+  }
+
   let streamedText = "";
   let finalUsage = null;
   let stream = null;
@@ -1322,7 +1347,7 @@ app.post("/api/story", async (req, res) => {
           type: "error",
           error: "The storyteller declined to continue this scene. Try a different action.",
         });
-      } else if (final.stop_reason === "max_tokens") {
+      } else if (final.stop_reason === "max_tokens" || streamedText.length > 20000) {
         const failed = await failStorySession({
           user, storyId: session.storyId, requestId,
         });
@@ -1351,12 +1376,13 @@ app.post("/api/story", async (req, res) => {
             ...history,
             { role: "assistant", content: streamedText },
           ]);
-          const { data, error } = await supabaseAdmin.rpc("complete_story_chapter", {
+          const { data, error } = await supabaseAdmin.rpc("complete_story_chapter_v2", {
             p_user_id: user.id,
             p_story_id: session.storyId,
             p_request_id: requestId,
             p_history_hash: completedHistoryHash,
             p_chapter_count: chapterNum,
+            p_output: streamedText,
           });
           const row = Array.isArray(data) ? data[0] : data;
           if (error || !row || !row.ok) {
@@ -1384,6 +1410,11 @@ app.post("/api/story", async (req, res) => {
       userId: user && user.id,
       storyId: session.storyId,
       error: err.message,
+    });
+    await recordUsage({
+      req, user, kind: teaser ? "teaser" : "chapter",
+      storyId: session.storyId, usage: finalUsage, status: "failed",
+      metadata: { chapter: chapterNum },
     });
     const failed = await failStorySession({
       user, storyId: session.storyId, requestId,
@@ -1873,7 +1904,7 @@ async function resolveStripeBalanceTransaction(value) {
 
 const DATA_DIR = path.join(__dirname, "data");
 const SHARE_FILE = path.join(DATA_DIR, "stories.json");
-const SHARE_TEMPLATE = fs.readFileSync(path.join(__dirname, "public", "share.html"), "utf8");
+const SHARE_TEMPLATE = fs.readFileSync(path.join(__dirname, "views", "share.html"), "utf8");
 let sharedStories = {};
 try {
   sharedStories = JSON.parse(fs.readFileSync(SHARE_FILE, "utf8"));
@@ -2295,4 +2326,4 @@ if (require.main === module) app.listen(PORT, () => {
   });
 });
 
-module.exports = { app, catalogLimitError, cleanCatalogWorld };
+module.exports = { app, catalogLimitError, cleanCatalogWorld, isAdmin };

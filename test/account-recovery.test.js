@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 
-const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+const html = fs.readFileSync(path.join(__dirname, "..", "views", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
 
 test("readers can request and complete password recovery", () => {

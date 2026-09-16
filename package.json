@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "check": "npm test && npm audit --omit=dev --audit-level=high",
     "preflight": "node tools/launch-preflight.js",
     "preflight:paid": "node tools/launch-preflight.js --paid",
@@ -25,5 +25,8 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
   }
 }

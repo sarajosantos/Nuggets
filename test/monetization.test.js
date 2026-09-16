@@ -8,7 +8,7 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const schema = fs.readFileSync(path.join(root, "supabase", "schema.sql"), "utf8");
 const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
-const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
+const html = fs.readFileSync(path.join(root, "views", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
 
 test("new accounts receive exactly one ledger-backed welcome story", () => {
@@ -32,8 +32,8 @@ test("concurrent first chapters share an idempotent start token", () => {
   assert.match(schema, /start_token uuid/);
   assert.match(schema, /unique index if not exists story_sessions_start_token_idx/);
   assert.match(schema, /on conflict \(user_id, start_token\) where start_token is not null do nothing/);
-  assert.match(server, /begin_story_session_v2/);
-  assert.match(server, /p_start_token: startToken \|\| crypto\.randomUUID\(\)/);
+  assert.match(server, /prepare_story_chapter/);
+  assert.match(server, /p_start_token: startToken/);
   assert.match(app, /startToken: crypto\.randomUUID\(\)/);
 });
 

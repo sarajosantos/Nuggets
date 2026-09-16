@@ -11,8 +11,8 @@ const root = path.join(__dirname, "..");
 const core = fs.readFileSync(path.join(root, "lib", "core.js"), "utf8");
 const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
-const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
-const share = fs.readFileSync(path.join(root, "public", "share.html"), "utf8");
+const html = fs.readFileSync(path.join(root, "views", "index.html"), "utf8");
+const share = fs.readFileSync(path.join(root, "views", "share.html"), "utf8");
 const privacy = fs.readFileSync(path.join(root, "public", "privacy.html"), "utf8");
 
 // ---------------------------------------------------------------------------

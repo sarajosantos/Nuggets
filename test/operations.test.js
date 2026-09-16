@@ -26,8 +26,49 @@ test("launch preflight accepts the production-shaped configuration", () => {
     STORY_CREDITS_ENABLED: "1",
     STRIPE_SECRET_KEY: "rk_live_example",
     STRIPE_WEBHOOK_SECRET: "whsec_example",
+    OPS_ALERT_WEBHOOK_URL: "https://alerts.example/hook",
   }, { paid: true });
   assert.deepEqual(checks.filter((check) => check.status === "fail"), []);
+});
+
+test("launch preflight refuses staff access bound only to an email address", () => {
+  const base = {
+    ADMIN_EMAILS: "staff@larkspin.com",
+  };
+  const emailsOnly = launchConfiguration(base);
+  assert.ok(emailsOnly.some((check) => check.name === "Staff bound to user ids" && check.status === "fail"));
+
+  const withIds = launchConfiguration({
+    ADMIN_EMAILS: "",
+    ADMIN_USER_IDS: "6f1b1d4e-8a2c-4f6e-9b21-2f0a1c7d3e55",
+  });
+  assert.ok(withIds.some((check) => check.name === "Staff bound to user ids" && check.status === "pass"));
+
+  // No staff configured at all is not a misconfiguration.
+  const noStaff = launchConfiguration({});
+  assert.ok(noStaff.some((check) => check.name === "Staff bound to user ids" && check.status === "pass"));
+});
+
+test("launch preflight requires a teaser secret only once teasers are enabled", () => {
+  const off = launchConfiguration({});
+  assert.ok(off.some((check) => check.name === "Teaser signing secret" && check.status === "pass"));
+
+  const onWithout = launchConfiguration({ TEASER_ENABLED: "1" });
+  assert.ok(onWithout.some((check) => check.name === "Teaser signing secret" && check.status === "fail"));
+
+  const onWith = launchConfiguration({ TEASER_ENABLED: "1", TEASER_SECRET: "b".repeat(64) });
+  assert.ok(onWith.some((check) => check.name === "Teaser signing secret" && check.status === "pass"));
+});
+
+test("launch preflight escalates the missing alert destination when money is live", () => {
+  const free = launchConfiguration({});
+  assert.ok(free.some((check) => check.name === "Operations alert destination" && check.status === "warn"));
+
+  const paid = launchConfiguration({}, { paid: true });
+  assert.ok(paid.some((check) => check.name === "Operations alert destination" && check.status === "fail"));
+
+  const wired = launchConfiguration({ OPS_ALERT_WEBHOOK_URL: "https://alerts.example/hook" }, { paid: true });
+  assert.ok(wired.some((check) => check.name === "Operations alert destination" && check.status === "pass"));
 });
 
 test("operations health raises critical ledger and generation alerts", () => {
