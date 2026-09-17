@@ -516,9 +516,7 @@ function logEvent(level, event, details = {}) {
       timestamp: entry.timestamp,
       severity: level === "error" ? "critical" : "warning",
       event,
-      requestId: details.requestId || null,
-      eventId: details.eventId || null,
-      storyId: details.storyId || null,
+      // Keep external notifications free of reader/story/payment identifiers.
     };
     void fetch(OPS_ALERT_WEBHOOK_URL, {
       method: "POST",

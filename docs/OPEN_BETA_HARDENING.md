@@ -16,7 +16,7 @@ Production had an additional seven-argument Stripe grant absent from current sch
 
 ## Configuration and release
 
-ADMIN_USER_IDS must contain verified existing staff account IDs. Remove ADMIN_EMAILS; this release ignores it. The existing staff ID was matched to its longstanding account and the configuration update was submitted in Railway. Verify deployment and staff UI after merging PR #6.
+ADMIN_USER_IDS must contain verified existing staff account IDs. Remove ADMIN_EMAILS; this release ignores it. The existing staff ID was matched to its longstanding account and the configuration is live in Railway. PR #6 merged as 2a29c8f and deployment 9a44002b is active. The existing staff account successfully opened the publisher ledger and loaded its cloud library.
 
 Teasers are currently disabled. Keep them disabled until a persistent TEASER_SECRET of at least 32 characters is configured.
 
@@ -24,8 +24,16 @@ Operations alert delivery remains incomplete. OPS_ALERT_WEBHOOK_URL needs an act
 
 ## Validation and limits
 
-npm run check: 120 tests passed; zero known production dependency vulnerabilities. GitHub CI passed for 793c441. PostgreSQL tests cover ownership, concurrent claims, replay, stale workers, migration idempotence, rolling deployment, named Stripe fulfillment and event deduplication.
+npm run check: 126 tests passed after the alert-delivery follow-up; zero known production dependency vulnerabilities. GitHub CI passed for 793c441. PostgreSQL tests cover ownership, concurrent claims, replay, stale workers, migration idempotence, rolling deployment, named Stripe fulfillment and event deduplication.
 
-Before release completion, verify public home/share pages, alternate static template paths, staff access, account switching, and retry/reload after interrupted chapters. Payment tests do not establish a real-money purchase/refund rehearsal; obtain specific authorization before charging a real card.
+Live checks passed: public home and assets, alternate template paths returning 404, anonymous staff access returning 401, signed-in staff access, ledger reconciliation, interruption during the first chapter followed by Resume, continuation to chapter two, and both chapters surviving reload. The new synthetic story is titled A Field Guide to Still Water, under the Beta recovery test world; existing stories were not changed. Live account switching and public-share publication remain unverified. Payment tests do not establish a real-money purchase/refund rehearsal; obtain specific authorization before charging a real card.
 
 Recovery applies to chapters completed by this release and retains only the latest completed chapter. Previously lost output cannot be reconstructed. Keep additive database changes on rollback; old application versions do not provide the new recovery behavior.
+
+## Email monitoring setup
+
+The alert-delivery follow-up adds optional OPS_HEALTHCHECK_URL support. Create a free Healthchecks check with email delivery to the owner's verified inbox. Set OPS_HEALTHCHECK_URL to its base HTTPS UUID ping URL and OPS_ALERT_WEBHOOK_URL to the same URL with /fail appended. Store these only in Railway variables, not Git. Configure both on the operations service and the webhook on the web service for its existing real-time critical alerts.
+
+A clean scheduled run sends a success heartbeat. Any alert sends a failure signal; failure to query the database also sends a sanitized failure notification. Requests time out after ten seconds, and an unrecognized/rate-limited check is treated as delivery failure. The scheduled job's monitor detects missing executions independently. A later clean operations check marks the monitor recovered; that is a health snapshot, not proof that a previously failed Stripe event has been replayed. Review and resolve payment incidents in Railway/Stripe even after recovery mail.
+
+Use an hourly Railway schedule and a matching one-hour monitor period with ten minutes' grace for beta. Before activation, run the job manually and verify the heartbeat, send a labeled test failure through the monitored destination, confirm email receipt, then restore the healthy state. The existing daily schedule and missing receiver must not be treated as completed monitoring. Email verification and live configuration are still pending at this record's update.
