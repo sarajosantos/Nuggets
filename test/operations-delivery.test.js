@@ -73,3 +73,10 @@ test("a failed operations query sends a sanitized critical alert and exits unsuc
   assert.equal(calls[0].alerts[0].severity, "critical");
   assert.doesNotMatch(JSON.stringify(calls), /SUPABASE|SERVICE_ROLE/);
 });
+
+test("monitor receives alert types without financial totals or identifiers", async () => {
+  await deliverOperationsReport({ ...failed, reconciliation: { outstanding: 999 }, alerts: [{ severity: "critical", code: "ledger_mismatch", value: 55, message: "private detail" }] }, { OPS_HEALTHCHECK_URL: base }, async (url, init) => {
+    assert.deepEqual(JSON.parse(init.body), { checkedAt: failed.checkedAt, alerts: [{ severity: "critical", code: "ledger_mismatch" }] });
+    return new Response("OK");
+  });
+});
